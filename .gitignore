@@ -1,0 +1,34 @@
+# Docker deployment secrets and runtime state — never commit
+.env
+app_data/
+navidrome_data/
+slskd_config/
+__pycache__/
+
+# Isolated test stack (docker-compose.test.yml) — same reasons as above,
+# kept fully separate so tests can never touch the real ones
+.env.test
+app_data_test/
+navidrome_data_test/
+slskd_config_test/
+config_test/
+
+# Live-test run artifacts (tests/live/ --artifacts) — timelines from a
+# specific run against a specific stack, never useful to anyone else
+live-artifacts/
+
+backlog/
+.omo/
+.mypy_cache/
+.ruff_cache/
+.claude/
+.pytest_cache/
+AGENTS.md
+agents_memory/
+
+# Logo font dir — Forta (OFL 1.1, bundled) is tracked; anything else dropped
+# here (e.g. a personally-licensed font) is not — see app/static/fonts/README.md
+app/static/fonts/*
+!app/static/fonts/README.md
+!app/static/fonts/logo.ttf
+!app/static/fonts/logo-LICENSE.txt

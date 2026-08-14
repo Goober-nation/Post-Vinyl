@@ -1,0 +1,36 @@
+-- Drop the search_jobs / search_responses duplication added by 004.
+--
+-- 004 persisted every search job and every raw peer response into musica's
+-- own DB so that alternative-peer retry would survive a restart. It works,
+-- but it was solving a problem that wasn't there: **slskd is the system of
+-- record for search results and already retains them durably.**
+--
+-- Verified live 2026-08-11 against the running stack:
+--   * GET /api/v0/searches/{id}/responses served the oldest search musica
+--     knew about — 250 responses, byte-identical count to musica's copy
+--   * after `docker compose restart slskd`, the same three searches still
+--     returned 250 / 35 / 22 responses
+--   * `retention.search` is unset in slskd.yml, i.e. indefinite
+-- This matches what agents_memory/topics/slskd-api.md already recorded, and
+-- what SearchStore's own pre-004 docstring said.
+--
+-- The cost of the duplication was not theoretical: 23 searches produced
+-- 2,823 rows / 4.1 MB — 76% of the entire database — and SlskdSearch._hydrate
+-- loaded and JSON-parsed *every row ever written* into memory on the first
+-- request after startup, making startup O(all history).
+--
+-- Retry still survives a restart; it re-fetches by search_id from slskd
+-- (SlskdDownload.fetch_search_responses). That is NOT a fresh search — no new
+-- POST /api/v0/searches, no new network query, same completed search and the
+-- same candidate pool.
+--
+-- `searches` is untouched: it already holds exactly the header data musica
+-- should own (id, query, artist, created_at, status, response_count,
+-- file_count) and stays scoped to user-initiated searches, so rec-puller
+-- background searches don't flood the user's own history (see 003).
+--
+-- `worker_state` is untouched and stays — RecPuller's last-run timestamps are
+-- musica's own state, not a copy of anything slskd has.
+
+DROP TABLE IF EXISTS search_responses;
+DROP TABLE IF EXISTS search_jobs;

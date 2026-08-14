@@ -1,0 +1,169 @@
+# Musica Configuration
+# Copy this file to config.toml and adjust values
+# Secrets should be in .env file, not here
+
+[server]
+port = 8000
+host = "0.0.0.0"
+
+[paths]
+data_dir = "/app/data"
+music_dir = "/music"
+# Directory settings are relative to music_dir, not full paths — musica joins
+# them itself. music_dir is the Docker mount root and is not editable from the
+# frontend. Each recommendation category has its own complete folder path.
+download_dir = "downloads"
+searches_dir = "Searches"
+library_dir = "library"
+# Per-category rec trees (P6.7-0b), shown as resolved paths in Config:
+discovery_familiar_dir = "Discovery/Comfort_Zone"
+discovery_new_releases_dir = "Discovery/Fresh_Picks"
+discovery_exploration_dir = "Discovery/Deep_Cuts"
+
+[navidrome]
+url = "http://navidrome-server:4533"
+# username and password are secrets, set via .env — NOT read from this file
+# even if uncommented (Config._populate_navidrome() always pulls them from
+# the environment, never from TOML)
+
+[slskd]
+url = "http://slskd:5030"
+# api_key is a secret, set via .env — NOT read from this file (same as above)
+
+[listenbrainz]
+url = "https://api.listenbrainz.org"  # default; not user-editable via the UI
+# token and username are secrets, set via .env — NOT read from this file
+# (same as above). The integration is enabled automatically once both are
+# set (requires a restart to take effect)
+
+[search]
+wait_seconds = 10          # Max time to wait for slskd search
+response_threshold = 10    # Early cutoff: cancel once responseCount reaches this
+response_cap = 250          # Hard stop: cancel once responseCount reaches this
+min_wait_seconds = 3       # Minimum elapsed time before early cutoff allowed
+pass_ratio_threshold = 0.75
+artist_match_min_words = 1 # How many of the artist's words a candidate filename must contain
+                           # to pass the ladder's artist filter (default 1 = any word). Higher
+                           # is stricter; never demands more words than the artist name has.
+poll_interval = 1          # Seconds between metadata polls (min 1)
+
+# Diagnosed 2026-08-13: one Soulseek search fans out network-wide and opens
+# thousands of peer connections. response_limit caps what slskd *records*
+# per search — it does NOT reduce peer connections on its own (measured) —
+# but there's no reason to keep more than needed. The rate limiter and query
+# cache are what actually bound the connection storm: they stop musica from
+# re-broadcasting the same or new searches faster than one search's peer
+# connections can drain (~1 min on slskd's side).
+response_limit = 60                     # Cap on recorded responses per search
+rate_limit_max_searches = 4             # Max NEW searches per rate_limit_window_seconds
+rate_limit_window_seconds = 60          # Sliding window for the above
+rate_limit_wait_timeout_seconds = 45    # How long a caller blocks for a free slot before erroring (429)
+query_cache_ttl_seconds = 600           # Identical query text within this window reuses prior results, no new search
+
+[download]
+check_interval = 15        # How often daemon polls slskd transfers (seconds)
+max_retries_per_track = 3  # Per-file retry limit (same search results)
+bad_peer_threshold = 1     # Failures before auto-block
+upload_limit_mb = 50       # Max upload file size (MB)
+pending_timeout_minutes = 5 # How long a queue-time pending row may sit unadopted by slskd
+                           # before it's marked failed. Stops a download slskd never picks up
+                           # from gating rec queueing forever (manual downloads beat recs).
+manual_gate_minutes = 10   # How long a still-'queued' manual download holds the rec-queue priority
+                           # gate. Rows actually downloading are never aged out. Stops a peer that
+                           # parks the transfer in its own upload queue from starving recs.
+orphan_grace_polls = 2     # Consecutive polls a slskd-adopted transfer may go unreported before
+                           # it's treated as orphaned (marked failed, then retried from a
+                           # different peer). >1 so one blipped status response can't kill
+                           # healthy transfers.
+peer_ban_days = 2          # How long a bad-peer block lasts before it's lifted automatically and
+                           # the peer's failure_count resets to 0 — a peer that failed once must
+                           # not stay banned forever.
+missing_source_timeout_minutes = 5 # How long to keep retrying to find a completed transfer's file
+                           # on disk before giving up and marking it failed. Without this a stale
+                           # row pointing at a file that will never exist retries forever, once per
+                           # check_interval.
+history_clear_interval_minutes = 15 # How often (minutes) slskd's terminal transfer history is
+                           # cleared automatically. 0 disables. Found live 2026-08-14: accumulated
+                           # slskd download history congested the stack; clearing it restored
+                           # normal operation. Only slskd-side records are removed; musica's own
+                           # rows are kept, and failed removals are retried next cycle.
+
+[recs]
+# Each category has its own enabled flag — there are 3 independent
+# playlists, not 1, so there's no single master switch any more. A
+# disabled category is excluded from automatic pulls only. Manual category
+# selection beside Pull Now is independent of these periodic controls.
+comfort_zone_enabled = false       # Set to true to enable Comfort Zone pulls
+fresh_picks_enabled = false        # Set to true to enable Fresh Picks pulls
+deep_cuts_enabled = false          # Set to true to enable Deep Cuts pulls
+comfort_zone_interval_days = 1     # Auto-pull interval for Comfort Zone (days, min 1)
+deep_cuts_interval_days = 7        # Auto-pull interval for Deep Cuts (days, min 1)
+                                    # Fresh Picks has its own nightly cadence below.
+# P6.7-1: one fully independent Navidrome playlist per category (decided
+# over a shared base name + fixed suffixes). The old merged "Recs" playlist
+# was retired with the split.
+comfort_zone_playlist_name = "Comfort Zone"  # Navidrome playlist for Comfort Zone
+fresh_picks_playlist_name = "Fresh Picks"    # Navidrome playlist for Fresh Picks
+deep_cuts_playlist_name = "Deep Cuts"        # Navidrome playlist for Deep Cuts
+# No exclude_spoken_word setting: podcasts/audiobooks/spoken word are always
+# dropped from recs, not configurable. Fresh Picks is ListenBrainz's GLOBAL
+# new-releases feed and really does serve podcasts (MusicBrainz release-group
+# type "Broadcast"), which can never resolve on Soulseek and would burn a
+# pick slot each.
+comfort_zone_count = 5             # Number of Comfort Zone recs to fetch
+deep_cuts_count = 5                # Number of Deep Cuts recs to fetch
+# P6.7-7: rotation threshold. When a category playlist rotates, rec-sourced
+# tracks rated at or below this (and unrated tracks) move to the Trash
+# playlist (TrashPurge later deletes the file); tracks rated above it are
+# kept in the library and only leave the playlist.
+rotation_trash_rating = 1
+
+[fresh_picks]
+# Fresh Picks runs independently on a nightly cadence. The global feed skips
+# the newest releases until they have a chance to appear on Soulseek.
+pull_window = "30d"                # Positive integer duration: d or h
+offset = 50                         # Newest releases skipped before the window
+count = 5                           # Rolling playlist target
+search_buffer = 25                  # Extra candidates to cover Soulseek misses
+
+[sync]
+interval_hours = 12        # Love/hate sync sweep interval (hours)
+
+[logging]
+level = "INFO"             # DEBUG, INFO, WARNING, ERROR, CRITICAL
+format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+[beets]
+enabled = false             # P6.6-1: route completed downloads through beets for tag/rename/move.
+                            # When false, DownloadMonitor leaves completed transfers in place
+                            # (untagged) rather than falling back to the retired _move_file().
+binary = "beet"             # Path/name of the beets CLI executable
+timeout_seconds = 120       # Max seconds to wait for a single `beet import` subprocess call
+
+# Notes:
+# - Secrets (username, password, api_key, token) should be in .env file
+# - Hot-reload: Non-secret settings can be changed without restart
+# - Secrets: Require restart after changing in .env
+# - ListenBrainz: Set enabled = true to activate recommendation and feedback features
+
+# MusicBrainz — canonical metadata lookups (P-MB-1).
+#
+# MusicBrainz requires a descriptive User-Agent. Musica identifies itself with
+# the project URL automatically; no personal contact setting is needed.
+#
+# `min_request_interval` is MusicBrainz's published anonymous rate limit
+# (1 req/sec, averaged). Raise it if you like; lowering it against the public
+# server risks getting your IP blocked.
+#
+# `min_score` is the confidence floor (0-100) below which a search result is
+# discarded instead of applied. High on purpose — a weak match applied
+# silently files a track under a confident-looking wrong name, which is worse
+# than leaving it flagged as unmatched.
+[musicbrainz]
+enabled = true
+url = "https://musicbrainz.org"
+timeout_seconds = 15
+min_request_interval = 1.0
+cache_ttl_seconds = 3600
+min_score = 90
+search_official_only = true

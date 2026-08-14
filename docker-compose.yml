@@ -1,0 +1,102 @@
+# Secrets/host paths (${MUSIC_HOST_DIR}, ${NAVIDROME_USERNAME}, etc.) come
+# from .env, auto-loaded by `docker compose` from this directory 
+
+# Copy .env.example to .env and fill in real values first.
+
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome-server
+    ports:
+      - "8090:4533"
+    restart: unless-stopped
+    environment:
+      - ND_MUSICFOLDER=/music
+      - ND_DATAFOLDER=/data
+      - ND_LOGLEVEL=warning
+      - ND_SCANSCHEDULE=@every 10m
+      - ND_LISTENBRAINZ_ENABLED=true
+      - ND_LISTENBRAINZ_TOKEN=${LISTENBRAINZ_TOKEN}
+      - ND_SCANNER_PURGEMISSING=always
+    volumes:
+      - ${MUSIC_HOST_DIR}:/music:ro
+      - ./navidrome_data:/data
+    networks:
+      - music-net
+
+  slskd:
+    image: slskd/slskd:latest
+    container_name: slskd
+    restart: unless-stopped
+    ports:
+      - "8091:5030"
+      - "50300:50300/tcp"
+      - "50305:50305/udp"
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - SLSKD_SLSK_USERNAME=${SLSKD_NETWORK_USERNAME}
+      - SLSKD_SLSK_PASSWORD=${SLSKD_NETWORK_PASSWORD}
+      - SLSKD_SHARED_DIR=/music/library
+      - SLSKD_DOWNLOADS_DIR=${SLSKD_DOWNLOADS_DIR}
+      - SLSKD_REMOTE_CONFIGURATION=true
+      - SLSKD_API_KEY=${SLSKD_API_KEY}
+      - SLSKD_SLSK_LISTEN_PORT=50300
+      - SLSKD_TRANSFERS_DOWNLOADS_EXISTING_FILE_BEHAVIOR=Overwrite
+      - no_proxy=${NO_PROXY_LIST}
+      - NO_PROXY=${NO_PROXY_LIST}
+    volumes:
+      - ${MUSIC_HOST_DIR}:/music
+      - ./slskd_config:/app
+    networks:
+      - music-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5030/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  postvinyl-proxy:
+    image: ginuerzh/gost:latest
+    container_name: postvinyl-proxy
+    command: "-L=http://:8080 -F=socks5://${MUSICA_PROXY_USER}:${MUSICA_PROXY_PASS}@${MUSICA_PROXY_SOCKS_HOST}:${MUSICA_PROXY_SOCKS_PORT}"
+    restart: unless-stopped
+    networks:
+      - music-net
+
+  postvinyl:
+    build: .
+    container_name: postvinyl
+    restart: unless-stopped
+    ports:
+      - "8092:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - NAVIDROME_USERNAME=${NAVIDROME_USERNAME}
+      - NAVIDROME_PASSWORD=${NAVIDROME_PASSWORD}
+      - SLSKD_API_KEY=${SLSKD_API_KEY}
+      - LISTENBRAINZ_TOKEN=${LISTENBRAINZ_TOKEN}
+      - LISTENBRAINZ_USERNAME=${LISTENBRAINZ_USERNAME}
+      - http_proxy=${MUSICA_HTTP_PROXY}
+      - https_proxy=${MUSICA_HTTP_PROXY}
+      - no_proxy=${NO_PROXY_LIST}
+      - NO_PROXY=${NO_PROXY_LIST}
+      - MUSICA_CONFIG_PATH=/app/config/config.toml
+    volumes:
+      - ${MUSIC_HOST_DIR}:/music:rw
+      - ./app_data:/app/data
+      - ./config:/app/config
+      - ./.env:/app/.env
+    networks:
+      - music-net
+    depends_on:
+      navidrome:
+        condition: service_started
+      slskd:
+        condition: service_healthy
+
+networks:
+  music-net:
+    driver: bridge

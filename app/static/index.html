@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Post-Vinyl</title>
+<link rel="stylesheet" href="/static/css/styles.css">
+<script type="module" src="/static/js/state.js"></script>
+</head>
+<body>
+
+<div class="modal-overlay" id="setup-wizard-overlay" hidden>
+  <div class="modal" id="setup-wizard-modal" role="dialog" aria-modal="true" aria-labelledby="setup-wizard-title">
+    <div class="wizard-steps" id="setup-wizard-steps"></div>
+    <h2 id="setup-wizard-title"></h2>
+    <div id="setup-wizard-body"></div>
+    <div class="status-line" id="setup-wizard-status" aria-live="polite"></div>
+    <div class="row form-actions" id="setup-wizard-actions"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="setup-tutorial-overlay" hidden>
+  <div class="modal" id="setup-tutorial-modal" role="dialog" aria-modal="true" aria-labelledby="setup-tutorial-title">
+    <h2 id="setup-tutorial-title">Quick tour</h2>
+    <div id="setup-tutorial-body"></div>
+    <div class="row form-actions">
+      <button type="button" id="btn-tutorial-dismiss" class="btn btn-primary">Got it</button>
+    </div>
+  </div>
+</div>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <span class="app-name">Post-Vinyl</span>
+    <div id="health-dots" class="health-dots" aria-label="Service health"></div>
+  </div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+</header>
+
+<nav class="tab-bar" role="tablist" aria-label="Main tabs">
+  <button type="button" class="tab" role="tab" data-tab="search" aria-selected="true" aria-controls="panel-search" id="tab-search">Search</button>
+  <button type="button" class="tab" role="tab" data-tab="soulseek" aria-selected="false" aria-controls="panel-soulseek" id="tab-soulseek">Soulseek</button>
+  <button type="button" class="tab" role="tab" data-tab="transfers" aria-selected="false" aria-controls="panel-transfers" id="tab-transfers">Transfers</button>
+  <button type="button" class="tab" role="tab" data-tab="recs" aria-selected="false" aria-controls="panel-recs" id="tab-recs">Recs</button>
+  <button type="button" class="tab" role="tab" data-tab="config" aria-selected="false" aria-controls="panel-config" id="tab-config">Config</button>
+</nav>
+
+<main class="app-main">
+
+  <section class="tab-panel" id="panel-search" role="tabpanel" aria-labelledby="tab-search">
+    <form id="mb-search-form" class="panel">
+      <div class="row">
+        <input id="mb-query" type="search" placeholder="Search MusicBrainz (title, album, or artist)" autocomplete="off">
+        <select id="mb-sort" aria-label="Sort results">
+          <option value="relevance" selected>Relevance</option>
+          <option value="prominence">Catalog prominence</option>
+        </select>
+        <button type="submit" id="btn-mb-search" class="btn btn-primary">Search</button>
+      </div>
+      <div class="status-line" id="mb-search-status" aria-live="polite"></div>
+       <div class="hint" id="mb-hint">Use one field: <code>title artist</code> (for example, <code>damn kendrick lamar</code>). Then queue a recording or album via Soulseek.</div>
+    </form>
+
+    <section class="panel" aria-label="MusicBrainz detail" id="mb-detail-panel" hidden>
+      <div class="panel-toolbar">
+        <button type="button" id="mb-back" class="btn btn-ghost btn-sm">Back</button>
+      </div>
+      <div id="mb-detail"></div>
+    </section>
+
+    <section class="panel" aria-label="MusicBrainz results">
+      <div id="mb-results"><div class="empty">Search MusicBrainz to find recordings, albums, and artists.</div></div>
+    </section>
+  </section>
+
+  <section class="tab-panel" id="panel-soulseek" role="tabpanel" aria-labelledby="tab-soulseek" hidden>
+    <form id="search-form" class="panel">
+      <div class="row">
+        <input id="q" type="search" placeholder="Track query (e.g. Bohemian Rhapsody)" autocomplete="off">
+        <input id="artist" type="text" placeholder="Artist (optional)" autocomplete="off">
+        <button type="submit" id="btn-search" class="btn btn-primary">Search</button>
+      </div>
+      <div class="status-line" id="search-status" aria-live="polite"></div>
+      <div class="hint" id="search-ratelimit-hint">Searches run in the background — up to 5 per minute.</div>
+    </form>
+
+    <section class="panel" aria-label="Recent searches">
+      <h2>Recent searches</h2>
+      <div id="recents"><div class="empty">No searches yet.</div></div>
+    </section>
+
+    <section class="panel" aria-label="Search results">
+      <h2>Results <span class="meta" id="results-meta"></span></h2>
+      <div id="results"><div class="empty">No search selected — click a search in Recent searches to view results.</div></div>
+    </section>
+  </section>
+
+  <section class="tab-panel" id="panel-transfers" role="tabpanel" aria-labelledby="tab-transfers" hidden>
+    <section class="panel" aria-label="Transfers">
+      <div class="panel-toolbar">
+        <div id="transfer-chips" class="chips" role="group" aria-label="Filter transfers"></div>
+        <div class="toolbar-actions">
+          <button type="button" id="btn-clear-finished" class="btn btn-ghost">Delete finished</button>
+          <button type="button" id="btn-refresh-transfers" class="btn btn-ghost">Refresh</button>
+          <button type="button" id="transfers-stop-slskd-btn" class="btn btn-danger btn-sm">Stop all slskd activity</button>
+        </div>
+      </div>
+      <div class="status-line" id="transfers-status" aria-live="polite"></div>
+      <div id="transfers"><div class="empty">No transfers.</div></div>
+    </section>
+  </section>
+
+  <section class="tab-panel" id="panel-recs" role="tabpanel" aria-labelledby="tab-recs" hidden>
+    <div id="rec-banner" class="banner" hidden></div>
+
+    <section class="panel" aria-label="Recommendation summary">
+      <h2>Recommendations</h2>
+      <div id="rec-summary" class="card-grid"><div class="empty">Loading…</div></div>
+      <div class="rec-pull-row">
+        <div class="manual-pull-picker">
+          <div class="manual-pull-label">
+            <strong>Manual pull</strong>
+            <span>Select categories independently of their periodic settings.</span>
+          </div>
+          <div class="manual-pull-toggles" role="group" aria-label="Manual pull categories">
+            <label class="category-toggle" for="manual-comfort-zone">
+              <input type="checkbox" id="manual-comfort-zone">
+              <span>Comfort Zone</span>
+            </label>
+            <label class="category-toggle" for="manual-fresh-picks">
+              <input type="checkbox" id="manual-fresh-picks">
+              <span>Fresh Picks</span>
+            </label>
+            <label class="category-toggle" for="manual-deep-cuts">
+              <input type="checkbox" id="manual-deep-cuts">
+              <span>Deep Cuts</span>
+            </label>
+          </div>
+        </div>
+        <div class="manual-pull-action">
+          <button type="button" id="btn-pull" class="btn btn-primary">Select categories</button>
+          <div id="rec-pull" class="status-line" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <details class="panel" id="rec-settings">
+      <summary><h2 class="summary-heading">Settings</h2></summary>
+      <form id="rec-settings-form">
+        <div id="rec-settings-fields"></div>
+        <div class="row form-actions">
+          <button type="submit" id="btn-rec-save" class="btn btn-primary">Save settings</button>
+          <button type="button" id="btn-rec-reset" class="btn btn-ghost">Reset</button>
+        </div>
+        <div class="status-line" id="rec-settings-status" aria-live="polite"></div>
+      </form>
+    </details>
+
+    <section class="panel" aria-label="Pending recommendations">
+      <div class="panel-toolbar">
+        <div id="rec-pending-chips" class="chips" role="group" aria-label="Filter recommendations"></div>
+        <span class="meta" id="rec-pending-total"></span>
+        <button type="button" id="btn-cancel-queued-recs" class="btn btn-ghost btn-sm">Cancel all queued</button>
+        <button type="button" id="recs-abort-btn" class="btn btn-danger btn-sm">Stop all rec activity</button>
+      </div>
+      <div id="rec-pending"><div class="empty">No recommendations yet — run a pull.</div></div>
+    </section>
+  </section>
+
+  <section class="tab-panel" id="panel-config" role="tabpanel" aria-labelledby="tab-config" hidden>
+    <section class="panel" aria-label="System status">
+      <h2>System</h2>
+      <div id="config-system-status"><div class="empty">Loading…</div></div>
+    </section>
+
+    <details class="panel" id="config-settings" open>
+      <summary><h2 class="summary-heading">Settings</h2></summary>
+      <form id="config-settings-form">
+        <div id="config-settings-fields"></div>
+        <div class="row form-actions">
+          <button type="submit" id="btn-config-save" class="btn btn-primary">Save settings</button>
+        </div>
+        <div class="status-line" id="config-settings-status" aria-live="polite"></div>
+      </form>
+    </details>
+
+    <details class="panel" id="config-secrets" open>
+      <summary><h2 class="summary-heading">Secrets</h2></summary>
+      <div class="banner warn">
+        <p>Secrets are write-only and never shown once saved. Leave a field blank to keep its current value. Changes require an app restart to take effect.</p>
+      </div>
+      <form id="config-secrets-form">
+        <div id="config-secrets-fields"></div>
+        <div class="row form-actions">
+          <button type="submit" id="btn-config-secrets-save" class="btn btn-primary">Save secrets</button>
+        </div>
+        <div class="status-line" id="config-secrets-status" aria-live="polite"></div>
+      </form>
+    </details>
+  </section>
+
+</main>
+
+</body>
+</html>

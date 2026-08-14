@@ -1,0 +1,114 @@
+# Isolated stack for live pipeline testing (naked-clone / wizard / download
+# tests) — completely separate containers, ports, volumes, and .env from the
+# real docker-compose.yml stack, so nothing a test does (including the setup
+# wizard writing secrets) can touch real data or real running services.
+#
+# Usage:
+#   cp .env.example .env.test   # fill in real secret VALUES; this file is
+#                                # gitignored and freely overwritable by the
+#                                # setup wizard during tests
+#   docker compose -f docker-compose.test.yml --env-file .env.test -p postvinyl-test up -d --build
+#
+# Music library is mounted read-only into Navidrome/slskd the same as the
+# real stack would, but postvinyl's own mount is rw since the pipeline needs
+# to write downloaded/tagged files — point MUSIC_HOST_DIR in .env.test at a
+# throwaway/test directory unless you intend for test runs to write into your
+# real library.
+
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome-server-test
+    ports:
+      - "8190:4533"
+    restart: "no"
+    environment:
+      - ND_MUSICFOLDER=/music
+      - ND_DATAFOLDER=/data
+      - ND_LOGLEVEL=warning
+      - ND_SCANSCHEDULE=@every 10m
+      - ND_LISTENBRAINZ_ENABLED=true
+      - ND_LISTENBRAINZ_TOKEN=${LISTENBRAINZ_TOKEN}
+      - ND_SCANNER_PURGEMISSING=always
+    volumes:
+      - ${MUSIC_HOST_DIR}:/music:ro
+      - ./navidrome_data_test:/data
+    networks:
+      - music-net-test
+
+  slskd:
+    image: slskd/slskd:latest
+    container_name: slskd-test
+    restart: "no"
+    ports:
+      - "8191:5030"
+      - "50400:50400/tcp"
+      - "50405:50405/udp"
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - SLSKD_SLSK_USERNAME=${SLSKD_NETWORK_USERNAME}
+      - SLSKD_SLSK_PASSWORD=${SLSKD_NETWORK_PASSWORD}
+      - SLSKD_SHARED_DIR=/music/library
+      - SLSKD_DOWNLOADS_DIR=${SLSKD_DOWNLOADS_DIR}
+      - SLSKD_REMOTE_CONFIGURATION=true
+      - SLSKD_API_KEY=${SLSKD_API_KEY}
+      - SLSKD_SLSK_LISTEN_PORT=50400
+      - SLSKD_TRANSFERS_DOWNLOADS_EXISTING_FILE_BEHAVIOR=Overwrite
+      - no_proxy=${NO_PROXY_LIST}
+      - NO_PROXY=${NO_PROXY_LIST}
+    volumes:
+      - ${MUSIC_HOST_DIR}:/music
+      - ./slskd_config_test:/app
+    networks:
+      - music-net-test
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5030/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  postvinyl-proxy:
+    image: ginuerzh/gost:latest
+    container_name: postvinyl-proxy-test
+    command: "-L=http://:8080 -F=socks5://${MUSICA_PROXY_USER}:${MUSICA_PROXY_PASS}@${MUSICA_PROXY_SOCKS_HOST}:${MUSICA_PROXY_SOCKS_PORT}"
+    restart: "no"
+    networks:
+      - music-net-test
+
+  postvinyl:
+    build: .
+    container_name: postvinyl-test
+    restart: "no"
+    ports:
+      - "8192:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - NAVIDROME_USERNAME=${NAVIDROME_USERNAME}
+      - NAVIDROME_PASSWORD=${NAVIDROME_PASSWORD}
+      - SLSKD_API_KEY=${SLSKD_API_KEY}
+      - LISTENBRAINZ_TOKEN=${LISTENBRAINZ_TOKEN}
+      - LISTENBRAINZ_USERNAME=${LISTENBRAINZ_USERNAME}
+      - http_proxy=${MUSICA_HTTP_PROXY}
+      - https_proxy=${MUSICA_HTTP_PROXY}
+      - no_proxy=${NO_PROXY_LIST}
+      - NO_PROXY=${NO_PROXY_LIST}
+      - MUSICA_CONFIG_PATH=/app/config/config.toml
+    volumes:
+      - ${MUSIC_HOST_DIR}:/music:rw
+      - ./app_data_test:/app/data
+      - ./config_test:/app/config
+      - ./.env.test:/app/.env
+    networks:
+      - music-net-test
+    depends_on:
+      navidrome:
+        condition: service_started
+      slskd:
+        condition: service_healthy
+
+networks:
+  music-net-test:
+    driver: bridge
