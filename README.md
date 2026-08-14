@@ -183,7 +183,7 @@ Post-Vinyl exists because of the ecosystem it sits on top of:
 - Madvillainy by madlib and MF DOOM for being the perfect test subject throughout the development process
 - Macbook Air for not dying on me
 
-- **ANY** of you people that may [reach out](goobernation@duck.com) to me to report bugs and their general user experience, that would mean a lot to me
+- **ANY** of you people that may reach out (goobernation@duck.com) to me to report bugs and their general user experience, that would mean a lot to me. You could also use issues to report stuff
 
 ## License
 
