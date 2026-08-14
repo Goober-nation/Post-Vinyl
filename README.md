@@ -149,15 +149,11 @@ failing occasionally is expected background attrition, not something that alerts
 
 ## known bugs
 
-- If you see a download hang in queue forever ocasionally switching to "downloading", just cancel it, it should retry on its own, known bug
+- If you see a download hang in queue forever ocasionally switching to "downloading", just cancel it, it should retry on its own
 
-- If you decide to change the download directory, it will also have to change in slskd_config/config.yml
-
-- you may want to clear slskd_config/incomplete from time to time to get rid of songs that errored in downloads
+- You may want to clear slskd_config/incomplete from time to time to get rid of songs that errored in downloads
 
 - If you notice your downloads fail in the logs and never start downloading due to the peers not responding after 5000ms, the main way that was found to counter this is increasing the download.max_retries_per_track value in config/config.toml
-
-- If after restarting slskd 
 
 ## Planned
 
