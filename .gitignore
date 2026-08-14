@@ -26,6 +26,10 @@ backlog/
 AGENTS.md
 agents_memory/
 
+# macOS Finder metadata — never useful to anyone, drops into any dir a
+# macOS user browses to (repo root, app/, tests/)
+.DS_Store
+
 # Logo font dir — Forta (OFL 1.1, bundled) is tracked; anything else dropped
 # here (e.g. a personally-licensed font) is not — see app/static/fonts/README.md
 app/static/fonts/*
