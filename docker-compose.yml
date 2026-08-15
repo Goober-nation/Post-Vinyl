@@ -18,6 +18,12 @@ services:
       - ND_LISTENBRAINZ_ENABLED=true
       - ND_LISTENBRAINZ_TOKEN=${LISTENBRAINZ_TOKEN}
       - ND_SCANNER_PURGEMISSING=always
+      - http_proxy=${MUSICA_HTTP_PROXY}
+      - https_proxy=${MUSICA_HTTP_PROXY}
+      - no_proxy=${NO_PROXY_LIST}
+      - HTTP_PROXY=${MUSICA_HTTP_PROXY}
+      - HTTPS_PROXY=${MUSICA_HTTP_PROXY}
+      - NO_PROXY=${NO_PROXY_LIST}
     volumes:
       - ${MUSIC_HOST_DIR}:/music:ro
       - ./navidrome_data:/data
