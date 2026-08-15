@@ -176,6 +176,11 @@ failing occasionally is expected background attrition, not something that alerts
 
 - If you notice your downloads fail in the logs and never start downloading due to the peers not responding after 5000ms, the main way that was found to counter this was increasing the `download.max_retries_per_track` value in config/config.toml or in the config UI
 
+- 1 letter songs/albums (like "i" by Kendrick Lamar) are able to show up in the search results, but the soulseek search mechanism itself
+really does not like those, so there is a high probability that a wrong track may be downloaded. You can try your hand at the search in the 
+soulseek tab on the ui, but it is also likely to not show up :( This is what the upload feature will be aiming at, so you can 
+source you music elsewhere and upload it to your server using the ui
+
 ## Planned
 
 Not built yet, roughly in mind for later. Order and scope may change:
