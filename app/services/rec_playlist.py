@@ -7,12 +7,14 @@ playlist) and RecPuller (a per-pull retry pass for completions that missed
 the hook — Navidrome's index can lag the beets import, and the S12 live
 audit treats a downloaded rec absent from its playlist as a failure).
 
-The playlist is found by the category's configured name and created lazily
-if missing, exactly like the puller's own `_ensure_playlist` — a playlist
-deleted by the user stays deleted until there is a track to add.
+The playlist is found by role and ID-tracked (see
+app.services.playlist_registry), created lazily if missing, exactly like the
+puller's own `_ensure_playlist` — a playlist deleted by the user stays
+deleted until there is a track to add.
 """
 
 from app.logging_config import get_logger
+from app.services.playlist_registry import resolve_playlist_id
 from app.services.recommendation import normalize_text
 
 logger = get_logger(__name__)
@@ -23,7 +25,7 @@ CATEGORIES = ("comfort_zone", "fresh_picks", "deep_cuts")
 class RecPlaylistService:
     """Adds downloaded recommendation tracks to their category playlist."""
 
-    def __init__(self, config, library_service, recs_store):
+    def __init__(self, config, library_service, recs_store, playlist_store):
         """
         Initialize RecPlaylistService.
 
@@ -31,32 +33,32 @@ class RecPlaylistService:
             config: Config instance (recs playlist names)
             library_service: LibraryService implementation
             recs_store: RecsStore instance
+            playlist_store: PlaylistStore instance (role -> playlist ID)
         """
         self._config = config
         self._library = library_service
         self._store = recs_store
+        self._playlist_store = playlist_store
 
     @staticmethod
     def _rec_key(artist: str, track: str) -> str:
         return f"{normalize_text(artist)}::{normalize_text(track)}"
 
-    def _find_or_create_playlist(self, name: str) -> str | None:
-        """Find a playlist by name, creating it if needed. None on failure."""
+    def _find_or_create_playlist(self, role: str, name: str) -> str | None:
+        """Find a playlist by role, creating it if needed. None on failure."""
         try:
             existing = self._library.list_playlists()
         except Exception:  # noqa: BLE001 — library backends vary
             logger.warning("RecPlaylist: list_playlists failed, assuming none")
             existing = []
-        match = next((p for p in existing if p.name.lower() == name.lower()), None)
-        if match is not None:
-            return match.playlist_id
-        try:
-            playlist_id = self._library.create_playlist(name)
-            logger.info("RecPlaylist: created playlist '%s' -> %s", name, playlist_id)
-            return playlist_id
-        except Exception as e:  # noqa: BLE001 — Navidrome createPlaylist errors vary
-            logger.error("RecPlaylist: create_playlist failed for '%s': %s", name, e)
-            return None
+        return resolve_playlist_id(
+            role=role,
+            desired_name=name,
+            existing=existing,
+            store=self._playlist_store,
+            library_service=self._library,
+            create_if_missing=True,
+        )
 
     def _find_song(self, rec_row: dict):
         """Find the rec's track in the library after beets normalization.
@@ -143,7 +145,7 @@ class RecPlaylistService:
             return False
 
         name = getattr(self._config.recs, f"{source}_playlist_name")
-        playlist_id = self._find_or_create_playlist(name)
+        playlist_id = self._find_or_create_playlist(source, name)
         if playlist_id is None:
             return False
 

@@ -12,6 +12,7 @@ from collections.abc import Sequence
 
 from app.db.database import Database
 from app.db.download_store import DownloadStore
+from app.db.playlist_store import PlaylistStore
 from app.db.recs_store import RecsStore
 from app.exceptions import (
     ListenBrainzConnectionError,
@@ -24,6 +25,7 @@ from app.exceptions import (
 )
 from app.logging_config import get_logger
 from app.services import track_requester
+from app.services.playlist_registry import resolve_playlist_id
 from app.services.query_builder import build_search_queries
 from app.services.rec_playlist import RecPlaylistService
 from app.services.recommendation import normalize_text
@@ -95,11 +97,14 @@ class RecPuller:
         if set_state_store is not None:
             set_state_store(self._store)
         self._download_store = DownloadStore(database)
+        self._playlist_store = PlaylistStore(database)
         self._event_hub = event_hub
         # P6.7-7 (S12 gap): gets a completed rec download into its category
         # playlist — used by the per-pull retry pass (_add_downloaded_recs)
         # for completions whose add-on-completion hook missed (index lag).
-        self._rec_playlist = RecPlaylistService(config, library_service, self._store)
+        self._rec_playlist = RecPlaylistService(
+            config, library_service, self._store, self._playlist_store
+        )
         self.interval = interval if interval is not None else DEFAULT_TICK_SECONDS
         # P6.5-5: poll cadence for the manual-download wait (tests lower it).
         self._manual_wait_poll = (
@@ -533,31 +538,19 @@ class RecPuller:
         Only called when this pull has song IDs to add to it — strict
         laziness (P6.7-1 decision 2026-08-13): a playlist deleted by the
         user stays deleted until there are tracks for it again. Returns the
-        playlist ID, or None when creation fails.
+        playlist ID, or None when creation fails. ID-tracked (see
+        app.services.playlist_registry) so a rename performed directly in
+        Navidrome doesn't orphan this lookup.
         """
         playlist_name = getattr(self._config.recs, f"{category}_playlist_name")
-        match = next(
-            (p for p in existing if p.name.lower() == playlist_name.lower()),
-            None,
+        return resolve_playlist_id(
+            role=category,
+            desired_name=playlist_name,
+            existing=existing,
+            store=self._playlist_store,
+            library_service=self._library_service,
+            create_if_missing=True,
         )
-        if match is not None:
-            logger.info(
-                "RecPuller: reusing playlist '%s' (%s)",
-                playlist_name,
-                match.playlist_id,
-            )
-            return match.playlist_id
-        try:
-            playlist_id = self._library_service.create_playlist(playlist_name)
-            logger.info(
-                "RecPuller: created playlist '%s' -> %s",
-                playlist_name,
-                playlist_id,
-            )
-            return playlist_id
-        except Exception as e:  # noqa: BLE001 — Navidrome createPlaylist may raise many error types
-            logger.error("RecPuller: create_playlist failed: %s", e)
-            return None
 
     def _write_category_playlist(
         self, category: str, playlist_id: str, song_ids: list[str], existing: list
@@ -612,17 +605,14 @@ class RecPuller:
 
     def _ensure_trash_playlist(self, existing: list) -> str | None:
         """Find or lazily create the playlist consumed by TrashPurge."""
-        match = next(
-            (playlist for playlist in existing if playlist.name.lower() == "trash"),
-            None,
+        return resolve_playlist_id(
+            role="trash",
+            desired_name="Trash",
+            existing=existing,
+            store=self._playlist_store,
+            library_service=self._library_service,
+            create_if_missing=True,
         )
-        if match is not None:
-            return match.playlist_id
-        try:
-            return self._library_service.create_playlist("Trash")
-        except Exception as e:  # noqa: BLE001 — Navidrome createPlaylist errors vary
-            logger.error("RecPuller: create Trash playlist failed: %s", e)
-            return None
 
     # ------------------------------------------------------------------
     # P6.7-7: rotation + downloaded-recs playlist linkage
@@ -656,14 +646,18 @@ class RecPuller:
             if counts[category] <= 0:
                 continue
             playlist_name = getattr(self._config.recs, f"{category}_playlist_name")
-            match = next(
-                (p for p in existing if p.name.lower() == playlist_name.lower()),
-                None,
+            playlist_id = resolve_playlist_id(
+                role=category,
+                desired_name=playlist_name,
+                existing=existing,
+                store=self._playlist_store,
+                library_service=self._library_service,
+                create_if_missing=False,
             )
-            if match is None:
+            if playlist_id is None:
                 continue  # no playlist -> nothing to rotate (laziness)
             try:
-                detail = self._library_service.get_playlist_detail(match.playlist_id)
+                detail = self._library_service.get_playlist_detail(playlist_id)
             except Exception as e:  # noqa: BLE001 — playlist backends vary
                 logger.error(
                     "RecPuller: get_playlist_detail failed for rotation (%s): %s",
@@ -672,7 +666,7 @@ class RecPuller:
                 )
                 continue
 
-            rows = self._store.get_recs_for_playlist_rotation(match.playlist_id)
+            rows = self._store.get_recs_for_playlist_rotation(playlist_id)
             if not rows:
                 continue
 
@@ -698,7 +692,7 @@ class RecPuller:
                         )
                         break
                     if not self._library_service.remove_songs_from_playlist(
-                        match.playlist_id, [entry.song_id]
+                        playlist_id, [entry.song_id]
                     ):
                         logger.error(
                             "RecPuller: failed to remove %s from playlist %s",
@@ -715,7 +709,7 @@ class RecPuller:
                     )
                 else:
                     if not self._library_service.remove_songs_from_playlist(
-                        match.playlist_id, [entry.song_id]
+                        playlist_id, [entry.song_id]
                     ):
                         logger.error(
                             "RecPuller: failed to remove %s from playlist %s",

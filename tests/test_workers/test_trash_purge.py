@@ -29,6 +29,10 @@ def _make_config(tmpdir):
 
     class MockSync:
         interval_hours = 12
+        love_enabled = True
+        hate_enabled = True
+        star_rating_enabled = True
+        trash_deletion_enabled = True
 
     class MockConfig:
         pass

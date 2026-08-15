@@ -265,6 +265,40 @@ class NavidromeLibrary(LibraryService):
             logger.error(f"Create playlist connection error: {e}")
             raise NavidromeConnectionError(self.base_url, str(e))
     
+    def rename_playlist(self, playlist_id: str, name: str) -> bool:
+        """
+        Rename an existing playlist via Subsonic's updatePlaylist "name" param.
+
+        Args:
+            playlist_id: Navidrome playlist ID
+            name: New playlist name
+
+        Returns:
+            True if successful
+        """
+        logger.info(f"Renaming playlist {playlist_id} -> {name}")
+
+        params = {**self._get_auth_params(), "playlistId": playlist_id, "name": name}
+
+        try:
+            resp = self.session.get(
+                f"{self.base_url}/rest/updatePlaylist",
+                params=params,
+                timeout=10
+            )
+
+            success = self._subsonic_ok(resp, "updatePlaylist(rename)")
+            if success:
+                logger.info("Playlist renamed successfully")
+            else:
+                logger.error("Failed to rename playlist")
+
+            return success
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Rename playlist connection error: {e}")
+            raise NavidromeConnectionError(self.base_url, str(e))
+
     def update_playlist(self, playlist_id: str, song_ids: list[str]) -> bool:
         """
         Replace playlist contents with song_ids.

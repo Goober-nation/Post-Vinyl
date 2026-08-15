@@ -10,6 +10,7 @@ from pathlib import Path
 
 from app.db.database import Database
 from app.db.download_store import ALLOWED_EXTENSIONS, DownloadStore
+from app.db.playlist_store import PlaylistStore
 from app.db.recs_store import RecsStore
 from app.db.search_store import SearchStore
 from app.exceptions import SlskdConnectionError
@@ -58,10 +59,11 @@ class DownloadMonitor:
         # constrained to it instead of trusting the peer's own tags.
         self._search_store = SearchStore(database)
         self._recs_store = RecsStore(database)
+        self._playlist_store = PlaylistStore(database)
         # P6.7-7 (S12 gap): gets a completed rec download into its category
         # playlist the moment its file lands in the library.
         self._rec_playlist = RecPlaylistService(
-            config, library_service, self._recs_store
+            config, library_service, self._recs_store, self._playlist_store
         )
         self._event_hub = event_hub
         # P6.6-2: beets owns import (tag/rename/move) for completed

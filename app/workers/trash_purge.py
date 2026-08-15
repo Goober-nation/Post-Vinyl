@@ -25,6 +25,7 @@ from pathlib import Path
 
 from app.db.database import Database
 from app.db.download_store import DownloadStore
+from app.db.playlist_store import PlaylistStore
 from app.db.sync_store import HATE, SyncStore
 from app.exceptions import (
     ListenBrainzConnectionError,
@@ -32,6 +33,7 @@ from app.exceptions import (
     ListenBrainzFeedbackError,
 )
 from app.logging_config import get_logger
+from app.services.playlist_registry import resolve_playlist_id
 
 logger = get_logger(__name__)
 
@@ -54,12 +56,14 @@ class TrashPurge:
         database: Database,
         sync_store: SyncStore | None = None,
         download_store: DownloadStore | None = None,
+        playlist_store: PlaylistStore | None = None,
     ) -> None:
         self._config = config
         self._library = library_service
         self._feedback = feedback_service
         self._sync_store = sync_store or SyncStore(database)
         self._download_store = download_store or DownloadStore(database)
+        self._playlist_store = playlist_store or PlaylistStore(database)
         self._stopped = threading.Event()
         self._run_lock = threading.Lock()
         self._thread: threading.Thread | None = None
@@ -196,22 +200,27 @@ class TrashPurge:
     # ------------------------------------------------------------------
 
     def _find_trash_playlist(self) -> str | None:
-        """Locate the Trash playlist by name, without creating it.
+        """Resolve the Trash playlist's ID, without creating it.
 
         Creation is the puller's lazy job (a playlist deleted by the user
         stays deleted until there is a track to add to it); a missing Trash
-        simply means there is nothing to sweep.
+        simply means there is nothing to sweep. Resolution is ID-tracked
+        (see app.services.playlist_registry) so a rename performed directly
+        in Navidrome doesn't strand this worker on the old name.
         """
         try:
             existing = self._library.list_playlists()
         except Exception:  # noqa: BLE001 — library backends vary
             logger.warning("TrashPurge: list_playlists failed")
             return None
-        match = next(
-            (p for p in existing if p.name.lower() == TRASH_PLAYLIST_NAME.lower()),
-            None,
+        return resolve_playlist_id(
+            role="trash",
+            desired_name=TRASH_PLAYLIST_NAME,
+            existing=existing,
+            store=self._playlist_store,
+            library_service=self._library,
+            create_if_missing=False,
         )
-        return match.playlist_id if match is not None else None
 
     def _send_hate(self, entry) -> bool:
         """Send -1 for one trashed entry and record the sync_state row.

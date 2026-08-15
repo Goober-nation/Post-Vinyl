@@ -17,6 +17,7 @@ import pytest
 
 from app.db.database import Database
 from app.db.download_store import DownloadStore
+from app.db.playlist_store import PlaylistStore
 from app.db.recs_store import RecsStore
 from app.exceptions import SlskdConnectionError
 from app.services.interfaces.download import QueueResult, Transfer
@@ -719,7 +720,7 @@ class TestFileMove:
             )
         ]
 
-        service = RecPlaylistService(tmp_config, library, recs_store)
+        service = RecPlaylistService(tmp_config, library, recs_store, PlaylistStore(db))
         assert service.add_downloaded_to_playlist(
             {
                 "id": rec_id,
