@@ -189,6 +189,8 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
         self._config = config
 
     async def dispatch(self, request: Request, call_next):
+        if request.url.path == "/api/system/ping":
+            return await call_next(request)
         header = request.headers.get("Authorization", "")
         if not self._is_valid(header):
             return Response(

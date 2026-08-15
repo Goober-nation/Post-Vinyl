@@ -103,6 +103,14 @@ else
   echo "slskd_config/slskd.yml already exists — leaving it as-is."
 fi
 
+# postvinyl runs as a fixed UID (1000) inside the container, which usually
+# doesn't match the host user creating these directories. Without this, the
+# bind mounts end up owned by the host user with no write access for UID
+# 1000, and postvinyl fails at startup with "unable to open database file".
+mkdir -p app_data config
+chmod -R o+rwX app_data config
+echo "Ensured app_data/ and config/ are writable by the container (UID 1000)."
+
 echo
 echo "Development is ongoing — expect rough edges. Post-Vinyl shares your"
 echo "library back to the Soulseek network by default (see the README FAQ)."

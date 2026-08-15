@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-Post-Vinyl is a self-hosted music library that fills itself in. Point it at a MusicBrainz search (or
+Post-Vinyl is an opinionated self-hosted music library that tries to simplify hosting your own music. Search for a song/album/artist (or
 let it pull ListenBrainz recommendations on its own), and it takes care of the rest:
 
 **MusicBrainz search → Soulseek download → beets tag/file → Navidrome library**, hands-off.
@@ -15,7 +15,14 @@ let it pull ListenBrainz recommendations on its own), and it takes care of the r
 4. [beets](https://beets.io/) tags, renames, and files the completed download into your library
    automatically, pinned to the release Post-Vinyl actually resolved.
 5. [Navidrome](https://www.navidrome.org/) indexes it — the track shows up in your library and, for
-   recommendations, in its category playlist — ready to stream from any Subsonic-compatible app.
+   recommendations, in its category playlist — ready to stream from any Subsonic-compatible app. For 
+   computer usage I just use the Navidrome web app, but [Feishin](https://github.com/jeffvli/feishin/releases)
+   has many cool features, like an equalizer and granular settings, as well as being (to my knowledge) the only 
+   Navidrome app that can create smart .nsp playlists inside its UI. 
+   For mobile use i have tested literally everything there is on the IOS app store, and found 
+   [Arpeggi](https://github.com/argie-w/Arpeggi-App) to be the absolute best looking and feeling app there is. 
+   Honorable mention to [Yuzic](https://github.com/eftpmc/yuzic) for being (as far as I know)
+   the only player to atempt to integrate slskd downloading directly within the mobile app, though i did not get is to work for me.
 
 **You interact with it** through a small web UI (manual search, download queue, recs status, config)
 and its REST API — see [`docs/api.md`](docs/api.md). Everything also runs unattended: recommendations
@@ -139,8 +146,7 @@ region without direct access). See [`docs/deployment.md`](docs/deployment.md) fo
 
 **Where do config settings actually live?**
 Non-secret settings live in `config.toml` and are hot-reloadable from the UI (`POST /api/config`).
-Secrets (passwords, tokens, API keys) live only in `.env` and require a restart. Never put a secret in
-`config.toml`.
+Secrets (passwords, tokens, API keys) live only in `.env` and require a restart.
 
 **What happens to a download that fails to match anything?**
 It's retried through a re-query "ladder" up to `download.max_retries_per_track`, then marked failed.
@@ -153,7 +159,7 @@ failing occasionally is expected background attrition, not something that alerts
 
 - You may want to clear slskd_config/incomplete from time to time to get rid of songs that errored in downloads
 
-- If you notice your downloads fail in the logs and never start downloading due to the peers not responding after 5000ms, the main way that was found to counter this is increasing the download.max_retries_per_track value in config/config.toml
+- If you notice your downloads fail in the logs and never start downloading due to the peers not responding after 5000ms, the main way that was found to counter this was increasing the `download.max_retries_per_track` value in config/config.toml or in the config UI
 
 ## Planned
 
@@ -180,10 +186,12 @@ Post-Vinyl exists because of the ecosystem it sits on top of:
   release resolution, browse/search, and beets' own tagging.
 - **[Soulbeet](https://github.com/terry90/soulbeet)** - a different service for managing searches and downloads that i took a lot of inspiration from.
 - The **Soulseek network and its users** — the actual source of every file Post-Vinyl downloads.
-- Madvillainy by madlib and MF DOOM for being the perfect test subject throughout the development process
-- Macbook Air for not dying on me
 
-- **ANY** of you people that may reach out (goobernation@duck.com) to me to report bugs and their general user experience, that would mean a lot to me. You could also use issues to report stuff
+Special thanks to:
+
+- Madvillainy by madlib and MF DOOM for being the perfect download test subject throughout the development process
+- Macbook Air for not dying on me
+- **ANYBODY** that reaches out (goobernation@duck.com) to report bugs and the general user experience. Know that it would mean a lot to me. You could also use issues to report stuff, highly appreciated as well!
 
 ## License
 
