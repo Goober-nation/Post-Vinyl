@@ -114,6 +114,21 @@ endpoint, see [`docs/api.md`](docs/api.md). For running your own stack, see
 See [`docs/deployment.md`](docs/deployment.md) for what each `.env` value means, VPN/proxy notes,
 remote-access guidance (Tailscale), and troubleshooting.
 
+### Windows
+
+`setup.sh` needs a real shell, so you'll need WSL2 with Docker Desktop's WSL2 integration enabled
+for your distro. From inside WSL2:
+
+```bash
+git clone git@github.com:Goober-nation/Post-Vinyl.git
+cd Post-Vinyl
+./setup.sh # follow the instructions, then run again
+docker compose up -d
+```
+
+`MUSIC_HOST_DIR` in `.env` must be a path as seen from inside WSL2 — e.g. a library on your `C:`
+drive is `/mnt/c/Users/you/Music`, not `C:\Users\you\Music`.
+
 ## Tests
 
 ```bash
@@ -184,11 +199,11 @@ Post-Vinyl exists because of the ecosystem it sits on top of:
   behind Comfort Zone, Fresh Picks, Deep Cuts, and love/hate sync.
 - **[MusicBrainz](https://musicbrainz.org/)** — the open music metadata database behind canonical
   release resolution, browse/search, and beets' own tagging.
-- **[Soulbeet](https://github.com/terry90/soulbeet)** - a different service for managing searches and downloads that i took a lot of inspiration from.
 - The **Soulseek network and its users** — the actual source of every file Post-Vinyl downloads.
 
 Special thanks to:
 
+- **[Soulbeet](https://github.com/terry90/soulbeet)** - a different service for managing searches and downloads that i took a lot of inspiration from.
 - Madvillainy by madlib and MF DOOM for being the perfect download test subject throughout the development process
 - Macbook Air for not dying on me
 - **ANYBODY** that reaches out (goobernation@duck.com) to report bugs and the general user experience. Know that it would mean a lot to me. You could also use issues to report stuff, highly appreciated as well!
