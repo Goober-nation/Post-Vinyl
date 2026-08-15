@@ -251,11 +251,15 @@ async def lifespan(app: FastAPI):
     app.state.db = db
     db.initialize_schema()
 
-    # Auto-fill .ndignore / favorites.nsp into music_dir if missing
-    try:
-        ensure_navidrome_files(app.state.config)
-    except Exception:
-        logger.warning("ensure_navidrome_files failed", exc_info=True)
+    # Auto-fill .ndignore / favorites.nsp into music_dir if missing —
+    # skippable via paths.ensure_navidrome_files for setups that manage
+    # these files themselves (e.g. a hand-edited favorites.nsp or an
+    # .ndignore covering more than just download_dir).
+    if app.state.config.paths.ensure_navidrome_files:
+        try:
+            ensure_navidrome_files(app.state.config)
+        except Exception:
+            logger.warning("ensure_navidrome_files failed", exc_info=True)
 
     # Warn loudly if slskd's download dir has drifted from what
     # DownloadMonitor expects (e.g. download_dir changed via Config without

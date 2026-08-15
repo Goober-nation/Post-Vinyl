@@ -115,8 +115,10 @@ class LoveSync:
         rated = 0
         synced = 0
         failed = 0
+        star_rating_enabled = self._config.sync.star_rating_enabled
+        love_enabled = self._config.sync.love_enabled
         for song in starred:
-            if (song.rating or 0) == 0:
+            if star_rating_enabled and (song.rating or 0) == 0:
                 try:
                     if self._library.set_rating(song.song_id, 5):
                         rated += 1
@@ -125,7 +127,7 @@ class LoveSync:
                         "LoveSync: set_rating failed for %s: %s", song.song_id, e
                     )
 
-            if self._sync_store.needs_feedback(song.song_id, LOVE):
+            if love_enabled and self._sync_store.needs_feedback(song.song_id, LOVE):
                 if self._send_love(song):
                     synced += 1
                 else:

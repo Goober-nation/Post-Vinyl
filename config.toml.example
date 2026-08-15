@@ -19,6 +19,11 @@ library_dir = "library"
 discovery_familiar_dir = "Discovery/Comfort_Zone"
 discovery_new_releases_dir = "Discovery/Fresh_Picks"
 discovery_exploration_dir = "Discovery/Deep_Cuts"
+# Auto-create/repair .ndignore and favorites.nsp in music_dir on every
+# startup if missing. Set false if you manage these files yourself (a
+# hand-edited favorites.nsp is never overwritten regardless of this
+# setting — only its absence is what triggers auto-creation).
+ensure_navidrome_files = true
 
 [navidrome]
 url = "http://navidrome-server:4533"
@@ -128,6 +133,10 @@ search_buffer = 25                  # Extra candidates to cover Soulseek misses
 
 [sync]
 interval_hours = 12        # Love/hate sync sweep interval (hours)
+love_enabled = true            # Send ListenBrainz +1 feedback for starred songs
+hate_enabled = true            # Send ListenBrainz -1 feedback for trashed songs
+star_rating_enabled = true     # Auto-set a 5-star rating on starred songs
+trash_deletion_enabled = true  # Delete a song's file when it's moved to the Trash playlist
 
 [logging]
 level = "INFO"             # DEBUG, INFO, WARNING, ERROR, CRITICAL

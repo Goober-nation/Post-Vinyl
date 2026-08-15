@@ -130,15 +130,24 @@ class TrashPurge:
                 logger.warning("TrashPurge: get_playlist_detail failed for Trash")
                 detail = None
             if detail is not None:
+                hate_enabled = self._config.sync.hate_enabled
+                deletion_enabled = self._config.sync.trash_deletion_enabled
                 for entry in detail.songs:
                     # Feedback is retried every cycle until delivered, but it
                     # never blocks file disposal — a trashed file goes away
                     # even when ListenBrainz is down or disabled.
-                    pending = self._sync_store.needs_feedback(
-                        entry.song_id, HATE
-                    ) and not self._send_hate(entry)
+                    pending = (
+                        hate_enabled
+                        and self._sync_store.needs_feedback(entry.song_id, HATE)
+                        and not self._send_hate(entry)
+                    )
                     if pending:
                         feedback_pending += 1
+
+                    if not deletion_enabled:
+                        # Leave the entry in Trash untouched — only the -1
+                        # above (if enabled) happens with deletion off.
+                        continue
 
                     deleted = self._delete_file(entry.song_id)
                     if deleted is None:

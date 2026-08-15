@@ -186,6 +186,10 @@ class SyncSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     interval_hours: int | None = Field(None, ge=1)
+    love_enabled: bool | None = None
+    hate_enabled: bool | None = None
+    star_rating_enabled: bool | None = None
+    trash_deletion_enabled: bool | None = None
 
 
 class LoggingSettings(BaseModel):

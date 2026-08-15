@@ -44,7 +44,13 @@ const SECTIONS = [
   {
     key: "sync",
     title: "Sync",
-    fields: [{ key: "interval_hours", label: "Interval (hours)", type: "number" }],
+    fields: [
+      { key: "interval_hours", label: "Interval (hours)", type: "number" },
+      { key: "love_enabled", label: "Send ListenBrainz loves", type: "checkbox" },
+      { key: "hate_enabled", label: "Send ListenBrainz hates", type: "checkbox" },
+      { key: "star_rating_enabled", label: "Auto 5-star favorites", type: "checkbox" },
+      { key: "trash_deletion_enabled", label: "Delete trashed files", type: "checkbox" },
+    ],
   },
   {
     key: "logging",

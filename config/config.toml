@@ -11,6 +11,7 @@ library_dir = "library"
 discovery_familiar_dir = "Discovery/Comfort_Zone"
 discovery_new_releases_dir = "Discovery/Fresh_Picks"
 discovery_exploration_dir = "Discovery/Deep_Cuts"
+ensure_navidrome_files = true
 
 [navidrome]
 url = "http://navidrome-server:4533"
@@ -68,6 +69,10 @@ search_buffer = 25
 
 [sync]
 interval_hours = 12
+love_enabled = true
+hate_enabled = true
+star_rating_enabled = true
+trash_deletion_enabled = false
 
 [logging]
 level = "INFO"

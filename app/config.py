@@ -235,6 +235,9 @@ class Config:
         self.paths.discovery_exploration_dir = self._get_str(
             data, "discovery_exploration_dir", "Discovery/Deep_Cuts"
         )
+        self.paths.ensure_navidrome_files = self._get_bool(
+            data, "ensure_navidrome_files", True
+        )
 
     def _populate_navidrome(self, data: dict):
         """Populate navidrome config section."""
@@ -393,6 +396,14 @@ class Config:
     def _populate_sync(self, data: dict):
         """Populate sync config section."""
         self.sync.interval_hours = self._get_int(data, "interval_hours", 12)
+        self.sync.love_enabled = self._get_bool(data, "love_enabled", True)
+        self.sync.hate_enabled = self._get_bool(data, "hate_enabled", True)
+        self.sync.star_rating_enabled = self._get_bool(
+            data, "star_rating_enabled", True
+        )
+        self.sync.trash_deletion_enabled = self._get_bool(
+            data, "trash_deletion_enabled", True
+        )
 
     def _populate_logging(self, data: dict):
         """Populate logging config section."""
@@ -720,6 +731,7 @@ class Config:
                 "discovery_familiar_dir": self.paths.discovery_familiar_dir,
                 "discovery_new_releases_dir": self.paths.discovery_new_releases_dir,
                 "discovery_exploration_dir": self.paths.discovery_exploration_dir,
+                "ensure_navidrome_files": self.paths.ensure_navidrome_files,
                 "discovery_familiar_path": str(self.paths.discovery_familiar_path),
                 "discovery_new_releases_path": str(
                     self.paths.discovery_new_releases_path
@@ -788,7 +800,13 @@ class Config:
                 "count": self.fresh_picks.count,
                 "search_buffer": self.fresh_picks.search_buffer,
             },
-            "sync": {"interval_hours": self.sync.interval_hours},
+            "sync": {
+                "interval_hours": self.sync.interval_hours,
+                "love_enabled": self.sync.love_enabled,
+                "hate_enabled": self.sync.hate_enabled,
+                "star_rating_enabled": self.sync.star_rating_enabled,
+                "trash_deletion_enabled": self.sync.trash_deletion_enabled,
+            },
             "logging": {"level": self.logging.level, "format": self.logging.format},
             "beets": {
                 "enabled": self.beets.enabled,
@@ -846,6 +864,7 @@ class PathsConfig:
         self.discovery_familiar_dir: str = "Discovery/Comfort_Zone"
         self.discovery_new_releases_dir: str = "Discovery/Fresh_Picks"
         self.discovery_exploration_dir: str = "Discovery/Deep_Cuts"
+        self.ensure_navidrome_files: bool = True
 
     @property
     def download_path(self) -> Path:
@@ -1068,6 +1087,10 @@ class SyncConfig:
 
     def __init__(self):
         self.interval_hours: int = 12
+        self.love_enabled: bool = True
+        self.hate_enabled: bool = True
+        self.star_rating_enabled: bool = True
+        self.trash_deletion_enabled: bool = True
 
 
 class LoggingConfig:
