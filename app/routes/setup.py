@@ -209,6 +209,13 @@ def setup_slskd(body: AccountRequest, config: ConfigDep) -> dict:
         {
             "SLSKD_NETWORK_USERNAME": body.username,
             "SLSKD_NETWORK_PASSWORD": body.password,
+            # slskd's own web UI/API login is a separate credential pair
+            # (docker-compose.yml SLSKD_USERNAME/PASSWORD), unrelated to the
+            # Soulseek network account above — but there's no wizard step for
+            # it, so it's set to match the Soulseek login rather than left
+            # blank (slskd's webui login has no effect when blank).
+            "SLSKD_UI_USERNAME": body.username,
+            "SLSKD_UI_PASSWORD": body.password,
         }
     )
     logger.info("Setup: saved slskd Soulseek login for %s", body.username)
