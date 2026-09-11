@@ -4,6 +4,7 @@ app_data/
 navidrome_data/
 slskd_config/
 __pycache__/
+.github/
 
 # Isolated test stack (docker-compose.test.yml) — same reasons as above,
 # kept fully separate so tests can never touch the real ones
