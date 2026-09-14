@@ -149,3 +149,32 @@ class TestTimeline:
         lines = path.read_text().strip().splitlines()
         assert len(lines) == 1
         assert '"label": "hello"' in lines[0]
+
+
+class TestStagesImportService:
+    def test_service_name_matches_docker_compose(self):
+        from tests.live.test_stages_import import _SERVICE
+
+        assert _SERVICE == "postvinyl"
+
+    def test_compose_exec_python_invokes_postvinyl_service(self, monkeypatch):
+        from tests.live.test_stages_import import _JSON_SENTINEL, compose_exec_python
+
+        captured_cmd = None
+
+        def fake_run(cmd, **kwargs):
+            nonlocal captured_cmd
+            captured_cmd = cmd
+
+            class Result:
+                returncode = 0
+                stdout = f"{_JSON_SENTINEL}" + '{"dst": "/music/foo", "size": 123}\n'
+                stderr = ""
+
+            return Result()
+
+        monkeypatch.setattr("tests.live.test_stages_import.subprocess.run", fake_run)
+        res = compose_exec_python("print('hello')", "arg1")
+        assert captured_cmd[0:5] == ["docker", "compose", "exec", "-T", "postvinyl"]
+        assert res == {"dst": "/music/foo", "size": 123}
+
