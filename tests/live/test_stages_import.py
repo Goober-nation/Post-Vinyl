@@ -915,8 +915,11 @@ _emit({"removed": removed})
 )
 
 
+_SERVICE = "postvinyl"
+
+
 def compose_exec_python(script: str, *args: str, timeout: float = 300.0) -> dict:
-    """Run a driver inside the musica container and return its JSON payload.
+    """Run a driver inside the postvinyl container and return its JSON payload.
 
     Written here rather than added to `harness.DockerControl` because another
     agent owns that file this wave; the duplication is deliberate and small.
@@ -926,7 +929,7 @@ def compose_exec_python(script: str, *args: str, timeout: float = 300.0) -> dict
         "compose",
         "exec",
         "-T",
-        "musica",
+        _SERVICE,
         "python",
         "-c",
         script,
@@ -1067,12 +1070,12 @@ def timed() -> Iterator[dict]:
 
 
 def _recent_musica_log(stack, lines: str = "4000") -> str:
-    """Bounded tail of musica's log. `stack.logs.raw()` is unbounded and a
+    """Bounded tail of postvinyl's log. `stack.logs.raw()` is unbounded and a
     long live run makes it tens of megabytes."""
     try:
-        return stack.docker.logs("musica", tail=lines)
+        return stack.docker.logs(_SERVICE, tail=lines)
     except Exception as exc:  # pragma: no cover - live-only failure mode
-        return f"<could not read musica logs: {exc}>"
+        return f"<could not read postvinyl logs: {exc}>"
 
 
 def _log_lines_about(log: str, needle: str, limit: int = 6) -> list[str]:
