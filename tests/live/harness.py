@@ -612,7 +612,7 @@ def diagnose_unreachable(musica_url: str = DEFAULT_MUSICA_URL) -> str:
     health = "unknown"
     try:
         proc = subprocess.run(
-            ["docker", "inspect", "musica", "--format",
+            ["docker", "inspect", "postvinyl", "--format",
              "{{.State.Health.Status}}|{{.State.Running}}|{{.RestartCount}}|{{.State.OOMKilled}}"],
             cwd=REPO_ROOT, capture_output=True, text=True, timeout=120, check=False,
         )
@@ -786,7 +786,7 @@ def parse_search_ids(text: str) -> list[str]:
 class LogScraper:
     """Pulls structured facts out of musica's log stream."""
 
-    def __init__(self, docker: DockerControl, service: str = "musica") -> None:
+    def __init__(self, docker: DockerControl, service: str = "postvinyl") -> None:
         self.docker = docker
         self.service = service
 
@@ -1000,10 +1000,10 @@ class Stack:
         """
         start = time.monotonic()
         if hard:
-            self.docker.kill("musica")
-            self.docker.start("musica")
+            self.docker.kill("postvinyl")
+            self.docker.start("postvinyl")
         else:
-            self.docker.restart("musica")
+            self.docker.restart("postvinyl")
         self.client.wait_until_up()
         downtime = time.monotonic() - start
         self.timeline.record("musica_restarted", hard=hard, downtime=round(downtime, 2))

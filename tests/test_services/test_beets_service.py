@@ -329,6 +329,37 @@ class TestMusicBrainzConstraint:
 
         assert mb.calls == []
 
+    def test_musicbrainz_unreachable_on_the_no_mbid_path_still_imports(
+        self, config, tmp_path
+    ):
+        """Issue #4 test plan: rules out "MusicBrainz error on the no-mbid
+        path is mishandled" as an explanation for direct-search downloads
+        getting stuck. A direct search has no mbid, so import_file calls
+        _resolve_recording -> resolve_canonical. The real
+        MusicBrainzClient.resolve_canonical already catches
+        MusicBrainzConnectionError/RateLimitError internally and degrades to
+        None (app/services/musicbrainz_client.py:719-726) — so from
+        BeetsService's point of view an unreachable MusicBrainz looks
+        identical to "no confident match", which
+        test_no_confident_match_falls_back_to_unconstrained_import above
+        already proves falls back to an unconstrained (but still
+        completed) import rather than aborting."""
+        mb = FakeMusicBrainz(recording=None)  # what the real client degrades to
+        service = BeetsService(config, musicbrainz_service=mb)
+        source = tmp_path / "src" / "track.mp3"
+        source.parent.mkdir(parents=True)
+        source.write_text("data")
+
+        with patch("subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess([], 0, "", "")
+            result = service.import_file(
+                source, is_rec=False, title="Some Track", artist="Some Artist"
+            )
+
+        argv = run.call_args.args[0]
+        assert "--search-id" not in argv
+        assert result.error is None or "musicbrainz" not in result.error.lower()
+
 
 class TestLibraryDownloads:
     """P6.8: MusicBrainz-initiated downloads route into the "library"

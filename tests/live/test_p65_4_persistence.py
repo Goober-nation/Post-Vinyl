@@ -34,6 +34,8 @@ from tests.live.harness import (
     wait_until,
 )
 
+pytestmark = [pytest.mark.queues_downloads]
+
 # A track common enough that a search reliably returns several peers — the
 # point here is the persistence machinery, not query construction.
 SEED_QUERY = "bohemian rhapsody"

@@ -7,6 +7,12 @@ here is mocked.
 They are skipped by default — `pytest tests/` stays safe on any machine. You
 have to opt in with `--live`.
 
+**Before running anything, check [INDEX.md](INDEX.md)** — it catalogs every
+file by cost tier (`no_downloads` / `needs_existing_corpus` /
+`queues_downloads`) and what each one actually covers, so a targeted
+question can be answered by running a handful of tests instead of the whole
+118-test suite.
+
 ## Prerequisites
 
 The stack must already be up, with slskd connected to the Soulseek network:

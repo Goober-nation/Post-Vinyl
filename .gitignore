@@ -24,7 +24,7 @@ backlog/
 .ruff_cache/
 .claude/
 .pytest_cache/
-AGENTS.md
+.coverage
 agents_memory/
 
 # macOS Finder metadata — never useful to anyone, drops into any dir a

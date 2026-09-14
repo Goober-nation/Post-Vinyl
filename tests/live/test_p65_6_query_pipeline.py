@@ -20,6 +20,9 @@ import itertools
 
 import pytest
 
+
+pytestmark = [pytest.mark.queues_downloads]
+
 # Titles chosen to exercise the pipeline's branches, not for popularity:
 # multi-word, feat clause, paren qualifier, paren cruft, non-ASCII.
 PIPELINE_CASES = [

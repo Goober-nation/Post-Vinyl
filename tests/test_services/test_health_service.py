@@ -284,3 +284,62 @@ class TestCheckNavidrome:
         )
 
         assert health.get_slskd_login_error(config) is None
+
+
+class TestNavidromeEnabledToggle:
+    """Issue #7: toggling Navidrome off must stop musica from reaching it at
+    all, not just report a cosmetic health status. Today there is no
+    `navidrome.enabled` field on NavidromeConfig — every configured instance
+    (creds present) is pinged unconditionally, which is what makes a
+    Jellyfin-only setup get spammed with "unreachable" the issue describes.
+
+    Test plan posted to
+    https://github.com/Goober-nation/Post-Vinyl/issues/7
+    """
+
+    def test_configured_instance_is_pinged_even_though_no_enabled_flag_exists(
+        self, config: Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Gap proof (T7a): with real credentials configured, the health
+        check pings Navidrome regardless of any user intent to disable the
+        integration — there is nowhere to express that intent yet."""
+        config.navidrome.username = "admin"
+        config.navidrome.password = "secret"
+        assert not hasattr(config.navidrome, "enabled")
+        calls: list[str] = []
+        monkeypatch.setattr(
+            health.requests,
+            "get",
+            lambda *a, **kw: calls.append("get")
+            or _Resp({"subsonic-response": {"status": "ok"}}, 200),
+        )
+
+        result = health.check_navidrome(config)
+
+        assert calls == ["get"]
+        assert result.status == "up"
+
+    @pytest.mark.xfail(
+        reason="navidrome.enabled does not exist yet — issue #7", strict=True
+    )
+    def test_disabled_navidrome_never_pings_and_reports_disabled(
+        self, config: Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Spec for the fix (T7b): once navidrome.enabled exists and
+        check_navidrome respects it, disabling the integration must skip the
+        HTTP call entirely — not attempt it and swallow the failure."""
+        config.navidrome.username = "admin"
+        config.navidrome.password = "secret"
+        config.navidrome.enabled = False
+        calls: list[str] = []
+        monkeypatch.setattr(
+            health.requests,
+            "get",
+            lambda *a, **kw: calls.append("get")
+            or _Resp({"subsonic-response": {"status": "ok"}}, 200),
+        )
+
+        result = health.check_navidrome(config)
+
+        assert calls == []
+        assert result.status == "disabled"

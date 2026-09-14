@@ -961,6 +961,39 @@ class TestPlaylist:
         )
 
 
+class TestNavidromeEnabledGap:
+    """Issue #7: RecPuller holds no reference to config.navidrome either —
+    playlist creation/writes (create_playlist, add_to_playlist) happen
+    unconditionally through whatever library_service it was given. Test
+    plan posted to https://github.com/Goober-nation/Post-Vinyl/issues/7
+    """
+
+    def test_config_has_no_navidrome_section_and_pull_still_writes_playlists(
+        self, tmp_path, db, hub
+    ):
+        config = _make_config(str(tmp_path))
+        assert not hasattr(config, "navidrome")
+        rec = _rec("comfort_zone", "Artist X", "Track X", "mbid-1")
+        song = _song("sid-1", "Track X", "Artist X", mbid="mbid-1")
+        lib = FakeLibraryService()
+        lib.search_results = {"Track X": [song]}
+        recs_svc = FakeRecsService(
+            recs=[rec],
+            classify_result=Classification(in_library=[rec], to_download=[], skipped=[]),
+        )
+        recs_svc._find_library_match = lambda r, l: song
+
+        rp = RecPuller(
+            config, recs_svc, lib, FakeSearchService(), FakeDownloadService(), db, hub
+        )
+        _run_pull_and_capture(rp, hub)
+
+        # create_playlist()/add_to_playlist() ran regardless of there being
+        # no navidrome config to check against.
+        assert lib.create_calls
+        assert lib.add_calls
+
+
 # ---------------------------------------------------------------------------
 # Download tests
 # ---------------------------------------------------------------------------
@@ -1837,6 +1870,99 @@ class TestStartStop:
 
         rp.stop()
         assert rp._thread is None
+
+
+# ---------------------------------------------------------------------------
+# Issue #5: periodic pulls reported as "not happening later" — test-plan
+# posted to https://github.com/Goober-nation/Post-Vinyl/issues/5
+# ---------------------------------------------------------------------------
+
+
+class TestPeriodicStartupBehavior:
+    def test_start_does_not_pull_immediately_even_when_due(self, tmp_path, db, hub):
+        """run()'s loop waits a full interval before its first pull (see its
+        docstring) so a server restart doesn't itself trigger one — every
+        category here is due immediately (never run), which is exactly the
+        case that must NOT fire before the first tick elapses."""
+        config = _make_config(str(tmp_path))
+        rp = RecPuller(
+            config,
+            FakeRecsService(recs=[]),
+            FakeLibraryService(),
+            FakeSearchService(),
+            FakeDownloadService(),
+            db,
+            hub,
+            interval=0.3,
+        )
+        rp.start()
+        try:
+            threading.Event().wait(0.1)
+            assert rp.last_run_at() is None
+        finally:
+            rp.stop()
+
+    def test_start_pulls_once_the_first_interval_elapses(self, tmp_path, db, hub):
+        config = _make_config(str(tmp_path))
+        rp = RecPuller(
+            config,
+            FakeRecsService(recs=[]),
+            FakeLibraryService(),
+            FakeSearchService(),
+            FakeDownloadService(),
+            db,
+            hub,
+            interval=0.05,
+        )
+        rp.start()
+        try:
+            for _ in range(200):
+                if rp.last_run_at() is not None:
+                    break
+                threading.Event().wait(0.01)
+            assert rp.last_run_at() is not None
+        finally:
+            rp.stop()
+
+    def test_manual_pull_resets_the_periodic_clock(self, tmp_path, db, hub):
+        """A manual pull updates _category_last_run_at exactly like a
+        periodic one (trigger_pull() -> _pull_once_locked(), same
+        bookkeeping). So enabling periodic pulls right after a manual pull
+        does not make the next periodic pull fire immediately — it is
+        correctly not-due until a full interval has elapsed from the manual
+        run, not from when periodic was toggled on. This is the most likely
+        explanation for issue #5's "set periodic pulls ... wait the set
+        amount ... recs won't update": the clock was already running from an
+        earlier manual pull the user isn't accounting for."""
+        config = _make_config(
+            str(tmp_path), comfort=1, fresh=0, deep=0,
+            comfort_zone_interval_days=1,
+        )
+        rp = RecPuller(
+            config,
+            FakeRecsService(recs=[]),
+            FakeLibraryService(),
+            FakeSearchService(),
+            FakeDownloadService(),
+            db,
+            hub,
+        )
+        started = rp.trigger_pull(categories=["comfort_zone"])
+        assert started is True
+        for _ in range(200):
+            if not rp.is_running():
+                break
+            threading.Event().wait(0.01)
+        assert rp.category_last_run_at()["comfort_zone"] is not None
+
+        # Less than a full interval since the manual run: periodic must see
+        # this category as not due yet.
+        rp._category_last_run_at["comfort_zone"] = time.time() - 3600  # 1h of 24h
+        assert rp._due_counts()["comfort_zone"] == 0
+
+        # A full interval past the manual run: periodic must pick it back up.
+        rp._category_last_run_at["comfort_zone"] = time.time() - 2 * 86400
+        assert rp._due_counts()["comfort_zone"] == config.recs.comfort_zone_count
 
 
 # ---------------------------------------------------------------------------

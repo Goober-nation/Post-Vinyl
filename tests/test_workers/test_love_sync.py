@@ -182,3 +182,25 @@ class TestFeedback:
         assert result["failed"] == 1
         # lb_synced=0: delivered whenever ListenBrainz is re-enabled.
         assert SyncStore(db).needs_feedback("s1", LOVE) is True
+
+
+class TestNavidromeEnabledGap:
+    """Issue #7: LoveSync holds no reference to config.navidrome — it always
+    calls the library service it was given, so there is nothing here to gate
+    on a Navidrome enabled/disabled toggle. Test plan posted to
+    https://github.com/Goober-nation/Post-Vinyl/issues/7
+    """
+
+    def test_config_has_no_navidrome_section_and_sync_still_calls_library(
+        self, db, tmp_path
+    ):
+        config = _make_config(str(tmp_path))
+        assert not hasattr(config, "navidrome")
+        library = FakeLibraryService(starred=[_song("s1", "Track 1", "mbid-1")])
+        worker = _make_worker(config, db, library, FakeFeedbackService())
+
+        worker.sync_once()
+
+        # get_starred()/set_rating() ran regardless of there being no
+        # navidrome config to check against.
+        assert library.ratings == {"s1": 5}

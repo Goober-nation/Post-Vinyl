@@ -90,6 +90,8 @@ from tests.live.corpus import Track, tracks_in_run_order
 from tests.live.harness import REPO_ROOT
 from tests.live.probes.contract import Stage, StageResult, TreeAudit, Verdict
 
+pytestmark = [pytest.mark.needs_existing_corpus]
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -991,7 +993,13 @@ def live_paths(music_host_root: Path) -> dict[str, Path]:
         + """
 _emit({
     "searches": str(_cfg.paths.searches_path),
-    "discovery": str(_cfg.paths.discovery_path),
+    # No single discovery_path exists any more (P6.7-0b split the merged
+    # "discovery" profile into discovery_familiar/new_releases/exploration,
+    # each with its own *_path property) — but all three still share the
+    # "Discovery/" parent by convention (discovery_familiar_dir defaults to
+    # "Discovery/Comfort_Zone", etc.), which is all placement grading here
+    # actually needs: "did a rec download land somewhere under Discovery".
+    "discovery": str(_cfg.paths.music_dir / "Discovery"),
     "download": str(_cfg.paths.download_path),
     "library": str(_cfg.paths.library_path),
     "beets_enabled": bool(_cfg.beets.enabled),

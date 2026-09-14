@@ -1700,6 +1700,73 @@ class TestImportIntentResolution:
         assert mbid == "mbid-123"
 
 
+class TestDirectSearchImportRegression:
+    """Issue #4: direct Soulseek-tab search downloads (not MB search, not
+    recs) complete in slskd but the file is reported as never picked up by
+    beets. Test plan posted to
+    https://github.com/Goober-nation/Post-Vinyl/issues/4
+
+    Routing itself is correct on paper: is_rec=False, is_library=False ->
+    BeetsService.import_file routes to the "searches" profile
+    (app/services/beets.py:275-278). These tests rule candidate failure
+    points in/around DownloadMonitor in or out one at a time — none of them
+    reproduce the symptom, which narrows the bug to either the real
+    BeetsService/beets CLI (not exercised by FakeBeetsService here) or the
+    queueing UI itself, and points the next investigation step at a live
+    reproduction rather than more unit coverage here.
+    """
+
+    def test_direct_search_with_no_pending_row_at_all_still_imports(
+        self, tmp_config, db
+    ):
+        """Ruled out: a direct-search download that was never persisted as
+        a `downloads` row (e.g. the queueing UI call didn't pass search_id,
+        so routes/downloads.py's `if body.search_id` guard skipped
+        insert_pending) is still picked up and imported — get_transfer()
+        returning None just means is_rec/is_library both default to False,
+        which is exactly the "searches" profile routing. So a missing
+        pending row does not, by itself, explain a stuck file."""
+        hub = EventHub()
+        transfers = [
+            _transfer(
+                "t-untracked", "peerone", "a\\Track.mp3", 5000, "completed",
+                progress=100.0,
+            )
+        ]
+        source_dir = (
+            Path(tmp_config.paths.download_dir) / "complete" / "soulseek" / "peerone"
+        )
+        (source_dir / "a").mkdir(parents=True, exist_ok=True)
+        (source_dir / "a" / "Track.mp3").write_text("fake mp3 data")
+
+        tmp_config.beets.enabled = True
+        beets = FakeBeetsService(tmp_config)
+        monitor = DownloadMonitor(
+            tmp_config,
+            FakeDownloadService(transfers),
+            FakeLibraryService(),
+            db,
+            hub,
+            interval=15,
+            beets_service=beets,
+        )
+
+        result, _events = _run_poll_and_capture(monitor, hub)
+
+        assert len(beets.calls) == 1
+        _source, is_rec, _title, _artist, _category, library, _mbid = beets.calls[0]
+        assert is_rec is False
+        assert library is False  # would route to "searches", not "library"
+        assert len(result["moved"]) == 1
+
+    # Note: the "MusicBrainz unreachable on the no-mbid path" hypothesis is
+    # ruled out at the BeetsService layer instead — see
+    # test_beets_service.py::TestMusicBrainzConstraint::
+    # test_musicbrainz_unreachable_on_the_no_mbid_path_still_imports
+    # (issue #4's test plan), since that's where the real fixtures for
+    # exercising BeetsService.import_file directly already live.
+
+
 class TestMissingSourceTimeout:
     """A transfer slskd swears is 'completed' but whose file never appears
     on disk (the dominant real case: a zombie row adopted from slskd's own

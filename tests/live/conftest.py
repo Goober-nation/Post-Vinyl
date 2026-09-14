@@ -33,6 +33,40 @@ from tests.live.scenarios import (
 )
 
 
+def pytest_configure(config):
+    """Register the cost-tier markers used to select a cheap subset of the
+    live suite without reading every file first — see tests/live/INDEX.md.
+    Registering them here (rather than in a top-level pytest.ini) keeps them
+    scoped to this directory, matching how --live itself is scoped.
+    """
+    config.addinivalue_line(
+        "markers",
+        "no_downloads: queues zero real Soulseek downloads (search-only, "
+        "synthetic fixtures, or pure API/DB reads) — safe to run anytime, "
+        "seconds to low tens of seconds.",
+    )
+    config.addinivalue_line(
+        "markers",
+        "needs_existing_corpus: reads state a prior download wave (S1-S6, "
+        "or test_scenarios.py's U-journeys) must have already produced — "
+        "does not itself queue new downloads, but is vacuous/skips without "
+        "that corpus present.",
+    )
+    config.addinivalue_line(
+        "markers",
+        "queues_downloads: queues real Soulseek downloads and consumes "
+        "download budget — slow, network-dependent, and subject to the "
+        "socket-tax cost noted in tests/live/README.md.",
+    )
+    config.addinivalue_line(
+        "markers",
+        "slow: pre-existing marker (test_query_anomaly.py) for a single "
+        "test that repeats searches many times; unrelated to the cost-tier "
+        "markers above but registered here to silence the unknown-mark "
+        "warning it triggered.",
+    )
+
+
 def pytest_addoption(parser):
     parser.addoption(
         "--live",

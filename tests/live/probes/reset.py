@@ -162,7 +162,7 @@ def full_reset(
     client = MusicaClient(musica_url)
     start = time.monotonic()
     if restart:
-        docker.stop("musica")
+        docker.stop("postvinyl")
 
     # -- 3. wipe -----------------------------------------------------------
     report.wiped.extend(_unlink_db(musica_db))
@@ -216,7 +216,7 @@ def full_reset(
 
     # -- 4. bring it back and check it came back clean ---------------------
     if restart:
-        docker.start("musica")
+        docker.start("postvinyl")
         client.wait_until_up(timeout=startup_timeout)
         report.downtime_s = round(time.monotonic() - start, 2)
 

@@ -87,6 +87,9 @@ from tests.live.corpus import CORPUS, Track
 from tests.live.harness import REPO_ROOT
 from tests.live.probes.contract import Stage, StageResult, Verdict
 
+
+pytestmark = [pytest.mark.needs_existing_corpus]
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------

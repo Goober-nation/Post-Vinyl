@@ -182,7 +182,7 @@ class Recorder:
             rec: dict = {"probe": "docker_cli", "src": "host"}
             try:
                 out = subprocess.run(
-                    ["docker", "inspect", "musica", "--format",
+                    ["docker", "inspect", "postvinyl", "--format",
                      "{{.State.Health.Status}}|{{.RestartCount}}|{{.State.OOMKilled}}"],
                     capture_output=True, text=True, timeout=120, check=False,
                 )
@@ -249,7 +249,7 @@ def install_container_probe() -> bool:
     worth having on its own if the container isn't reachable."""
     try:
         subprocess.run(
-            ["docker", "exec", "-d", "musica", "python", "-c", CONTAINER_PROBE],
+            ["docker", "exec", "-d", "postvinyl", "python", "-c", CONTAINER_PROBE],
             capture_output=True, timeout=60, check=True,
         )
     except (subprocess.SubprocessError, OSError) as e:

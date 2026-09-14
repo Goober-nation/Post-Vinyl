@@ -21,6 +21,9 @@ import pytest
 
 from tests.live.harness import queue_first_available, settle, wait_until
 
+
+pytestmark = [pytest.mark.queues_downloads]
+
 SEED_QUERY = "bohemian rhapsody"
 
 

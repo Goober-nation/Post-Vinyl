@@ -26,6 +26,9 @@ import pytest
 from tests.live.harness import wait_until
 from tests.live.probes import is_audio, tree_path
 
+
+pytestmark = [pytest.mark.queues_downloads]
+
 #: A track chosen for near-certain Soulseek availability, not for elegance of
 #: the MusicBrainz ranking: the resolve job searches by title+artist, which is
 #: the same regardless of which recording (studio/live/compilation) the search

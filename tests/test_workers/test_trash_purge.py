@@ -290,3 +290,31 @@ class TestStrandedSweep:
 
         assert result["files_deleted"]
         assert not (source_dir / "track.mp3").exists()
+
+
+class TestNavidromeEnabledGap:
+    """Issue #7: TrashPurge holds no reference to config.navidrome at all —
+    it always calls the library service it was given, so a toggle to
+    disable Navidrome integration has nothing to gate here. If such a
+    toggle exists it must live above this worker (e.g. bootstrap wiring a
+    no-op library service, or NavidromeLibrary itself refusing calls), not
+    inside TrashPurge. Test plan posted to
+    https://github.com/Goober-nation/Post-Vinyl/issues/7
+    """
+
+    def test_config_has_no_navidrome_section_and_purge_still_calls_library(
+        self, db, tmp_path
+    ):
+        config = _make_config(str(tmp_path))
+        assert not hasattr(config, "navidrome")
+        library = FakeLibraryService(trash_songs=[_song("s1", "Track 1", "mbid-1")])
+        library.real_paths["s1"] = "/music/track.mp3"
+        worker = _make_worker(config, db, library, FakeFeedbackService())
+
+        worker.purge_once()
+
+        # get_playlist_detail()/remove_songs_from_playlist() were reached
+        # regardless of there being no navidrome config to check — the gap
+        # the issue describes is that nothing upstream of the library
+        # service short-circuits this for a disabled integration.
+        assert library.removed  # it acted on the Trash playlist

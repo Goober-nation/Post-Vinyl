@@ -42,6 +42,7 @@ from tests.live.scenarios import (
     u10_concurrent_downloads,
 )
 
+pytestmark = [pytest.mark.queues_downloads]
 
 def _ids(tracks: list[Track]) -> list[str]:
     return [f"{t.tier.value}-{t.artist} - {t.title}" for t in tracks]

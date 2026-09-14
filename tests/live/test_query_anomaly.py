@@ -37,6 +37,9 @@ import pytest
 
 from tests.live.corpus import ANOMALY_QUERIES, SWEEP_ARTISTS
 
+
+pytestmark = [pytest.mark.no_downloads]
+
 #: How many times each anomaly query is repeated. Soulseek peer availability
 #: is noisy; a single zero proves nothing, and the difference between "always
 #: zero" and "usually zero" points at different causes.
