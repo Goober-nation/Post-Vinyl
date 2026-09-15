@@ -139,6 +139,7 @@ class DownloadSettings(BaseModel):
     manual_gate_minutes: int | None = Field(None, ge=1)
     missing_source_timeout_minutes: int | None = Field(None, ge=1)
     history_clear_interval_minutes: int | None = Field(None, ge=0)
+    auto_retry_manual_soulseek: bool | None = None
 
 
 class RecsSettings(BaseModel):
@@ -350,7 +351,7 @@ def update_config(
     logger.info(f"POST /api/config: sections={list(payload)}")
 
     # Load existing TOML
-    with open(config.config_path) as f:
+    with config.config_path.open() as f:
         data = toml.load(f)
 
     # Merge each provided section
@@ -361,7 +362,7 @@ def update_config(
 
     # Write with rollback guard
     with _config_backup_guard(config):
-        with open(config.config_path, "w") as f:
+        with config.config_path.open("w") as f:
             toml.dump(data, f)
         config.reload()
 

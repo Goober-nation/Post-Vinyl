@@ -125,7 +125,7 @@ class Database:
             logger.info(f"Applying migration: {migration_file.name}")
 
             # Read and execute migration
-            with open(migration_file, "r") as f:
+            with migration_file.open() as f:
                 sql = f.read()
 
             try:

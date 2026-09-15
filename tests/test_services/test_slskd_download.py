@@ -10,12 +10,14 @@ from datetime import datetime
 
 from app.services.download import SlskdDownload
 from app.services.interfaces.download import QueueResult, Transfer, RetryResult
+from app.services.interfaces.search import SearchResult
 from app.exceptions import (
     TransferNotFoundError,
     NoViablePeerError,
     QueueError,
     SlskdConnectionError,
-    MaxRetriesExceededError
+    MaxRetriesExceededError,
+    SearchNotFoundError,
 )
 from app.config import Config
 
@@ -483,6 +485,129 @@ class TestSlskdRetryMethod:
         with pytest.raises(NoViablePeerError):
             download.retry(transfer_id)
     
+    class _FakeStore:
+        """Minimal DownloadStore stand-in: only get_pending_search_id."""
+
+        def __init__(self, search_id):
+            self._search_id = search_id
+
+        def get_pending_search_id(self, username, filename):
+            return self._search_id
+
+    class _FakeSearchService:
+        def __init__(self, results=None, error=None):
+            self._results = results or []
+            self._error = error
+
+        def get_results(self, search_id):
+            if self._error is not None:
+                raise self._error
+            return self._results
+
+    @patch('app.services.download.requests.Session.post')
+    def test_retry_cache_hit_search_id_served_via_search_service(self, mock_post):
+        """#59: a query-cache-hit search_id (cache-*) is not something slskd
+        has ever heard of — retry must serve it via SearchService's own
+        in-process cache instead of asking slskd directly."""
+        mock_post_response = Mock()
+        mock_post_response.status_code = 201
+        mock_post.return_value = mock_post_response
+
+        config = MockConfig()
+        search_service = self._FakeSearchService(
+            results=[
+                SearchResult(
+                    username="peer2",
+                    filename="song.mp3",
+                    size=5242880,
+                    has_free_slot=True,
+                    upload_speed=None,
+                    bitrate=None,
+                    duration=None,
+                )
+            ]
+        )
+        store = self._FakeStore("cache-abc123")
+        download = SlskdDownload(config, store=store, search_service=search_service)
+
+        download.queue("peer1", [{"filename": "song.mp3", "size": 5242880}])
+        transfer_id = list(download._transfers.keys())[0]
+
+        result = download.retry(transfer_id)
+
+        assert result.success is True
+        assert "peer2" in result.message
+
+    def test_retry_cache_hit_search_id_with_no_search_service_is_empty(self):
+        """No SearchService injected (e.g. an older construction path) must
+        degrade to 'no responses', not raise."""
+        config = MockConfig()
+        store = self._FakeStore("cache-abc123")
+        download = SlskdDownload(config, store=store, search_service=None)
+
+        with patch(
+            "app.services.download.requests.Session.post"
+        ) as mock_post:
+            mock_post_response = Mock()
+            mock_post_response.status_code = 201
+            mock_post.return_value = mock_post_response
+            download.queue("peer1", [{"filename": "song.mp3", "size": 5242880}])
+            transfer_id = list(download._transfers.keys())[0]
+
+        with pytest.raises(NoViablePeerError):
+            download.retry(transfer_id)
+
+    def test_retry_cache_hit_search_id_expired_from_search_service_is_empty(self):
+        """A cache-hit id from before a restart: SearchService no longer
+        knows it either (its in-memory response cache doesn't survive one).
+        Must degrade gracefully, not raise out of retry()."""
+        config = MockConfig()
+        search_service = self._FakeSearchService(error=SearchNotFoundError("cache-abc123"))
+        store = self._FakeStore("cache-abc123")
+        download = SlskdDownload(config, store=store, search_service=search_service)
+
+        with patch(
+            "app.services.download.requests.Session.post"
+        ) as mock_post:
+            mock_post_response = Mock()
+            mock_post_response.status_code = 201
+            mock_post.return_value = mock_post_response
+            download.queue("peer1", [{"filename": "song.mp3", "size": 5242880}])
+            transfer_id = list(download._transfers.keys())[0]
+
+        with pytest.raises(NoViablePeerError):
+            download.retry(transfer_id)
+
+    @patch('app.services.download.requests.Session.post')
+    def test_retry_real_search_id_still_goes_straight_to_slskd(self, mock_post):
+        """A real (non-cache) search_id must still use the direct slskd
+        fetch path — the #59 fix only special-cases `cache-*` ids."""
+        mock_post_response = Mock()
+        mock_post_response.status_code = 201
+        mock_post.return_value = mock_post_response
+
+        config = MockConfig()
+        store = self._FakeStore("real-slskd-search-id")
+        search_service = self._FakeSearchService()
+        download = SlskdDownload(config, store=store, search_service=search_service)
+
+        download.queue("peer1", [{"filename": "song.mp3", "size": 5242880}])
+        transfer_id = list(download._transfers.keys())[0]
+
+        with patch.object(
+            download, "fetch_search_responses", return_value=[
+                {
+                    "username": "peer2",
+                    "files": [{"filename": "song.mp3", "size": 5242880}],
+                    "hasFreeUploadSlot": True,
+                }
+            ]
+        ) as mock_fetch:
+            result = download.retry(transfer_id)
+
+        mock_fetch.assert_called_once_with("real-slskd-search-id")
+        assert result.success is True
+
     @patch('app.services.download.requests.Session.post')
     def test_retry_no_viable_peer(self, mock_post):
         """retry() should raise NoViablePeerError when no peer with free slot."""

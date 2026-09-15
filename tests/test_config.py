@@ -842,6 +842,34 @@ class TestHistoryClearInterval:
         assert exported["download"]["history_clear_interval_minutes"] == 15
 
 
+class TestAutoRetryManualSoulseek:
+    """download.auto_retry_manual_soulseek wiring (#57) — default off."""
+
+    def _load(self, tmpdir, value=None):
+        from pathlib import Path
+
+        config_path = Path(tmpdir) / "config.toml"
+        section = (
+            f"[download]\nauto_retry_manual_soulseek = {value}\n"
+            if value is not None
+            else "[download]\n"
+        )
+        config_path.write_text(section)
+        config = Config(config_path=str(config_path))
+        config.load()
+        return config
+
+    def test_defaults_to_false(self, tmpdir):
+        assert self._load(str(tmpdir)).download.auto_retry_manual_soulseek is False
+
+    def test_reads_configured_true(self, tmpdir):
+        assert self._load(str(tmpdir), "true").download.auto_retry_manual_soulseek is True
+
+    def test_exposed_via_to_dict(self, tmpdir):
+        exported = self._load(str(tmpdir)).to_dict()
+        assert exported["download"]["auto_retry_manual_soulseek"] is False
+
+
 class TestMusicBrainzSearchOfficialOnly:
     """musicbrainz.search_official_only wiring — default on, overridable."""
 

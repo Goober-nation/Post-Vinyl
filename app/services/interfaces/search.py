@@ -16,7 +16,7 @@ class SearchJob:
     """Represents an initiated search job."""
     search_id: str
     query: str
-    artist: Optional[str]
+    artist: str | None
     created_at: datetime
     status: str  # 'searching', 'completed', 'failed', 'cancelled'
 
@@ -28,9 +28,9 @@ class SearchResult:
     filename: str
     size: int
     has_free_slot: bool
-    upload_speed: Optional[int]
-    bitrate: Optional[str]
-    duration: Optional[int]
+    upload_speed: int | None
+    bitrate: str | None
+    duration: int | None
 
 
 class SearchService(ABC):
@@ -47,7 +47,7 @@ class SearchService(ABC):
     """
     
     @abstractmethod
-    def search(self, query: str, artist: Optional[str] = None) -> SearchJob:
+    def search(self, query: str, artist: str | None = None) -> SearchJob:
         """
         Initiate a search.
         

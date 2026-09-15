@@ -938,20 +938,27 @@ class RecPuller:
         # rotation's Trash lookup, the retry pass and the in-library adds
         # below.
         # ------------------------------------------------------------------
-        try:
-            existing = self._library_service.list_playlists()
-        except Exception:  # noqa: BLE001 — playlist listing may fail for many reasons
-            logger.warning("RecPuller: list_playlists failed, assuming none")
-            existing = []
+        if not getattr(getattr(self._config, "navidrome", None), "enabled", True):
+            # #7: rotation and the downloaded-recs playlist retry are pure
+            # Navidrome playlist bookkeeping — skip them, but never the
+            # ListenBrainz fetch or Soulseek queueing above, which don't
+            # need Navidrome at all.
+            logger.debug("RecPuller: navidrome.enabled is false — skipping playlist writes")
+        else:
+            try:
+                existing = self._library_service.list_playlists()
+            except Exception:  # noqa: BLE001 — playlist listing may fail for many reasons
+                logger.warning("RecPuller: list_playlists failed, assuming none")
+                existing = []
 
-        rotation = self._rotate_playlists(counts, existing)
-        if rotation["trashed"] or rotation["removed"]:
-            logger.info(
-                "RecPuller: rotation — %d to Trash, %d removed from playlists",
-                rotation["trashed"],
-                rotation["removed"],
-            )
-        self._add_downloaded_recs(counts)
+            rotation = self._rotate_playlists(counts, existing)
+            if rotation["trashed"] or rotation["removed"]:
+                logger.info(
+                    "RecPuller: rotation — %d to Trash, %d removed from playlists",
+                    rotation["trashed"],
+                    rotation["removed"],
+                )
+            self._add_downloaded_recs(counts)
 
         if not recs:
             logger.info("RecPuller: fetch returned no recommendations")

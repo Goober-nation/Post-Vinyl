@@ -73,7 +73,7 @@ class Config:
 
         # Load TOML
         try:
-            with open(self.config_path, "r") as f:
+            with self.config_path.open() as f:
                 data = toml.load(f)
         except (OSError, ValueError) as e:
             raise ConfigError(f"Failed to parse config.toml: {e}")
@@ -113,7 +113,7 @@ class Config:
 
         # Reload TOML only (not .env)
         try:
-            with open(self.config_path, "r") as f:
+            with self.config_path.open() as f:
                 data = toml.load(f)
         except (OSError, ValueError) as e:
             raise ConfigError(f"Failed to parse config.toml: {e}")
@@ -188,7 +188,7 @@ class Config:
         if not self.env_path.exists():
             return  # .env is optional
 
-        with open(self.env_path, "r") as f:
+        with self.env_path.open() as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"):
@@ -242,6 +242,7 @@ class Config:
     def _populate_navidrome(self, data: dict):
         """Populate navidrome config section."""
         self.navidrome.url = self._get_str(data, "url", "http://navidrome-server:4533")
+        self.navidrome.enabled = self._get_bool(data, "enabled", True)
         # Secrets from .env
         self.navidrome.username = self._get_env("NAVIDROME_USERNAME", "")
         self.navidrome.password = self._get_env("NAVIDROME_PASSWORD", "")
@@ -327,6 +328,9 @@ class Config:
         )
         self.download.history_clear_interval_minutes = self._get_int(
             data, "history_clear_interval_minutes", 15
+        )
+        self.download.auto_retry_manual_soulseek = self._get_bool(
+            data, "auto_retry_manual_soulseek", False
         )
 
     def _populate_recs(self, data: dict):
@@ -742,6 +746,7 @@ class Config:
             },
             "navidrome": {
                 "url": self.navidrome.url,
+                "enabled": self.navidrome.enabled,
                 "username": "***" if self.navidrome.username else "",
                 "password": "***" if self.navidrome.password else "",
             },
@@ -780,6 +785,7 @@ class Config:
                 "peer_ban_days": self.download.peer_ban_days,
                 "missing_source_timeout_minutes": self.download.missing_source_timeout_minutes,
                 "history_clear_interval_minutes": self.download.history_clear_interval_minutes,
+                "auto_retry_manual_soulseek": self.download.auto_retry_manual_soulseek,
             },
             "recs": {
                 "comfort_zone_enabled": self.recs.comfort_zone_enabled,
@@ -907,6 +913,13 @@ class NavidromeConfig:
         self.url: str = "http://navidrome-server:4533"
         self.username: str = ""
         self.password: str = ""
+        # #7: when False, every worker (LoveSync, TrashPurge, RecPuller's
+        # playlist writes, NavidromeLibrary calls generally) must short-
+        # circuit before hitting the Navidrome API at all, instead of
+        # unconditionally hammering a server the user has no intention of
+        # running (e.g. a Jellyfin-only setup). Default True preserves
+        # today's behavior for every existing install.
+        self.enabled: bool = True
 
 
 class SlskdConfig:
@@ -1024,6 +1037,14 @@ class DownloadConfig:
         # musica bookkeeping rows are deliberately kept — only slskd-side
         # records are removed, and failed removals are retried next cycle.
         self.history_clear_interval_minutes: int = 15
+        # #57: whether a failed manual (non-rec) Soulseek download is
+        # automatically re-queued to an alternative peer. Default False —
+        # unlike a rec, a manual download is something the user explicitly
+        # searched for; auto-retry has no source-specific gate today, so
+        # a bad peer can keep re-queueing a track the user may have wanted
+        # to just abandon. Manual retry via the UI's Retry button always
+        # still works, regardless of this flag.
+        self.auto_retry_manual_soulseek: bool = False
 
 
 _DURATION_RE = re.compile(r"(?i)(?:[1-9][0-9]*)(?:d|h)")

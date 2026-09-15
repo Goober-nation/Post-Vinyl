@@ -109,6 +109,9 @@ class LoveSync:
 
         Returns a summary dict.
         """
+        if not getattr(getattr(self._config, "navidrome", None), "enabled", True):
+            logger.debug("LoveSync: navidrome.enabled is false — skipping")
+            return {"starred": 0, "rated": 0, "synced": 0, "failed": 0, "skipped": True}
         starred = self._library.get_starred()
         logger.info("LoveSync: %d starred song(s)", len(starred))
 

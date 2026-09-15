@@ -3,7 +3,6 @@ DownloadMonitor — Background worker that polls slskd for transfer state
 and drives the download lifecycle: tracking, retry, file-move, SSE events.
 """
 
-import os
 import threading
 import time
 from pathlib import Path
@@ -17,6 +16,7 @@ from app.exceptions import SlskdConnectionError
 from app.logging_config import get_logger
 from app.services.beets import BeetsService
 from app.services.rec_playlist import RecPlaylistService
+from app.services.searches_playlist import SearchesPlaylistService
 from app.sse import EventHub
 
 # slskd sub-states that mean "our end lost/never had a solid connection" —
@@ -64,6 +64,11 @@ class DownloadMonitor:
         # playlist the moment its file lands in the library.
         self._rec_playlist = RecPlaylistService(
             config, library_service, self._recs_store, self._playlist_store
+        )
+        # #19: same idea for manual (non-rec) downloads — Searches instead
+        # of a rec category playlist.
+        self._searches_playlist = SearchesPlaylistService(
+            config, library_service, self._store, self._playlist_store
         )
         self._event_hub = event_hub
         # P6.6-2: beets owns import (tag/rename/move) for completed
@@ -286,11 +291,16 @@ class DownloadMonitor:
                 logger.warning("Failed to trigger library scan", exc_info=True)
 
         playlist_linked = self._rec_playlist.retry_unplaylisted_downloads()
+        # #19: same delayed-indexing retry, for manual downloads -> Searches.
+        searches_linked = self._searches_playlist.retry_unplaylisted_downloads(
+            self._resolve_intent_for_row
+        )
 
         return {
             "transfers_seen": transfers_seen,
             "moved": moved_files,
             "scan_triggered": scan_triggered,
+            "searches_linked": searches_linked,
             "retried": retried,
             "playlist_linked": playlist_linked,
         }
@@ -322,6 +332,18 @@ class DownloadMonitor:
 
         Returns (will_retry, error_message).
         """
+        original = self._store.get_transfer(transfer_id)
+        is_manual = bool(original) and not original.get("is_rec_download")
+        if is_manual and not getattr(
+            self._config.download, "auto_retry_manual_soulseek", False
+        ):
+            # #57: a rec's auto-retry is unaffected — this only gates manual
+            # (user-searched) downloads, which have no source-specific
+            # handling otherwise. The UI's own Retry button still works
+            # regardless of this flag; only the automatic on-failure path
+            # is gated here.
+            return (False, "Auto-retry disabled for manual downloads")
+
         retry_count = self._store.get_retry_count(transfer_id)
         if retry_count >= self._config.download.max_retries_per_track:
             return (False, "Max retries exceeded")
@@ -557,7 +579,7 @@ class DownloadMonitor:
             # Find first audio file
             for f in response.get("files", []):
                 fname = f.get("filename", "")
-                ext = os.path.splitext(fname)[1].lower()
+                ext = Path(fname).suffix.lower()
                 if ext in ALLOWED_EXTENSIONS:
                     return (peer, {"filename": fname, "size": f.get("size", 0)})
 
@@ -719,6 +741,18 @@ class DownloadMonitor:
         if not search:
             return None, None, None
         return search.get("query"), search.get("artist"), None
+
+    def _resolve_intent_for_row(self, row: dict) -> tuple[str | None, str | None]:
+        """Same lookup as `_resolve_intent`, but from a `downloads` row
+        directly (SearchesPlaylistService's retry pass has no live Transfer
+        object, only rows already known to be manual and file_moved)."""
+        search_id = row.get("search_id")
+        if not search_id:
+            return None, None
+        search = self._search_store.get_search(search_id)
+        if not search:
+            return None, None
+        return search.get("query"), search.get("artist")
 
     def _resolve_source_path(self, transfer) -> Path | None:
         """

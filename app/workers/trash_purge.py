@@ -121,7 +121,31 @@ class TrashPurge:
 
         Returns a summary dict.
         """
+        if not getattr(getattr(self._config, "navidrome", None), "enabled", True):
+            # #7: every step below either calls Navidrome directly (Trash
+            # sweep, rating sweep, trigger_scan) or is pointless without it
+            # (the stranded-download sweep still runs fine standalone, but
+            # skipping the whole pass is simplest and correct — a Trash
+            # workflow with no Navidrome has nothing to purge from in the
+            # first place).
+            logger.debug("TrashPurge: navidrome.enabled is false — skipping")
+            return {
+                "swept": 0,
+                "trashed": 0,
+                "feedback_pending": 0,
+                "files_deleted": [],
+                "scan_triggered": False,
+                "skipped": True,
+            }
+
         files_deleted: list[Path] = []
+
+        # 0. Library-wide rating sweep (#3): the only pre-existing path
+        # that ever added a low-rated track to Trash was RecPuller trimming
+        # Fresh Picks on overflow — a track rated low in a manual playlist,
+        # a different rec playlist, or no playlist at all never reached
+        # Trash at all. This sweeps the whole library every cycle.
+        swept = self._sweep_library_ratings()
 
         # 1. Trash playlist
         trash_id = self._find_trash_playlist()
@@ -181,14 +205,16 @@ class TrashPurge:
                 logger.warning("TrashPurge: trigger_scan failed", exc_info=True)
 
         logger.info(
-            "TrashPurge: %d trashed, %d feedback pending, %d file(s) deleted, "
-            "scan_triggered=%s",
+            "TrashPurge: %d swept into Trash, %d trashed, %d feedback pending, "
+            "%d file(s) deleted, scan_triggered=%s",
+            swept,
             trashed,
             feedback_pending,
             len(files_deleted),
             scan_triggered,
         )
         return {
+            "swept": swept,
             "trashed": trashed,
             "feedback_pending": feedback_pending,
             "files_deleted": [str(p) for p in files_deleted],
@@ -300,6 +326,73 @@ class TrashPurge:
             self._library.remove_songs_from_playlist(trash_id, [song_id])
         except Exception as e:  # noqa: BLE001 — playlist backends vary
             logger.warning("TrashPurge: failed to remove %s from Trash: %s", song_id, e)
+
+    # ------------------------------------------------------------------
+    # Library-wide rating sweep (#3, extended scope 2026-09-15)
+    # ------------------------------------------------------------------
+
+    def _sweep_library_ratings(self) -> int:
+        """Add every library-wide low-rated song not already in Trash.
+
+        Before this, the only path that ever populated Trash was RecPuller
+        trimming Fresh Picks on overflow — a track rated low anywhere else
+        (a manual playlist, a different rec playlist, or no playlist at
+        all) never reached Trash. Shares `recs.rotation_trash_rating` with
+        RecPuller's own rotation threshold (default 1: "rated <2* or
+        unrated") so both agree on what counts as trash-worthy.
+
+        Creates Trash if it doesn't exist yet (the sweep may be the very
+        first thing to ever need it). Returns the number of songs newly
+        added.
+        """
+        threshold = getattr(
+            getattr(self._config, "recs", None), "rotation_trash_rating", 1
+        )
+        try:
+            low_rated = self._library.get_low_rated_songs(threshold)
+        except Exception:
+            logger.warning("TrashPurge: library rating sweep query failed", exc_info=True)
+            return 0
+        if not low_rated:
+            return 0
+
+        try:
+            existing = self._library.list_playlists()
+        except Exception:
+            logger.warning("TrashPurge: list_playlists failed during rating sweep")
+            return 0
+
+        trash_id = resolve_playlist_id(
+            role="trash",
+            desired_name=TRASH_PLAYLIST_NAME,
+            existing=existing,
+            store=self._playlist_store,
+            library_service=self._library,
+            create_if_missing=True,
+        )
+        if not trash_id:
+            logger.error("TrashPurge: cannot run rating sweep; Trash playlist unavailable")
+            return 0
+
+        try:
+            detail = self._library.get_playlist_detail(trash_id)
+            already = {song.song_id for song in detail.songs}
+        except Exception:
+            logger.warning(
+                "TrashPurge: get_playlist_detail failed during rating sweep; "
+                "proceeding as if Trash were empty",
+                exc_info=True,
+            )
+            already = set()
+
+        to_add = [song.song_id for song in low_rated if song.song_id not in already]
+        if not to_add:
+            return 0
+        if not self._library.add_to_playlist(trash_id, to_add):
+            logger.error("TrashPurge: failed to add rating-sweep songs to Trash")
+            return 0
+        logger.info("TrashPurge: rating sweep added %d song(s) to Trash", len(to_add))
+        return len(to_add)
 
     # ------------------------------------------------------------------
     # Stranded downloads (extended scope, 2026-08-12)

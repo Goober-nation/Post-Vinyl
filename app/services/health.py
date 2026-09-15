@@ -196,6 +196,9 @@ def check_navidrome(config: Config) -> ServiceHealth:
     on a fresh, not-yet-configured instance rather than "finish setup".
     Otherwise "up" iff HTTP 200 AND ``subsonic-response.status == "ok"``.
     """
+    if not getattr(getattr(config, "navidrome", None), "enabled", True):
+        logger.debug("Navidrome health check: disabled (navidrome.enabled is false)")
+        return ServiceHealth(name="navidrome", status="disabled")
     if not config.navidrome.username or not config.navidrome.password:
         logger.debug("Navidrome health check: disabled (not configured)")
         return ServiceHealth(name="navidrome", status="disabled")

@@ -16,9 +16,9 @@ class Recommendation:
     source: str  # 'comfort_zone', 'fresh_picks', 'deep_cuts'
     artist: str
     track: str
-    mbid: Optional[str] = None  # MusicBrainz recording ID
-    album: Optional[str] = None
-    release_mbid: Optional[str] = None
+    mbid: str | None = None  # MusicBrainz recording ID
+    album: str | None = None
+    release_mbid: str | None = None
 
 
 @dataclass

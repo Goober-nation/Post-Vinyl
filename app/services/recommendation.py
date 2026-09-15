@@ -4,10 +4,10 @@ ListenBrainzRecs — Concrete implementation of RecommendationService using List
 Fetches recommendations from ListenBrainz, classifies against library, queues downloads.
 """
 
-import os
 import re
 import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import requests
 
@@ -777,7 +777,7 @@ class ListenBrainzRecs(RecommendationService):
         # 3. Filename match
         rec_filename = self._normalize(rec.track)
         for song in library:
-            song_filename = self._normalize(os.path.basename(song.path))
+            song_filename = self._normalize(Path(song.path).name)
             if song_filename == rec_filename:
                 logger.debug(f"Matched by filename: {rec.artist} - {rec.track}")
                 return song

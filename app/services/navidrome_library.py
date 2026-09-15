@@ -191,7 +191,102 @@ class NavidromeLibrary(LibraryService):
         except requests.exceptions.RequestException as e:
             logger.error(f"Get starred connection error: {e}")
             raise NavidromeConnectionError(self.base_url, str(e))
-    
+
+    def get_low_rated_songs(self, max_rating: int) -> list[Song]:
+        """Every song in the whole library rated at or below `max_rating`
+        (0 = unrated).
+
+        Subsonic's core API has no library-wide "search by rating"
+        primitive — search3/getStarred only cover text search and
+        starred-flag lookups. Uses Navidrome's native REST API instead
+        (`/api/song`, same one `get_song_real_path` already relies on for
+        real filesystem paths), which supports server-side field filtering
+        (`rating_lte`) and pagination (`_start`/`_end`). Returns [] on any
+        failure — the caller (TrashPurge's rating sweep) treats that as
+        "nothing to sweep this cycle", not fatal.
+        """
+        token = self._native_token()
+        if token is None:
+            return []
+
+        songs: list[Song] = []
+        start = 0
+        page_size = 500
+        headers = {"X-ND-Authorization": f"Bearer {token}"}
+        while True:
+            params = {
+                "rating_lte": max_rating,
+                "_start": start,
+                "_end": start + page_size,
+                "_sort": "id",
+                "_order": "ASC",
+            }
+            try:
+                resp = self.session.get(
+                    f"{self.base_url}/api/song",
+                    headers=headers,
+                    params=params,
+                    timeout=15,
+                )
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Navidrome low-rated song lookup connection error: {e}")
+                return songs
+
+            if resp.status_code == 401:
+                # Stale/rejected token — drop the cache and retry this page once.
+                self._native_jwt = None
+                token = self._native_token()
+                if token is None:
+                    return songs
+                headers = {"X-ND-Authorization": f"Bearer {token}"}
+                continue
+
+            if resp.status_code != 200:
+                logger.error(
+                    f"Navidrome low-rated song lookup returned HTTP "
+                    f"{resp.status_code}: {resp.text[:200]}"
+                )
+                return songs
+
+            try:
+                batch = resp.json()
+            except ValueError:
+                logger.error(
+                    "Navidrome low-rated song lookup unparseable response: "
+                    f"{resp.text[:200]}"
+                )
+                return songs
+
+            if not batch:
+                return songs
+            songs.extend(self._parse_native_song(entry) for entry in batch)
+            if len(batch) < page_size:
+                return songs
+            start += page_size
+
+    def _parse_native_song(self, entry: dict) -> Song:
+        """Parse a Navidrome native-API (`/api/song`) entry into a Song.
+
+        Field names differ from the Subsonic `_parse_song` shape (e.g.
+        `path` is the real filesystem path here, not tag-synthesized).
+        """
+        return Song(
+            song_id=entry.get("id", ""),
+            title=entry.get("title", ""),
+            artist=entry.get("artist", ""),
+            album=entry.get("album", ""),
+            path=entry.get("path", ""),
+            duration=int(entry.get("duration") or 0),
+            size=int(entry.get("size") or 0),
+            bitrate=entry.get("bitRate"),
+            track_number=entry.get("trackNumber"),
+            year=entry.get("year"),
+            genre=entry.get("genre"),
+            rating=entry.get("rating", 0) or 0,
+            starred=bool(entry.get("starred")),
+            mbid=entry.get("mbzTrackId") or entry.get("musicBrainzId"),
+        )
+
     def set_rating(self, song_id: str, rating: int) -> bool:
         """
         Set song rating (0-5).

@@ -140,11 +140,17 @@ def create_app(
         if database is not None
         else (Database(config) if config_provided else None)
     )
+    resolved_search_service = search_service or SlskdSearch(
+        config, store=SearchStore(db) if db is not None else None
+    )
     services = {
-        "search": search_service
-        or SlskdSearch(config, store=SearchStore(db) if db is not None else None),
+        "search": resolved_search_service,
         "download": download_service
-        or SlskdDownload(config, store=DownloadStore(db) if db is not None else None),
+        or SlskdDownload(
+            config,
+            store=DownloadStore(db) if db is not None else None,
+            search_service=resolved_search_service,
+        ),
         "library": library_service or NavidromeLibrary(config),
         "recs": recs_service or ListenBrainzRecs(config),
         "feedback": ListenBrainzFeedback(config),

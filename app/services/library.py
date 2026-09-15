@@ -6,7 +6,6 @@ supported library backend. No plans to support Plex/Jellyfin.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -19,13 +18,13 @@ class Song:
     path: str
     duration: int  # seconds
     size: int  # bytes
-    bitrate: Optional[int]  # kbps
-    track_number: Optional[int]
-    year: Optional[int]
-    genre: Optional[str]
+    bitrate: int | None  # kbps
+    track_number: int | None
+    year: int | None
+    genre: str | None
     rating: int  # 0-5
     starred: bool
-    mbid: Optional[str] = None  # MusicBrainz recording ID
+    mbid: str | None = None  # MusicBrainz recording ID
 
 
 @dataclass
@@ -110,6 +109,22 @@ class LibraryService:
         # In real implementation: call Navidrome getStarred API
         return []
     
+    def get_low_rated_songs(self, max_rating: int) -> list[Song]:
+        """
+        Get every song in the whole library rated at or below max_rating.
+
+        Args:
+            max_rating: Inclusive upper bound (0 = unrated only).
+
+        Returns:
+            List of matching Song objects
+
+        Raises:
+            ServiceConnectionError: If cannot connect to Navidrome
+        """
+        # In real implementation: call Navidrome's native rating-filtered API
+        return []
+
     def set_rating(self, song_id: str, rating: int) -> bool:
         """
         Set song rating (0-5).

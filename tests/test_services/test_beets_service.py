@@ -271,10 +271,17 @@ class TestMusicBrainzConstraint:
         set_pairs = [argv[i + 1] for i, a in enumerate(argv) if a == "--set"]
         assert "albumartist=Björk" in set_pairs
         assert "album=Homogenic" in set_pairs
+        assert "mb_trackid=abc-123" in set_pairs
+        assert "mb_albumid=rel-1" in set_pairs
 
     def test_resolved_recording_without_release_only_forces_albumartist(
         self, config, tmp_path
     ):
+        """No release known: album fields are skipped, but mb_trackid is
+        still forced via --set (#55/#2) — beets' own quiet-mode match only
+        writes it on a "strong" recommendation, and a resolved recording
+        with no known release is exactly the weaker-confidence case where
+        that gate can silently drop it."""
         from app.services.interfaces.musicbrainz import MBRecording
 
         recording = MBRecording(
@@ -294,7 +301,7 @@ class TestMusicBrainzConstraint:
 
         argv = run.call_args.args[0]
         set_pairs = [argv[i + 1] for i, a in enumerate(argv) if a == "--set"]
-        assert set_pairs == ["albumartist=Nobody"]
+        assert set_pairs == ["mb_trackid=abc-123", "albumartist=Nobody"]
 
     def test_no_confident_match_falls_back_to_unconstrained_import(
         self, config, tmp_path
@@ -412,12 +419,16 @@ class TestLibraryDownloads:
         argv = run.call_args.args[0]
         assert argv[argv.index("--search-id") + 1] == "abc-123"
         assert "--from-scratch" in argv
+        assert "mb_trackid=abc-123" in argv
+        assert not any(a.startswith("mb_albumid=") for a in argv)
         assert mb.lookup_calls == ["abc-123"]
         assert mb.calls == [], "resolve_canonical must not run when an mbid is given"
 
     def test_mbid_recording_forces_album_fields_via_set(self, config, tmp_path):
         """A successful lookup pins --search-id *and* supplies albumartist/
-        album via --set, exactly like the resolve_canonical path."""
+        album via --set, exactly like the resolve_canonical path — plus
+        mb_trackid/mb_albumid (#55), so the item is groupable/dedupable by
+        MBID like a resolve_canonical match already is."""
         from app.services.interfaces.musicbrainz import MBRecording, MBRelease
 
         recording = MBRecording(
@@ -441,10 +452,13 @@ class TestLibraryDownloads:
         set_pairs = [argv[i + 1] for i, a in enumerate(argv) if a == "--set"]
         assert "albumartist=Björk" in set_pairs
         assert "album=Homogenic" in set_pairs
+        assert "mb_trackid=abc-123" in set_pairs
+        assert "mb_albumid=rel-1" in set_pairs
 
     def test_mbid_with_unknown_recording_still_pins_search_id(self, config, tmp_path):
         """A failed lookup must not drop the pin: beets still gets
-        --search-id mbid, just without the --set album fields."""
+        --search-id mbid, and mb_trackid is still forced via --set (#55) —
+        just without the album fields, which need a resolved recording."""
         mb = FakeMusicBrainz(recording=None)
         service = BeetsService(config, musicbrainz_service=mb)
         source = tmp_path / "src" / "track.mp3"
@@ -457,7 +471,8 @@ class TestLibraryDownloads:
 
         argv = run.call_args.args[0]
         assert argv[argv.index("--search-id") + 1] == "missing-1"
-        assert "--set" not in argv
+        assert "mb_trackid=missing-1" in argv
+        assert not any(a.startswith(("albumartist=", "album=")) for a in argv)
         assert mb.lookup_calls == ["missing-1"]
 
     def test_default_no_library_no_mbid_is_unchanged(self, config, tmp_path):

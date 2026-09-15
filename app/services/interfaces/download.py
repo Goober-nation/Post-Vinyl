@@ -16,7 +16,7 @@ class QueueResult:
     """Result of a queue operation."""
     enqueued_count: int
     failures: list[dict]  # [{"filename": str, "message": str}, ...]
-    search_id: Optional[str] = None
+    search_id: str | None = None
 
 
 @dataclass
@@ -28,11 +28,11 @@ class Transfer:
     size: int
     state: str  # 'queued', 'downloading', 'completed', 'failed', 'cancelled'
     progress: float  # 0.0 to 100.0
-    speed: Optional[int]  # bytes per second
+    speed: int | None  # bytes per second
     started_at: datetime
-    completed_at: Optional[datetime]
+    completed_at: datetime | None
     is_rec_download: bool = False
-    fail_reason: Optional[str] = None
+    fail_reason: str | None = None
     """Raw slskd sub-state when state == 'failed' (e.g. 'timedout', 'errored',
     'rejected', 'aborted') — preserved so callers can tell a local
     connectivity blip (timedout/aborted) from genuine peer misbehavior
@@ -44,7 +44,7 @@ class RetryResult:
     """Result of a retry operation."""
     success: bool
     message: str
-    new_transfer_id: Optional[str] = None
+    new_transfer_id: str | None = None
 
 
 class DownloadService(ABC):
@@ -65,8 +65,8 @@ class DownloadService(ABC):
         self,
         username: str,
         files: list[dict],
-        search_id: Optional[str] = None,
-        destination: Optional[str] = None
+        search_id: str | None = None,
+        destination: str | None = None
     ) -> QueueResult:
         """
         Queue files for download from a peer.

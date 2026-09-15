@@ -49,6 +49,12 @@ def _make_config(tmpdir, bad_peer_threshold=1):
         check_interval = 15
         max_retries_per_track = 3
         peer_ban_days = 2
+        # #57 defaults to False in real config, but most tests here are
+        # about retry *mechanics* (peer failover, budget, orphan handling),
+        # not the toggle itself — keep it enabled here so those aren't all
+        # forced to opt in, and cover the toggle's own behavior separately
+        # in TestAutoRetryManualToggle.
+        auto_retry_manual_soulseek = True
 
     MockDownload.bad_peer_threshold = bad_peer_threshold
 
@@ -898,6 +904,108 @@ class TestBeetsImport:
 
         row = db.fetch_one("SELECT import_unmatched FROM downloads WHERE id = 't-b'")
         assert row["import_unmatched"] == 0
+
+
+class TestAutoRetryManualToggle:
+    """#57: auto-retry for a failed manual (non-rec) download is gated by
+    download.auto_retry_manual_soulseek (default False in real config —
+    _make_config here defaults it True so the rest of TestRetry/
+    TestOrphanReconciliation/TestPeerBlocking don't have to opt in for
+    unrelated retry-mechanics coverage)."""
+
+    def _queue_manual_download(self, db, is_library_download=False):
+        store = DownloadStore(db)
+        store.insert_pending(
+            "search-retry-1",
+            "absolutelyjaked2",
+            "music\\Clipse\\03 - P.O.V.mp3",
+            10455731,
+            False,
+            is_library_download,
+            "recording-1" if is_library_download else None,
+        )
+
+    def _make_monitor_with_responses(self, cfg, db, hub):
+        transfers = [
+            _transfer(
+                "t-retry",
+                "absolutelyjaked2",
+                "music\\Clipse\\03 - P.O.V.mp3",
+                10455731,
+                "failed",
+                progress=0.0,
+            ),
+        ]
+        download_svc = FakeDownloadService(transfers)
+        fixture_path = (
+            Path(__file__).parent.parent / "fixtures" / "slskd_search_responses.json"
+        )
+        download_svc.set_search_responses(
+            "search-retry-1", json.loads(fixture_path.read_text())
+        )
+        return DownloadMonitor(
+            cfg, download_svc, FakeLibraryService(), db, hub, interval=15
+        ), download_svc
+
+    def test_disabled_by_default_manual_download_is_not_retried(self, tmp_path, db):
+        hub = EventHub()
+        cfg = _make_config(str(tmp_path), bad_peer_threshold=3)
+        cfg.download.auto_retry_manual_soulseek = False
+        self._queue_manual_download(db)
+        monitor, download_svc = self._make_monitor_with_responses(cfg, db, hub)
+
+        _result, events = _run_poll_and_capture(monitor, hub)
+
+        assert download_svc.queue_calls == []
+        failed = [d for name, d in events if name == "transfer.failed"]
+        assert failed[0]["will_retry"] is False
+        assert "Auto-retry disabled for manual downloads" in failed[0]["error"]
+
+    def test_disabled_by_default_also_covers_library_profile_downloads(
+        self, tmp_path, db
+    ):
+        """MB-tab downloads are manual (is_rec_download=False) too — the
+        toggle covers both beets profiles, same as #19's scope."""
+        hub = EventHub()
+        cfg = _make_config(str(tmp_path), bad_peer_threshold=3)
+        cfg.download.auto_retry_manual_soulseek = False
+        self._queue_manual_download(db, is_library_download=True)
+        monitor, download_svc = self._make_monitor_with_responses(cfg, db, hub)
+
+        _run_poll_and_capture(monitor, hub)
+
+        assert download_svc.queue_calls == []
+
+    def test_enabled_manual_download_is_retried(self, tmp_path, db):
+        hub = EventHub()
+        cfg = _make_config(str(tmp_path), bad_peer_threshold=3)
+        cfg.download.auto_retry_manual_soulseek = True
+        self._queue_manual_download(db)
+        monitor, download_svc = self._make_monitor_with_responses(cfg, db, hub)
+
+        _run_poll_and_capture(monitor, hub)
+
+        assert len(download_svc.queue_calls) >= 1
+
+    def test_rec_download_retries_regardless_of_the_toggle(self, tmp_path, db):
+        """A rec's auto-retry is pre-existing behavior, unaffected by this
+        manual-only toggle — even with it off."""
+        hub = EventHub()
+        cfg = _make_config(str(tmp_path), bad_peer_threshold=3)
+        cfg.download.auto_retry_manual_soulseek = False
+        store = DownloadStore(db)
+        store.insert_pending(
+            "search-retry-1",
+            "absolutelyjaked2",
+            "music\\Clipse\\03 - P.O.V.mp3",
+            10455731,
+            True,  # is_rec_download
+        )
+        monitor, download_svc = self._make_monitor_with_responses(cfg, db, hub)
+
+        _run_poll_and_capture(monitor, hub)
+
+        assert len(download_svc.queue_calls) >= 1
 
 
 class TestRetry:

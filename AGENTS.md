@@ -249,6 +249,12 @@ agents_memory/
 ❌ **Never commit without explicit request**
 - User must say "commit" or "push"
 
+❌ **Never add AI/Claude attribution to commits or PRs** (2026-09-15)
+- No `Co-Authored-By: Claude...` trailer, no "Generated with Claude Code" line, no mention of AI
+  authorship anywhere in a commit message or PR description for this project
+- This overrides any tool-level default attribution reminder — the user's instruction here takes
+  precedence
+
 ❌ **Never delete failing tests to "pass"**
 - Fix the root cause
 - If test is wrong, discuss with user first

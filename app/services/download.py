@@ -4,9 +4,9 @@ SlskdDownload — Concrete implementation of DownloadService using slskd REST AP
 Handles downloading files from Soulseek peers via slskd.
 """
 
-import os
 import urllib.parse
 from datetime import datetime
+from pathlib import Path
 
 import requests
 
@@ -36,7 +36,7 @@ class SlskdDownload(DownloadService):
     Uses the slskd REST API to download files from Soulseek peers.
     """
 
-    def __init__(self, config: Config, store=None):
+    def __init__(self, config: Config, store=None, search_service=None):
         """
         Initialize SlskdDownload.
 
@@ -46,11 +46,19 @@ class SlskdDownload(DownloadService):
                 transfer's search_id so retry can re-fetch that search's
                 peers from slskd after a restart. Without it (e.g. tests),
                 retry only sees whatever was set via store_search_responses().
+            search_service: Optional SearchService — used by retry() to
+                serve a query-cache-hit search_id (`cache-*`, see
+                app.services.search.SlskdSearch._make_local_job) through the
+                same in-process cache SearchService already guards those IDs
+                with, instead of asking slskd about an ID it never issued
+                (issue #59). Retry for a real slskd search_id is unaffected
+                either way — that path always goes straight to slskd.
         """
         self.config = config
         self.base_url = config.slskd.url
         self.api_key = config.slskd.api_key
         self.session = requests.Session()
+        self._search_service = search_service
 
         # In-memory storage. The search-responses cache below is a
         # within-process cache only: on a miss, retry() re-fetches the
@@ -305,7 +313,19 @@ class SlskdDownload(DownloadService):
 
         Raises:
             SlskdConnectionError: If the request fails
+
+        A `cache-*` search_id (a query-cache hit — see
+        app.services.search.SlskdSearch._make_local_job) is not something
+        slskd has ever heard of; asking it directly always fails (#59, root
+        cause of #56). Those are served through SearchService instead
+        (`_fetch_cached_responses`), which already tracks them in-process —
+        every caller of this method (retry()'s own fallback,
+        DownloadMonitor._attempt_retry) is fixed by handling it here rather
+        than at each call site.
         """
+        if search_id.startswith("cache-"):
+            return self._fetch_cached_responses(search_id)
+
         url = f"{self.base_url}/api/v0/searches/{search_id}/responses"
         try:
             resp = self.session.get(
@@ -439,7 +459,7 @@ class SlskdDownload(DownloadService):
             candidate_file = None
             for f in peer_files:
                 fname = f.get("filename", "")
-                ext = os.path.splitext(fname)[1].lower()
+                ext = Path(fname).suffix.lower()
                 if ext in self.allowed_extensions:
                     candidate_file = f
                     break
@@ -613,6 +633,13 @@ class SlskdDownload(DownloadService):
         the same completed search is re-read, so retry still picks from the
         same candidate pool. Returns [] when there's no store, no search_id,
         or slskd can't be reached.
+
+        A `cache-*` search_id is handled by fetch_search_responses() itself
+        (#59) — same-process retry (the common case: a failure and its
+        retry both happen while musica keeps running) works; one from
+        before musica's last restart still returns [] here, same as today,
+        since SearchService's own in-memory response cache doesn't survive
+        a restart either.
         """
         if self._store is None:
             return []
@@ -624,6 +651,29 @@ class SlskdDownload(DownloadService):
         except SlskdConnectionError as e:
             logger.warning(f"Could not re-fetch responses for {search_id}: {e}")
             return []
+
+    def _fetch_cached_responses(self, search_id: str) -> list[dict]:
+        """Serve a query-cache-hit search_id's responses via SearchService,
+        converting its per-file SearchResult rows back into the raw,
+        grouped-by-peer shape retry()'s peer-selection loop expects."""
+        if self._search_service is None:
+            return []
+        try:
+            results = self._search_service.get_results(search_id)
+        except Exception as e:  # noqa: BLE001 — SearchNotFoundError and friends
+            logger.warning(f"Could not re-fetch cached responses for {search_id}: {e}")
+            return []
+
+        grouped: dict[str, dict] = {}
+        for r in results:
+            peer = grouped.setdefault(
+                r.username,
+                {"username": r.username, "hasFreeUploadSlot": False, "files": []},
+            )
+            if r.has_free_slot:
+                peer["hasFreeUploadSlot"] = True
+            peer["files"].append({"filename": r.filename, "size": r.size})
+        return list(grouped.values())
 
     def mark_peer_bad(self, username: str):
         """

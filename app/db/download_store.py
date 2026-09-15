@@ -540,6 +540,32 @@ class DownloadStore:
         )
 
     # ------------------------------------------------------------------
+    # Manual-download playlist linkage (#19)
+    # ------------------------------------------------------------------
+
+    def set_playlist(self, transfer_id: str, playlist_id: str) -> None:
+        """Record that a manual download's track has been added to the
+        Searches playlist (mirrors recommendations.playlist_id for recs)."""
+        self._db.execute(
+            "UPDATE downloads SET playlist_id = ? WHERE id = ?",
+            (playlist_id, transfer_id),
+        )
+
+    def get_unplaylisted_manual_downloads(self) -> list[dict]:
+        """Manual (non-rec) downloads whose file has been moved into the
+        library but aren't yet linked to the Searches playlist.
+
+        Covers both the "searches" and "library" (MusicBrainz-tab) beets
+        profiles — the issue named both. A rec download never qualifies:
+        it uses recommendations.playlist_id via a separate mechanism
+        (RecPlaylistService), not this column.
+        """
+        return self._db.fetch_all(
+            "SELECT * FROM downloads WHERE is_rec_download = 0 "
+            "AND file_moved = 1 AND playlist_id IS NULL"
+        )
+
+    # ------------------------------------------------------------------
     # Recommendation completion hook
     # ------------------------------------------------------------------
 

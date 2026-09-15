@@ -134,6 +134,9 @@ class RecPlaylistService:
         rec has no resolvable category (no fallback, P6.7-0b). On success
         the rec row's playlist_id is recorded (the S12 linkage).
         """
+        if not getattr(getattr(self._config, "navidrome", None), "enabled", True):
+            return False
+
         source = rec_row.get("source")
         if source not in CATEGORIES:
             logger.warning(

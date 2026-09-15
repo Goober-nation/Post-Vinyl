@@ -299,7 +299,9 @@ class BeetsService:
             search_id = recording.mbid if recording else None
 
         before_added = self._max_added(library_db)
-        output, failure = self._run_beet_import(cfg_path, source, search_id, recording)
+        output, failure = self._run_beet_import(
+            cfg_path, source, search_id, recording, pinned_mbid=mbid
+        )
         if failure is not None:
             return failure
 
@@ -325,7 +327,7 @@ class BeetsService:
                 )
                 before_added = self._max_added(library_db)
                 output, failure = self._run_beet_import(
-                    cfg_path, source, search_id, recording
+                    cfg_path, source, search_id, recording, pinned_mbid=mbid
                 )
                 if failure is not None:
                     return failure
@@ -438,6 +440,7 @@ class BeetsService:
         source: Path,
         search_id: str | None = None,
         recording=None,
+        pinned_mbid: str | None = None,
     ) -> tuple[str | None, BeetsImportResult | None]:
         """Run one `beet import`.
 
@@ -460,8 +463,32 @@ class BeetsService:
         resolved recording still leaves albumartist/album blank without
         this — live-verified 2026-08-12 on Björk - Jóga (MBID resolved,
         tags empty).
+
+        `pinned_mbid`, when given (the exact recording MBID a library-profile
+        download was pinned to via `mbid=`), forces `mb_trackid` onto the
+        item via `--set` regardless of whether `recording` resolved — the
+        pin is authoritative even on a failed lookup.
+
+        `mb_trackid`/`mb_albumid` are *always* forced via `--set` whenever an
+        MBID is known — from `pinned_mbid`, or from `recording.mbid` on the
+        `resolve_canonical` path — not just when `recording` is missing.
+        Live-verified (2026-09-15, synthetic-audio test against a real
+        MusicBrainz recording): beets only writes `mb_trackid` itself when
+        its own quiet-mode match reaches a "strong" recommendation; any
+        weaker distance (real-world duration/tag drift is enough) falls back
+        to `asis` and silently drops `mb_trackid`/`mb_albumid` even though
+        `--search-id` pinned an exact, already-resolved MBID. `--set`
+        sidesteps that recommendation gate entirely, exactly like
+        `albumartist`/`album` already do below (#55, and the same gap
+        contributing to #2 — an asis-fallback import loses MBID grouping
+        and falls back to fragile string-bucketing).
         """
         set_fields: list[str] = []
+        mbid_for_set = pinned_mbid or (recording.mbid if recording is not None else None)
+        if mbid_for_set:
+            set_fields.append(f"mb_trackid={mbid_for_set}")
+            if recording is not None and recording.best_release is not None:
+                set_fields.append(f"mb_albumid={recording.best_release.mbid}")
         if recording is not None:
             set_fields.append(f"albumartist={recording.artist}")
             best_release = recording.best_release

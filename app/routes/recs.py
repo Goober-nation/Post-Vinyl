@@ -292,14 +292,14 @@ def update_recs_settings(
 
     logger.info(f"POST /api/recs/settings: sections={list(payload)}")
 
-    with open(config.config_path) as f:
+    with config.config_path.open() as f:
         data = toml.load(f)
 
     for section_name, section_payload in payload.items():
         data.setdefault(section_name, {}).update(section_payload)
 
     with _config_backup_guard(config):
-        with open(config.config_path, "w") as f:
+        with config.config_path.open("w") as f:
             toml.dump(data, f)
         config.reload()
 
