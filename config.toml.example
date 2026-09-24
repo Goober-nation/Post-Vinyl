@@ -142,13 +142,6 @@ trash_deletion_enabled = true  # Delete a song's file when it's moved to the Tra
 level = "INFO"             # DEBUG, INFO, WARNING, ERROR, CRITICAL
 format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
-[beets]
-enabled = false             # P6.6-1: route completed downloads through beets for tag/rename/move.
-                            # When false, DownloadMonitor leaves completed transfers in place
-                            # (untagged) rather than falling back to the retired _move_file().
-binary = "beet"             # Path/name of the beets CLI executable
-timeout_seconds = 120       # Max seconds to wait for a single `beet import` subprocess call
-
 # Notes:
 # - Secrets (username, password, api_key, token) should be in .env file
 # - Hot-reload: Non-secret settings can be changed without restart

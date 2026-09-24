@@ -172,13 +172,13 @@ def _transfer_to_dict(transfer: Transfer, store: DownloadStore | None) -> dict:
     """Serialize Transfer to dict.
 
     slskd reports "completed" the instant the network transfer finishes,
-    but musica still has to hand the file to beets for tagging/renaming/
-    moving — a subprocess that can run 5-20s. Reporting slskd's "completed"
-    verbatim tells the UI (and anyone polling this endpoint) the download
-    is done and the file is in the library seconds before that is true, and
-    for that whole window the file exists at neither the old nor the new
-    path. Downgrade to "importing" until musica's own DB confirms beets is
-    actually finished with it (moved or explicitly declined).
+    but musica still has to move the file into the library. Reporting
+    slskd's "completed" verbatim tells the UI (and anyone polling this
+    endpoint) the download is done and the file is in the library seconds
+    before that is true, and for that whole window the file exists at
+    neither the old nor the new path. Downgrade to "importing" until
+    musica's own DB confirms the move is actually finished with it (moved
+    or explicitly declined).
 
     Uses `import_pending`, not `import_handled`: a transfer_id musica has no
     downloads row for at all (e.g. slskd reporting history from before a
@@ -350,8 +350,8 @@ def delete_finished_transfers(
     logger.info(f"DELETE /api/transfers?state={state}")
     transfers = download_service.get_status()
     store = DownloadStore(db) if db is not None else None
-    # A "completed" transfer whose file hasn't been handed off to beets yet
-    # (see _transfer_to_dict) is not actually finished — deleting its row
+    # A "completed" transfer whose file hasn't been moved into the library
+    # yet (see _transfer_to_dict) is not actually finished — deleting its row
     # here would pull the ground out from under DownloadMonitor's
     # mark_file_moved() / mark_import_skipped() calls for it mid-import. Use
     # import_pending (not import_handled) so a transfer musica has no row

@@ -263,44 +263,6 @@ class TestSyncNow:
 
 
 # ============================================================================
-# POST /api/system/consolidate
-# ============================================================================
-
-
-class TestConsolidate:
-    def test_runs_the_sweep_and_returns_summary(self, client, monkeypatch) -> None:
-        class _FakeBeets:
-            def __init__(self, config):
-                self.config = config
-
-            def consolidate_all(self):
-                return {"albums": 3, "moved": 2, "renamed": 6,
-                        "deduplicated": 0, "errors": 0}
-
-        monkeypatch.setattr("app.routes.system.BeetsService", _FakeBeets)
-        resp = client.post("/api/system/consolidate")
-
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["moved"] == 2
-        assert body["renamed"] == 6
-
-    def test_disabled_beets_returns_skipped(self, client, monkeypatch) -> None:
-        class _FakeBeets:
-            def __init__(self, config):
-                self.config = config
-
-            def consolidate_all(self):
-                return {"skipped": "beets.enabled is false"}
-
-        monkeypatch.setattr("app.routes.system.BeetsService", _FakeBeets)
-        resp = client.post("/api/system/consolidate")
-
-        assert resp.status_code == 200
-        assert resp.json() == {"skipped": "beets.enabled is false"}
-
-
-# ============================================================================
 # GET /api/logs
 # ============================================================================
 

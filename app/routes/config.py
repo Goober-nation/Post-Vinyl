@@ -41,7 +41,6 @@ HOT_SECTIONS = {
     "fresh_picks",
     "sync",
     "logging",
-    "beets",
 }
 
 SECRET_ENV_KEYS = {
@@ -215,16 +214,6 @@ class LoggingSettings(BaseModel):
         return value
 
 
-class BeetsSettings(BaseModel):
-    """Beets config section fields."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    enabled: bool | None = None
-    binary: str | None = Field(None, min_length=1)
-    timeout_seconds: int | None = Field(None, ge=1)
-
-
 class MusicBrainzSettings(BaseModel):
     """MusicBrainz config section fields."""
 
@@ -253,7 +242,6 @@ class ConfigUpdateRequest(BaseModel):
     fresh_picks: FreshPicksSettings | None = None
     sync: SyncSettings | None = None
     logging: LoggingSettings | None = None
-    beets: BeetsSettings | None = None
     musicbrainz: MusicBrainzSettings | None = None
 
 

@@ -714,7 +714,6 @@ class TestConfigSurfaceIsComplete:
         "recs",
         "sync",
         "logging",
-        "beets",
         "musicbrainz",
     )
 

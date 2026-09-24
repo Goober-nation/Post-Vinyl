@@ -24,10 +24,10 @@ Deliberate semantics (user decisions 2026-08-14):
 - **Failed removals are retried.** A refused or timed-out deletion leaves
   the slskd record in place and the pass just counts it as failed; the next
   cycle tries again.
-- **A 'completed' transfer still awaiting its beets import is skipped.**
+- **A 'completed' transfer still awaiting its file move is skipped.**
   Deleting slskd's record would make the next monitor poll stop reporting
-  it, so the file would never be handed to beets. Mirrors the guard in
-  DELETE /api/transfers?state=finished.
+  it, so the file would never get moved into the library. Mirrors the
+  guard in DELETE /api/transfers?state=finished.
 """
 
 import threading
@@ -128,9 +128,9 @@ class HistoryCleaner:
         for transfer in transfers:
             if transfer.state not in FINISHED_STATES:
                 continue
-            # A completed transfer whose file hasn't been handed to beets
-            # yet must not have its slskd record removed — the monitor
-            # would stop reporting it and the import would never run.
+            # A completed transfer whose file hasn't been moved into the
+            # library yet must not have its slskd record removed — the
+            # monitor would stop reporting it and the move would never run.
             if (
                 transfer.state == "completed"
                 and self._store is not None

@@ -54,7 +54,6 @@ class Config:
         self.sync = SyncConfig()
         self.logging = LoggingConfig()
         self.auth = AuthConfig()
-        self.beets = BeetsConfig()
         self.musicbrainz = MusicBrainzConfig()
 
         self._loaded = False
@@ -94,7 +93,6 @@ class Config:
         self._populate_sync(data.get("sync", {}))
         self._populate_logging(data.get("logging", {}))
         self._populate_auth()
-        self._populate_beets(data.get("beets", {}))
         self._populate_musicbrainz(data.get("musicbrainz", {}))
 
         # Validate
@@ -125,7 +123,6 @@ class Config:
         self._populate_fresh_picks(data.get("fresh_picks", {}))
         self._populate_sync(data.get("sync", {}))
         self._populate_logging(data.get("logging", {}))
-        self._populate_beets(data.get("beets", {}))
         self._populate_musicbrainz(data.get("musicbrainz", {}))
 
         # Validate
@@ -416,12 +413,6 @@ class Config:
             data, "format", "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
         )
 
-    def _populate_beets(self, data: dict):
-        """Populate beets config section (P6.6-1)."""
-        self.beets.enabled = self._get_bool(data, "enabled", False)
-        self.beets.binary = self._get_str(data, "binary", "beet")
-        self.beets.timeout_seconds = self._get_int(data, "timeout_seconds", 120)
-
     def _populate_musicbrainz(self, data: dict):
         """Populate musicbrainz config section (P-MB-1).
 
@@ -686,16 +677,6 @@ class Config:
                 "logging.level", self.logging.level, f"Must be one of {valid_levels}"
             )
 
-        # Beets
-        if self.beets.timeout_seconds < 1:
-            raise ConfigValidationError(
-                "beets.timeout_seconds", self.beets.timeout_seconds, "Must be >= 1"
-            )
-        if not self.beets.binary.strip():
-            raise ConfigValidationError(
-                "beets.binary", self.beets.binary, "Must not be empty"
-            )
-
         # MusicBrainz
         if not 0 <= self.musicbrainz.min_score <= 100:
             raise ConfigValidationError(
@@ -814,11 +795,6 @@ class Config:
                 "trash_deletion_enabled": self.sync.trash_deletion_enabled,
             },
             "logging": {"level": self.logging.level, "format": self.logging.format},
-            "beets": {
-                "enabled": self.beets.enabled,
-                "binary": self.beets.binary,
-                "timeout_seconds": self.beets.timeout_seconds,
-            },
             "musicbrainz": {
                 "enabled": self.musicbrainz.enabled,
                 "url": self.musicbrainz.url,
@@ -1133,20 +1109,6 @@ class AuthConfig:
     def enabled(self) -> bool:
         """Derived from credentials — set both via .env to require auth."""
         return bool(self.username and self.password)
-
-
-class BeetsConfig:
-    """Beets configuration (P6.6-1) — subprocess-invoked import/tag/move.
-
-    `enabled` gates whether DownloadMonitor routes completed transfers
-    through beets at all; when disabled, downloads are left in place
-    (untagged) rather than falling back to the retired `_move_file()`.
-    """
-
-    def __init__(self):
-        self.enabled: bool = False
-        self.binary: str = "beet"
-        self.timeout_seconds: int = 120
 
 
 class MusicBrainzConfig:

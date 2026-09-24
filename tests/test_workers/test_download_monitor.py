@@ -44,6 +44,8 @@ def _make_config(tmpdir, bad_peer_threshold=1):
     paths.download_path = p / "download"
     paths.searches_path = p / "searches"
     paths.discovery_path = p / "discovery"
+    paths.library_dir = str(p / "library")
+    paths.library_path = p / "library"
 
     class MockDownload:
         check_interval = 15
@@ -58,9 +60,6 @@ def _make_config(tmpdir, bad_peer_threshold=1):
 
     MockDownload.bad_peer_threshold = bad_peer_threshold
 
-    class MockBeets:
-        enabled = False
-
     class MockRecs:
         comfort_zone_playlist_name = "Comfort Zone"
         fresh_picks_playlist_name = "Fresh Picks"
@@ -73,7 +72,6 @@ def _make_config(tmpdir, bad_peer_threshold=1):
     cfg = MockConfig()
     cfg.paths = paths
     cfg.download = MockDownload()
-    cfg.beets = MockBeets()
     cfg.recs = MockRecs()
     return cfg
 
@@ -166,46 +164,6 @@ class FakeLibraryService:
         for sid in song_ids:
             songs.append(Song(sid, "", "", "", "", 0, 0, None, None, None, None, 0, False))
         return True
-
-
-class FakeBeetsService:
-    """Stands in for BeetsService — moves the file like the old _move_file()
-    did (per-username subfolder, "(1)" collision suffix) rather than
-    shelling out to a real beets install, matched=True unless overridden."""
-
-    def __init__(self, config, matched=True):
-        self._config = config
-        self.matched = matched
-        self.calls: list[tuple] = []
-
-    def import_file(
-        self,
-        source: Path,
-        is_rec: bool,
-        title=None,
-        artist=None,
-        category=None,
-        library=None,
-        mbid=None,
-    ):
-        from app.services.beets import BeetsImportResult
-
-        self.calls.append((source, is_rec, title, artist, category, library, mbid))
-        target_root = Path(
-            self._config.paths.discovery_dir
-            if is_rec
-            else self._config.paths.searches_dir
-        )
-        target_dir = target_root / source.parent.name
-        target_dir.mkdir(parents=True, exist_ok=True)
-        target = target_dir / source.name
-        if target.exists():
-            stem, suffix, counter = target.stem, target.suffix, 1
-            while target.exists():
-                target = target_dir / f"{stem} ({counter}){suffix}"
-                counter += 1
-        source.rename(target)
-        return BeetsImportResult(matched=self.matched, target_path=target)
 
 
 def _transfer(
@@ -405,6 +363,9 @@ class TestPollOnceBasic:
 
 class TestFileMove:
     def test_file_move_cycle(self, tmp_config, db):
+        """Completed downloads land flat in library/new-system-tests/, no
+        tagging, no per-username subfolder (beets removed; see AGENTS.md /
+        issues #2, #55, #58)."""
         hub = EventHub()
         transfers = [
             _transfer(
@@ -428,10 +389,8 @@ class TestFileMove:
         source_dir.mkdir(parents=True, exist_ok=True)
         (source_dir / "01 - Bohemian Rhapsody.mp3").write_text("fake mp3 data")
 
-        target_dir = Path(tmp_config.paths.searches_dir) / "ShaLaLaLaLee"
-        target_dir.mkdir(parents=True, exist_ok=True)
+        target_dir = tmp_config.paths.library_path / "new-system-tests"
 
-        tmp_config.beets.enabled = True
         monitor = DownloadMonitor(
             tmp_config,
             download_svc,
@@ -439,7 +398,6 @@ class TestFileMove:
             db,
             hub,
             interval=15,
-            beets_service=FakeBeetsService(tmp_config),
         )
 
         result, events = _run_poll_and_capture(monitor, hub)
@@ -481,11 +439,10 @@ class TestFileMove:
         source_dir.mkdir(parents=True, exist_ok=True)
         (source_dir / "01 - Bohemian Rhapsody.mp3").write_text("fake mp3 data")
 
-        target_dir = Path(tmp_config.paths.searches_dir) / "ShaLaLaLaLee"
+        target_dir = tmp_config.paths.library_path / "new-system-tests"
         target_dir.mkdir(parents=True, exist_ok=True)
         (target_dir / "01 - Bohemian Rhapsody.mp3").write_text("pre-existing")
 
-        tmp_config.beets.enabled = True
         monitor = DownloadMonitor(
             tmp_config,
             download_svc,
@@ -493,7 +450,6 @@ class TestFileMove:
             db,
             hub,
             interval=15,
-            beets_service=FakeBeetsService(tmp_config),
         )
 
         result, _events = _run_poll_and_capture(monitor, hub)
@@ -502,8 +458,10 @@ class TestFileMove:
         assert len(moved) == 1
         assert "(1)" in Path(moved[0]).name
 
-    def test_rec_download_moves_to_discovery(self, tmp_config, db):
-        """A rec download (DB row is_rec_download=1) moves to discovery/, not searches/."""
+    def test_rec_download_also_lands_flat(self, tmp_config, db):
+        """A rec download (DB row is_rec_download=1) also lands in the
+        single flat landing dir — there is no per-category routing anymore
+        (that was beets-profile-selection, now removed)."""
         # Seed a queue-time pending row with the rec flag set
         store = DownloadStore(db)
         store.insert_pending(
@@ -549,7 +507,6 @@ class TestFileMove:
         source_dir.mkdir(parents=True, exist_ok=True)
         (source_dir / "Tangerine Sour.mp3").write_text("fake mp3 data")
 
-        tmp_config.beets.enabled = True
         monitor = DownloadMonitor(
             tmp_config,
             download_svc,
@@ -557,14 +514,13 @@ class TestFileMove:
             db,
             hub,
             interval=15,
-            beets_service=FakeBeetsService(tmp_config),
         )
 
         result, events = _run_poll_and_capture(monitor, hub)
 
+        target_dir = tmp_config.paths.library_path / "new-system-tests"
         assert len(result["moved"]) == 1
-        assert str(tmp_config.paths.discovery_dir) in result["moved"][0]
-        assert str(tmp_config.paths.searches_dir) not in result["moved"][0]
+        assert str(target_dir) in result["moved"][0]
         # Rec completion hook fired: recommendation row linked via search_id
         rec = db.fetch_one(
             "SELECT status, download_id, playlist_id FROM recommendations "
@@ -582,7 +538,7 @@ class TestFileMove:
             s.song_id for s in lib_svc.playlist_songs[rec["playlist_id"]]
         }
         completed_ev = next(e for e in events if e[0] == "transfer.completed")
-        assert str(tmp_config.paths.discovery_dir) in completed_ev[1]["target_dir"]
+        assert str(target_dir) in completed_ev[1]["target_dir"]
 
     def test_rec_playlist_retries_after_index_lag(self, tmp_config, db):
         """A later monitor poll links a rec once Navidrome indexes the import."""
@@ -623,9 +579,7 @@ class TestFileMove:
             db,
             EventHub(),
             interval=15,
-            beets_service=FakeBeetsService(tmp_config),
         )
-        tmp_config.beets.enabled = True
 
         _run_poll_and_capture(monitor, monitor._event_hub)
         first = db.fetch_one(
@@ -692,7 +646,6 @@ class TestFileMove:
             db,
             EventHub(),
             interval=15,
-            beets_service=FakeBeetsService(tmp_config),
         )
 
         _run_poll_and_capture(monitor, monitor._event_hub)
@@ -738,8 +691,10 @@ class TestFileMove:
         assert recs_store.get_rec(rec_id)["playlist_id"] == "pl-1"
 
 
-class TestBeetsImport:
-    """P6.6-2/-4: beets owns the import path that _move_file() used to."""
+class TestFileImportMove:
+    """beets is gone (issues #2, #55, #58): a completed download is now
+    unconditionally moved into library/new-system-tests/, flat, no
+    tagging, no metadata parsing, no profile selection."""
 
     def _completed(self, filename="a\\b\\01 - Track.mp3"):
         return [
@@ -758,12 +713,9 @@ class TestBeetsImport:
         source.write_text("fake mp3 data")
         return source
 
-    def test_disabled_beets_leaves_the_file_in_place(self, tmp_config, db):
-        """No fallback to the retired _move_file(): with beets off, a
-        completed download stays where slskd put it."""
+    def test_move_lands_flat_in_new_system_tests(self, tmp_config, db):
         hub = EventHub()
         source = self._seed_source(tmp_config, "a", "b", "01 - Track.mp3")
-        beets = FakeBeetsService(tmp_config)
 
         monitor = DownloadMonitor(
             tmp_config,
@@ -772,25 +724,23 @@ class TestBeetsImport:
             db,
             hub,
             interval=15,
-            beets_service=beets,
         )
         result, _events = _run_poll_and_capture(monitor, hub)
 
-        assert result["moved"] == []
-        assert result["scan_triggered"] is False
-        assert beets.calls == []
-        assert source.exists()
-        assert not DownloadStore(db).file_moved("t-b")
+        assert len(result["moved"]) == 1
+        target = tmp_config.paths.library_path / "new-system-tests" / "01 - Track.mp3"
+        assert Path(result["moved"][0]) == target
+        assert target.exists()
+        assert not source.exists()
+        assert DownloadStore(db).file_moved("t-b")
 
     def test_exact_reported_path_wins_over_a_basename_twin(self, tmp_config, db):
-        """The _move_file() defect this replaces: a first-basename-match glob
-        could move a *different* download that happened to share a filename."""
+        """The old _move_file() defect: a first-basename-match glob could
+        move a *different* download that happened to share a filename."""
         hub = EventHub()
         wanted = self._seed_source(tmp_config, "a", "b", "01 - Track.mp3")
         decoy = self._seed_source(tmp_config, "other", "01 - Track.mp3")
         decoy.write_text("WRONG FILE")
-        tmp_config.beets.enabled = True
-        beets = FakeBeetsService(tmp_config)
 
         monitor = DownloadMonitor(
             tmp_config,
@@ -799,20 +749,17 @@ class TestBeetsImport:
             db,
             hub,
             interval=15,
-            beets_service=beets,
         )
         _run_poll_and_capture(monitor, hub)
 
-        assert beets.calls[0][0] == wanted
+        assert not wanted.exists()
         assert decoy.exists(), "the same-named file from another download was moved"
 
     def test_falls_back_to_basename_when_exact_path_is_absent(self, tmp_config, db):
         """slskd doesn't always mirror the peer's directory structure
         locally, so the old basename search stays as a fallback."""
         hub = EventHub()
-        source = self._seed_source(tmp_config, "01 - Track.mp3")
-        tmp_config.beets.enabled = True
-        beets = FakeBeetsService(tmp_config)
+        self._seed_source(tmp_config, "01 - Track.mp3")
 
         monitor = DownloadMonitor(
             tmp_config,
@@ -821,32 +768,15 @@ class TestBeetsImport:
             db,
             hub,
             interval=15,
-            beets_service=beets,
         )
         result, _events = _run_poll_and_capture(monitor, hub)
 
-        assert beets.calls[0][0] == source
         assert len(result["moved"]) == 1
 
-    def test_failed_import_does_not_mark_the_file_moved(self, tmp_config, db):
+    def test_missing_source_does_not_mark_the_file_moved(self, tmp_config, db):
+        """No source file on disk at all: _resolve_source_path returns None,
+        _handle_missing_source runs, nothing is moved or marked."""
         hub = EventHub()
-        source = self._seed_source(tmp_config, "a", "b", "01 - Track.mp3")
-        tmp_config.beets.enabled = True
-
-        class FailingBeets:
-            def import_file(
-                self,
-                source,
-                is_rec,
-                title=None,
-                artist=None,
-                category=None,
-                library=None,
-                mbid=None,
-            ):
-                from app.services.beets import BeetsImportResult
-
-                return BeetsImportResult(False, None, "beet blew up")
 
         monitor = DownloadMonitor(
             tmp_config,
@@ -855,55 +785,41 @@ class TestBeetsImport:
             db,
             hub,
             interval=15,
-            beets_service=FailingBeets(),
+        )
+        result, _events = _run_poll_and_capture(monitor, hub)
+
+        assert result["moved"] == []
+        assert not DownloadStore(db).file_moved("t-b")
+
+    def test_move_failure_logs_and_returns_none_without_crashing(
+        self, tmp_config, db, monkeypatch
+    ):
+        """shutil.move raising (e.g. destination unwritable) must not crash
+        poll_once — it logs a warning, leaves the source in place, and the
+        polling loop keeps going for other transfers."""
+        import shutil
+
+        hub = EventHub()
+        source = self._seed_source(tmp_config, "a", "b", "01 - Track.mp3")
+
+        def _boom(*args, **kwargs):
+            raise OSError("destination unwritable")
+
+        monkeypatch.setattr(shutil, "move", _boom)
+
+        monitor = DownloadMonitor(
+            tmp_config,
+            FakeDownloadService(self._completed()),
+            FakeLibraryService(),
+            db,
+            hub,
+            interval=15,
         )
         result, _events = _run_poll_and_capture(monitor, hub)
 
         assert result["moved"] == []
         assert source.exists()
         assert not DownloadStore(db).file_moved("t-b")
-
-    def test_unmatched_import_is_flagged_but_still_lands(self, tmp_config, db):
-        """P6.6-4: an untaggable file imports and is flagged — not dropped,
-        not quarantined."""
-        hub = EventHub()
-        self._seed_source(tmp_config, "a", "b", "01 - Track.mp3")
-        tmp_config.beets.enabled = True
-
-        monitor = DownloadMonitor(
-            tmp_config,
-            FakeDownloadService(self._completed()),
-            FakeLibraryService(),
-            db,
-            hub,
-            interval=15,
-            beets_service=FakeBeetsService(tmp_config, matched=False),
-        )
-        result, _events = _run_poll_and_capture(monitor, hub)
-
-        assert len(result["moved"]) == 1
-        assert Path(result["moved"][0]).exists()
-        row = db.fetch_one("SELECT import_unmatched FROM downloads WHERE id = 't-b'")
-        assert row["import_unmatched"] == 1
-
-    def test_matched_import_is_not_flagged(self, tmp_config, db):
-        hub = EventHub()
-        self._seed_source(tmp_config, "a", "b", "01 - Track.mp3")
-        tmp_config.beets.enabled = True
-
-        monitor = DownloadMonitor(
-            tmp_config,
-            FakeDownloadService(self._completed()),
-            FakeLibraryService(),
-            db,
-            hub,
-            interval=15,
-            beets_service=FakeBeetsService(tmp_config, matched=True),
-        )
-        _run_poll_and_capture(monitor, hub)
-
-        row = db.fetch_one("SELECT import_unmatched FROM downloads WHERE id = 't-b'")
-        assert row["import_unmatched"] == 0
 
 
 class TestAutoRetryManualToggle:
@@ -1588,252 +1504,20 @@ class TestOrphanReconciliation:
         assert store.has_active_manual_downloads() is True
 
 
-class TestImportIntentResolution:
-    """P-MB-1 wiring: the monitor must recover "what the user actually
-    asked for" and hand it to beets, so the import can be constrained to
-    it instead of trusting the downloaded file's own tags."""
-
-    def test_manual_search_intent_is_passed_to_beets(self, tmp_config, db):
-        from app.db.search_store import SearchStore
-
-        SearchStore(db).insert_search("s-manual", "Jóga", "Björk", "completed")
-        store = DownloadStore(db)
-        store.insert_pending("s-manual", "peerone", "a\\Joga.mp3", 5000, False)
-
-        hub = EventHub()
-        transfers = [
-            _transfer("t-manual", "peerone", "a\\Joga.mp3", 5000, "completed",
-                      progress=100.0)
-        ]
-        source_dir = (
-            Path(tmp_config.paths.download_dir) / "complete" / "soulseek" / "peerone"
-        )
-        source_dir.mkdir(parents=True, exist_ok=True)
-        (source_dir / "a").mkdir(parents=True, exist_ok=True)
-        (source_dir / "a" / "Joga.mp3").write_text("fake mp3 data")
-
-        tmp_config.beets.enabled = True
-        beets = FakeBeetsService(tmp_config)
-        monitor = DownloadMonitor(
-            tmp_config,
-            FakeDownloadService(transfers),
-            FakeLibraryService(),
-            db,
-            hub,
-            interval=15,
-            beets_service=beets,
-        )
-
-        _run_poll_and_capture(monitor, hub)
-
-        assert len(beets.calls) == 1
-        _source, is_rec, title, artist, category, _library, _mbid = beets.calls[0]
-        assert is_rec is False
-        assert title == "Jóga"
-        assert artist == "Björk"
-        assert category is None
-
-    def test_rec_intent_is_passed_to_beets(self, tmp_config, db):
-        store = DownloadStore(db)
-        store.insert_pending(
-            "rec-search-2", "astuary", "some\\dir\\Tangerine Sour.mp3", 5000, True
-        )
-        db.execute(
-            "INSERT INTO recommendations (source, artist, track, mbid, status, "
-            "search_id, created_at) VALUES ('deep_cuts', 'Emancipator', "
-            "'Tangerine Sour', NULL, 'queued', 'rec-search-2', ?)",
-            (int(time.time()),),
-        )
-
-        hub = EventHub()
-        transfers = [
-            _transfer(
-                "t-rec2", "astuary", "some\\dir\\Tangerine Sour.mp3", 5000,
-                "completed", progress=100.0,
-            )
-        ]
-        source_dir = (
-            Path(tmp_config.paths.download_dir) / "complete" / "soulseek" / "astuary"
-        )
-        source_dir.mkdir(parents=True, exist_ok=True)
-        (source_dir / "Tangerine Sour.mp3").write_text("fake mp3 data")
-
-        tmp_config.beets.enabled = True
-        beets = FakeBeetsService(tmp_config)
-        monitor = DownloadMonitor(
-            tmp_config,
-            FakeDownloadService(transfers),
-            FakeLibraryService(),
-            db,
-            hub,
-            interval=15,
-            beets_service=beets,
-        )
-
-        _run_poll_and_capture(monitor, hub)
-
-        assert len(beets.calls) == 1
-        _source, is_rec, title, artist, category, _library, _mbid = beets.calls[0]
-        assert is_rec is True
-        assert title == "Tangerine Sour"
-        assert artist == "Emancipator"
-        assert category == "deep_cuts"
-
-    def test_rec_with_unknown_source_passes_it_through(self, tmp_config, db):
-        """A rec row with a source value no category profile maps (legacy/
-        unknown) has no beets destination — the monitor passes it through
-        unchanged and the real BeetsService fails the import rather than
-        guessing (P6.7-0b)."""
-        store = DownloadStore(db)
-        store.insert_pending(
-            "rec-search-nosrc", "astuary", "legacy.mp3", 5000, True
-        )
-        db.execute(
-            "INSERT INTO recommendations (source, artist, track, mbid, status, "
-            "search_id, created_at) VALUES ('weekly_jams', 'Some Artist', "
-            "'Legacy Track', NULL, 'queued', 'rec-search-nosrc', ?)",
-            (int(time.time()),),
-        )
-
-        hub = EventHub()
-        transfers = [
-            _transfer("t-recnosrc", "astuary", "legacy.mp3", 5000, "completed",
-                      progress=100.0)
-        ]
-        source_dir = (
-            Path(tmp_config.paths.download_dir) / "complete" / "soulseek" / "astuary"
-        )
-        source_dir.mkdir(parents=True, exist_ok=True)
-        (source_dir / "legacy.mp3").write_text("fake mp3 data")
-
-        tmp_config.beets.enabled = True
-        beets = FakeBeetsService(tmp_config)
-        monitor = DownloadMonitor(
-            tmp_config,
-            FakeDownloadService(transfers),
-            FakeLibraryService(),
-            db,
-            hub,
-            interval=15,
-            beets_service=beets,
-        )
-
-        _run_poll_and_capture(monitor, hub)
-
-        assert len(beets.calls) == 1
-        _source, is_rec, title, artist, category, _library, _mbid = beets.calls[0]
-        assert is_rec is True
-        assert title == "Legacy Track"
-        assert category == "weekly_jams"
-
-    def test_no_search_context_passes_none(self, tmp_config, db):
-        """A transfer slskd reports with no matching pending/search row
-        (e.g. adopted mid-flight) has nothing to resolve — beets falls
-        back to matching on the file's own tags, same as pre-P-MB-1."""
-        hub = EventHub()
-        transfers = [
-            _transfer("t-orphan", "peerone", "a\\Track.mp3", 5000, "completed",
-                      progress=100.0)
-        ]
-        source_dir = (
-            Path(tmp_config.paths.download_dir) / "complete" / "soulseek" / "peerone"
-        )
-        (source_dir / "a").mkdir(parents=True, exist_ok=True)
-        (source_dir / "a" / "Track.mp3").write_text("fake mp3 data")
-
-        tmp_config.beets.enabled = True
-        beets = FakeBeetsService(tmp_config)
-        monitor = DownloadMonitor(
-            tmp_config,
-            FakeDownloadService(transfers),
-            FakeLibraryService(),
-            db,
-            hub,
-            interval=15,
-            beets_service=beets,
-        )
-
-        _run_poll_and_capture(monitor, hub)
-
-        assert len(beets.calls) == 1
-        _source, _is_rec, title, artist, _category, _library, _mbid = beets.calls[0]
-        assert title is None
-        assert artist is None
-
-    def test_library_download_routes_through_library_and_mbid(self, tmp_config, db):
-        """P6.8: a row with is_library_download=1 is a manual download
-        (is_rec=False) but must import through library=True pinned to its
-        recording MBID."""
-        store = DownloadStore(db)
-        store.insert_pending(
-            "s-library",
-            "peerone",
-            "a\\Track.mp3",
-            5000,
-            False,
-            is_library_download=True,
-            mb_recording_id="mbid-123",
-        )
-
-        hub = EventHub()
-        transfers = [
-            _transfer(
-                "t-lib", "peerone", "a\\Track.mp3", 5000, "completed", progress=100.0
-            )
-        ]
-        source_dir = (
-            Path(tmp_config.paths.download_dir) / "complete" / "soulseek" / "peerone"
-        )
-        (source_dir / "a").mkdir(parents=True, exist_ok=True)
-        (source_dir / "a" / "Track.mp3").write_text("fake mp3 data")
-
-        tmp_config.beets.enabled = True
-        beets = FakeBeetsService(tmp_config)
-        monitor = DownloadMonitor(
-            tmp_config,
-            FakeDownloadService(transfers),
-            FakeLibraryService(),
-            db,
-            hub,
-            interval=15,
-            beets_service=beets,
-        )
-
-        _run_poll_and_capture(monitor, hub)
-
-        assert len(beets.calls) == 1
-        _source, is_rec, _title, _artist, _category, library, mbid = beets.calls[0]
-        assert is_rec is False
-        assert library is True
-        assert mbid == "mbid-123"
-
-
 class TestDirectSearchImportRegression:
     """Issue #4: direct Soulseek-tab search downloads (not MB search, not
-    recs) complete in slskd but the file is reported as never picked up by
-    beets. Test plan posted to
-    https://github.com/Goober-nation/Post-Vinyl/issues/4
+    recs) used to complete in slskd but be reported as never picked up by
+    beets. beets (and its profile routing) is gone now — the move is
+    unconditional — but the regression this guarded (a transfer with no
+    `downloads` row at all still gets moved) still matters."""
 
-    Routing itself is correct on paper: is_rec=False, is_library=False ->
-    BeetsService.import_file routes to the "searches" profile
-    (app/services/beets.py:275-278). These tests rule candidate failure
-    points in/around DownloadMonitor in or out one at a time — none of them
-    reproduce the symptom, which narrows the bug to either the real
-    BeetsService/beets CLI (not exercised by FakeBeetsService here) or the
-    queueing UI itself, and points the next investigation step at a live
-    reproduction rather than more unit coverage here.
-    """
-
-    def test_direct_search_with_no_pending_row_at_all_still_imports(
+    def test_direct_search_with_no_pending_row_at_all_still_moves(
         self, tmp_config, db
     ):
-        """Ruled out: a direct-search download that was never persisted as
-        a `downloads` row (e.g. the queueing UI call didn't pass search_id,
-        so routes/downloads.py's `if body.search_id` guard skipped
-        insert_pending) is still picked up and imported — get_transfer()
-        returning None just means is_rec/is_library both default to False,
-        which is exactly the "searches" profile routing. So a missing
-        pending row does not, by itself, explain a stuck file."""
+        """A direct-search download never persisted as a `downloads` row
+        (e.g. the queueing UI call didn't pass search_id) is still picked
+        up and moved — get_transfer() returning None doesn't block the
+        move."""
         hub = EventHub()
         transfers = [
             _transfer(
@@ -1847,8 +1531,6 @@ class TestDirectSearchImportRegression:
         (source_dir / "a").mkdir(parents=True, exist_ok=True)
         (source_dir / "a" / "Track.mp3").write_text("fake mp3 data")
 
-        tmp_config.beets.enabled = True
-        beets = FakeBeetsService(tmp_config)
         monitor = DownloadMonitor(
             tmp_config,
             FakeDownloadService(transfers),
@@ -1856,23 +1538,11 @@ class TestDirectSearchImportRegression:
             db,
             hub,
             interval=15,
-            beets_service=beets,
         )
 
         result, _events = _run_poll_and_capture(monitor, hub)
 
-        assert len(beets.calls) == 1
-        _source, is_rec, _title, _artist, _category, library, _mbid = beets.calls[0]
-        assert is_rec is False
-        assert library is False  # would route to "searches", not "library"
         assert len(result["moved"]) == 1
-
-    # Note: the "MusicBrainz unreachable on the no-mbid path" hypothesis is
-    # ruled out at the BeetsService layer instead — see
-    # test_beets_service.py::TestMusicBrainzConstraint::
-    # test_musicbrainz_unreachable_on_the_no_mbid_path_still_imports
-    # (issue #4's test plan), since that's where the real fixtures for
-    # exercising BeetsService.import_file directly already live.
 
 
 class TestMissingSourceTimeout:
@@ -1889,9 +1559,7 @@ class TestMissingSourceTimeout:
 
     def test_keeps_retrying_before_the_timeout(self, tmp_config, db):
         hub = EventHub()
-        tmp_config.beets.enabled = True
         tmp_config.download.missing_source_timeout_minutes = 5
-        beets = FakeBeetsService(tmp_config)
         monitor = DownloadMonitor(
             tmp_config,
             FakeDownloadService(self._completed()),
@@ -1899,20 +1567,17 @@ class TestMissingSourceTimeout:
             db,
             hub,
             interval=15,
-            beets_service=beets,
         )
 
-        _run_poll_and_capture(monitor, hub)
+        result, _events = _run_poll_and_capture(monitor, hub)
 
-        assert beets.calls == []
+        assert result["moved"] == []
         assert not DownloadStore(db).import_handled("t-ghost")
         assert "t-ghost" in monitor._missing_source_since
 
     def test_gives_up_after_the_timeout(self, tmp_config, db):
         hub = EventHub()
-        tmp_config.beets.enabled = True
         tmp_config.download.missing_source_timeout_minutes = 5
-        beets = FakeBeetsService(tmp_config)
         monitor = DownloadMonitor(
             tmp_config,
             FakeDownloadService(self._completed()),
@@ -1920,15 +1585,14 @@ class TestMissingSourceTimeout:
             db,
             hub,
             interval=15,
-            beets_service=beets,
         )
         # Simulate having already been missing for longer than the timeout,
         # rather than sleeping in the test.
         monitor._missing_source_since["t-ghost"] = time.time() - 301
 
-        _run_poll_and_capture(monitor, hub)
+        result, _events = _run_poll_and_capture(monitor, hub)
 
-        assert beets.calls == []
+        assert result["moved"] == []
         assert DownloadStore(db).import_handled("t-ghost")
         assert "t-ghost" not in monitor._missing_source_since
 
@@ -1942,9 +1606,7 @@ class TestMissingSourceTimeout:
         the very next poll and the row would start retrying all over
         again."""
         hub = EventHub()
-        tmp_config.beets.enabled = True
         tmp_config.download.missing_source_timeout_minutes = 5
-        beets = FakeBeetsService(tmp_config)
         monitor = DownloadMonitor(
             tmp_config,
             FakeDownloadService(self._completed()),
@@ -1952,16 +1614,15 @@ class TestMissingSourceTimeout:
             db,
             hub,
             interval=15,
-            beets_service=beets,
         )
         monitor._missing_source_since["t-ghost"] = time.time() - 301
         _run_poll_and_capture(monitor, hub)
         assert DownloadStore(db).import_handled("t-ghost")
 
         # slskd reports the exact same transfer as "completed" again.
-        _run_poll_and_capture(monitor, hub)
+        result, _events = _run_poll_and_capture(monitor, hub)
 
-        assert beets.calls == []
+        assert result["moved"] == []
 
     def test_source_found_before_timeout_clears_the_tracking_entry(
         self, tmp_config, db
@@ -1972,165 +1633,22 @@ class TestMissingSourceTimeout:
         source_dir = (
             Path(tmp_config.paths.download_dir) / "complete" / "soulseek" / "ghost"
         )
-        tmp_config.beets.enabled = True
-        beets = FakeBeetsService(tmp_config)
         service = FakeDownloadService(self._completed())
         monitor = DownloadMonitor(
             tmp_config, service, FakeLibraryService(), db, hub, interval=15,
-            beets_service=beets,
         )
 
-        _run_poll_and_capture(monitor, hub)
+        result, _events = _run_poll_and_capture(monitor, hub)
         assert "t-ghost" in monitor._missing_source_since
-        assert beets.calls == []
+        assert result["moved"] == []
 
         (source_dir / "a").mkdir(parents=True, exist_ok=True)
         (source_dir / "a" / "Track.mp3").write_text("fake mp3 data")
 
-        _run_poll_and_capture(monitor, hub)
+        result, _events = _run_poll_and_capture(monitor, hub)
 
-        assert len(beets.calls) == 1
+        assert len(result["moved"]) == 1
         assert "t-ghost" not in monitor._missing_source_since
-
-
-class TestBeetsDuplicateHandling:
-    """A duplicate skip is terminal, not a failure — otherwise the monitor
-    re-runs the same doomed import on every poll cycle forever."""
-
-    def _monitor(self, tmp_config, db, hub, beets):
-        tmp_config.beets.enabled = True
-        source = Path(
-            tmp_config.paths.download_dir,
-            "complete",
-            "soulseek",
-            "peerone",
-            "a",
-            "b",
-            "01 - Track.mp3",
-        )
-        source.parent.mkdir(parents=True, exist_ok=True)
-        source.write_text("fake mp3 data")
-        transfers = [
-            _transfer(
-                "t-dup", "peerone", "a\\b\\01 - Track.mp3", 5000, "completed",
-                progress=100.0,
-            )
-        ]
-        return (
-            DownloadMonitor(
-                tmp_config,
-                FakeDownloadService(transfers),
-                FakeLibraryService(),
-                db,
-                hub,
-                interval=15,
-                beets_service=beets,
-            ),
-            source,
-        )
-
-    def test_duplicate_is_not_retried_on_the_next_poll(self, tmp_config, db):
-        from app.services.beets import BeetsImportResult
-
-        class DuplicateBeets:
-            def __init__(self):
-                self.calls = 0
-
-            def import_file(
-                self,
-                source,
-                is_rec,
-                title=None,
-                artist=None,
-                category=None,
-                library=None,
-                mbid=None,
-            ):
-                self.calls += 1
-                return BeetsImportResult(False, None, "already in library", True)
-
-        beets = DuplicateBeets()
-        hub = EventHub()
-        monitor, source = self._monitor(tmp_config, db, hub, beets)
-
-        _run_poll_and_capture(monitor, hub)
-        _run_poll_and_capture(monitor, hub)
-        _run_poll_and_capture(monitor, hub)
-
-        assert beets.calls == 1, "duplicate import was re-attempted every poll"
-        assert source.exists(), "the redundant download must not be deleted"
-        # Terminal, but NOT recorded as a move — the file never moved. It
-        # used to be written as file_moved = 1 with an empty target_dir,
-        # which is how "complete downloads disappear into thin air" looked
-        # from the UI and the API (migration 007).
-        store = DownloadStore(db)
-        assert store.import_handled("t-dup")
-        assert not store.file_moved("t-dup")
-        row = db.fetch_one(
-            "SELECT import_skipped, target_dir FROM downloads WHERE id = 't-dup'"
-        )
-        assert row["import_skipped"] == 1
-        assert not row["target_dir"]
-
-    def test_skipped_import_keeps_the_file_findable(self, tmp_config, db):
-        """A skipped download must still be locatable on disk afterwards —
-        the point of not claiming it was moved."""
-        from app.services.beets import BeetsImportResult
-
-        class DuplicateBeets:
-            def import_file(
-                self,
-                source,
-                is_rec,
-                title=None,
-                artist=None,
-                category=None,
-                library=None,
-                mbid=None,
-            ):
-                return BeetsImportResult(False, None, "already in library", True)
-
-        hub = EventHub()
-        monitor, source = self._monitor(tmp_config, db, hub, DuplicateBeets())
-        _run_poll_and_capture(monitor, hub)
-
-        assert source.exists()
-        row = db.fetch_one("SELECT target_dir FROM downloads WHERE id = 't-dup'")
-        assert not row["target_dir"], (
-            "an empty target_dir must not be paired with file_moved = 1"
-        )
-
-    def test_genuine_failure_is_still_retried(self, tmp_config, db):
-        """The counterpart: a real error must NOT be marked handled, or a
-        transient beets problem would permanently strand the download."""
-        from app.services.beets import BeetsImportResult
-
-        class FailingBeets:
-            def __init__(self):
-                self.calls = 0
-
-            def import_file(
-                self,
-                source,
-                is_rec,
-                title=None,
-                artist=None,
-                category=None,
-                library=None,
-                mbid=None,
-            ):
-                self.calls += 1
-                return BeetsImportResult(False, None, "beet exploded", False)
-
-        beets = FailingBeets()
-        hub = EventHub()
-        monitor, _source = self._monitor(tmp_config, db, hub, beets)
-
-        _run_poll_and_capture(monitor, hub)
-        _run_poll_and_capture(monitor, hub)
-
-        assert beets.calls == 2
-        assert not DownloadStore(db).file_moved("t-dup")
 
 
 class TestFileMovedBookkeeping:

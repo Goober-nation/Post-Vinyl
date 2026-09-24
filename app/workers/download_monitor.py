@@ -3,6 +3,7 @@ DownloadMonitor — Background worker that polls slskd for transfer state
 and drives the download lifecycle: tracking, retry, file-move, SSE events.
 """
 
+import shutil
 import threading
 import time
 from pathlib import Path
@@ -14,7 +15,6 @@ from app.db.recs_store import RecsStore
 from app.db.search_store import SearchStore
 from app.exceptions import SlskdConnectionError
 from app.logging_config import get_logger
-from app.services.beets import BeetsService
 from app.services.rec_playlist import RecPlaylistService
 from app.services.searches_playlist import SearchesPlaylistService
 from app.sse import EventHub
@@ -48,7 +48,6 @@ class DownloadMonitor:
         database: Database,
         event_hub: EventHub,
         interval: int | None = None,
-        beets_service: object | None = None,
     ) -> None:
         self._config = config
         self._download_service = download_service
@@ -71,9 +70,6 @@ class DownloadMonitor:
             config, library_service, self._store, self._playlist_store
         )
         self._event_hub = event_hub
-        # P6.6-2: beets owns import (tag/rename/move) for completed
-        # transfers, replacing _move_file(). Injectable for tests.
-        self._beets_service = beets_service or BeetsService(config)
         self.interval = interval or config.download.check_interval
         self._stopped = threading.Event()
         self._thread: threading.Thread | None = None
@@ -233,18 +229,8 @@ class DownloadMonitor:
             if t.state == "completed":
                 should_emit = prev_state != "completed"
                 row = self._store.get_transfer(t.transfer_id)
-                # Use the DB row's rec flag (set at queue time) — the slskd-parsed
-                # Transfer always reports is_rec_download=False.
-                is_rec = bool(row and row.get("is_rec_download"))
-                # P6.8: a MusicBrainz-initiated download is a manual-priority
-                # row (is_rec_download = 0) that must import into the "library"
-                # profile, pinned to its exact recording MBID.
-                is_library = bool(row and row.get("is_library_download"))
-                mbid = row.get("mb_recording_id") if row else None
                 if not self._store.import_handled(t.transfer_id):
-                    moved = self._import_via_beets(
-                        t, is_rec=is_rec, is_library=is_library, mbid=mbid
-                    )
+                    moved = self._import_via_move(t)
                     if moved:
                         moved_files.append(str(moved))
                         self._store.mark_file_moved(
@@ -585,82 +571,57 @@ class DownloadMonitor:
 
         return (None, None)
 
-    def _import_via_beets(
-        self,
-        transfer,
-        is_rec: bool,
-        is_library: bool = False,
-        mbid: str | None = None,
-    ) -> Path | None:
+    def _import_via_move(self, transfer) -> Path | None:
         """
-        Hand a completed download off to beets for tag/rename/move.
-        Returns the target path beets placed it at, or None if beets is
-        disabled, the source file couldn't be located, or the import failed
-        — in every None case the source file is left untouched.
+        Move a completed download's file into the flat landing directory,
+        no tagging, no metadata parsing, no profile selection — least
+        friction, always works (replaces the old beets-driven import;
+        see AGENTS.md / issues #2, #55, #58 for why beets was removed).
 
-        `is_library` / `mbid` (P6.8) route a MusicBrainz-initiated download
-        into the "library" profile pinned to `mbid`. Such rows are manual
-        (is_rec=False), so `is_rec` stays False and the MBID is authoritative
-        — the intent title/artist are still threaded when a search row exists,
-        but BeetsService ignores them once an mbid is given.
+        Returns the destination path on success, or None if the source
+        file couldn't be located or the move failed — in every None case
+        the source file is left untouched and the poll loop keeps going.
         """
-        if not getattr(getattr(self._config, "beets", None), "enabled", False):
-            logger.debug(
-                "beets disabled; leaving completed file in place: %s",
-                transfer.filename,
-            )
-            return None
-
         source = self._resolve_source_path(transfer)
         if source is None:
             self._handle_missing_source(transfer)
             return None
         # Self-healed: a source that was missing on an earlier poll turned
         # up before the timeout — drop the tracking entry so a later,
-        # unrelated miss on this same transfer_id (there shouldn't be one,
-        # but the file is beets' to consume from here) starts its own clock.
+        # unrelated miss on this same transfer_id starts its own clock.
         self._missing_source_since.pop(transfer.transfer_id, None)
 
-        title, artist, category = self._resolve_intent(transfer, is_rec)
-        result = self._beets_service.import_file(
-            source,
-            is_rec=is_rec,
-            title=title,
-            artist=artist,
-            category=category,
-            library=is_library,
-            mbid=mbid,
-        )
-        if not result.ok:
-            if getattr(result, "duplicate", False):
-                # Terminal, not a failure: the track is already in the
-                # library, so re-importing will be skipped identically on
-                # every future poll. Record it as handled so the monitor
-                # stops re-running the import each cycle. The downloaded
-                # file is deliberately left on disk rather than deleted —
-                # disposal is TrashPurge's job, not beets'.
-                #
-                # It is recorded as *skipped*, not moved. This used to call
-                # mark_file_moved(transfer_id, "") — file_moved = 1 with an
-                # empty target_dir — which told every reader of the row that
-                # the file had been filed away while it was in fact still
-                # sitting in downloads/complete/soulseek/ with nothing
-                # pointing at it. See migration 007.
-                self._store.mark_import_skipped(transfer.transfer_id)
-                logger.info(
-                    "Duplicate download for %s left in place at %s (already "
-                    "in library); not retrying",
-                    transfer.transfer_id,
-                    source,
-                )
-                return None
+        dest_dir = self._config.paths.library_path / "new-system-tests"
+        try:
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest = self._unique_destination(dest_dir, source.name)
+            shutil.move(str(source), str(dest))
+        except OSError as e:
             logger.warning(
-                "beets import failed for %s: %s", transfer.transfer_id, result.error
+                "Failed to move completed download %s -> %s: %s",
+                source,
+                dest_dir,
+                e,
             )
             return None
 
-        self._store.set_import_unmatched(transfer.transfer_id, not result.matched)
-        return result.target_path
+        self._store.set_import_unmatched(transfer.transfer_id, False)
+        return dest
+
+    @staticmethod
+    def _unique_destination(dest_dir: Path, filename: str) -> Path:
+        """Append a numeric suffix on collision rather than overwrite/fail."""
+        candidate = dest_dir / filename
+        if not candidate.exists():
+            return candidate
+        stem = Path(filename).stem
+        suffix = Path(filename).suffix
+        n = 1
+        while True:
+            candidate = dest_dir / f"{stem} ({n}){suffix}"
+            if not candidate.exists():
+                return candidate
+            n += 1
 
     def _handle_missing_source(self, transfer) -> None:
         """A transfer reports 'completed' but its file is nowhere on disk.
@@ -712,35 +673,6 @@ class DownloadMonitor:
             transfer.filename,
             timeout_minutes,
         )
-
-    def _resolve_intent(
-        self, transfer, is_rec: bool
-    ) -> tuple[str | None, str | None, str | None]:
-        """What the user actually asked for when this download was queued.
-
-        Looked up via the transfer's `search_id`: a manual download's intent
-        lives in the `searches` header row (query/artist), a rec's in the
-        `recommendations` row it was queued from (track/artist/source) —
-        recs never get a `searches` row (see SearchStore's docstring). The
-        third element is the rec category (`source`) that decides which
-        beets profile the file lands in (P6.7-0b); manual downloads and
-        downloads with no search context yield None for it. Returns
-        (None, None, None) when there's no search context to look up, which
-        tells BeetsService to fall back to matching on the file's own tags.
-        """
-        row = self._store.get_transfer(transfer.transfer_id)
-        search_id = row.get("search_id") if row else None
-        if not search_id:
-            return None, None, None
-        if is_rec:
-            rec = self._recs_store.get_rec_by_search_id(search_id)
-            if not rec:
-                return None, None, None
-            return rec.get("track"), rec.get("artist"), rec.get("source")
-        search = self._search_store.get_search(search_id)
-        if not search:
-            return None, None, None
-        return search.get("query"), search.get("artist"), None
 
     def _resolve_intent_for_row(self, row: dict) -> tuple[str | None, str | None]:
         """Same lookup as `_resolve_intent`, but from a `downloads` row

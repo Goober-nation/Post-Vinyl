@@ -1,8 +1,7 @@
 """
 Issue #19 (split from #4): no "Searches" Navidrome playlist is ever created
 or grown for manual downloads, regardless of which search mode produced
-them (MB-tab search routes to the "library" beets profile; direct Soulseek
-search routes to the "searches" profile). Only rec categories (comfort_zone,
+them. Only rec categories (comfort_zone,
 fresh_picks, deep_cuts) ever get a Navidrome playlist, via
 RecPuller._write_category_playlist. playlist_registry.py has no "searches"
 role registered, and DownloadMonitor never calls add_to_playlist on the
@@ -37,11 +36,8 @@ def _make_config(tmpdir, bad_peer_threshold=1):
     paths.download_path = p / "downloads"
     paths.searches_dir = str(p / "searches")
     paths.discovery_dir = str(p / "discovery")
-
-    class MockBeets:
-        enabled = False
-        binary = "beet"
-        timeout_seconds = 300
+    paths.library_dir = str(p / "library")
+    paths.library_path = p / "library"
 
     class MockDownload:
         check_interval = 15
@@ -53,38 +49,8 @@ def _make_config(tmpdir, bad_peer_threshold=1):
 
     cfg = MockConfig()
     cfg.paths = paths
-    cfg.beets = MockBeets()
     cfg.download = MockDownload()
     return cfg
-
-
-class FakeBeetsService:
-    """Same shape as test_download_monitor.py's fake — moves the file to a
-    profile tree the way real beets would, so a completed import always has
-    a target_path to hand a hypothetical playlist step."""
-
-    def __init__(self, config, matched=True):
-        self._config = config
-        self.matched = matched
-        self.calls: list[tuple] = []
-
-    def import_file(
-        self, source, is_rec, title=None, artist=None, category=None,
-        library=None, mbid=None,
-    ):
-        from app.services.beets import BeetsImportResult
-
-        self.calls.append((source, is_rec, title, artist, category, library, mbid))
-        target_root = Path(
-            self._config.paths.discovery_dir
-            if is_rec
-            else self._config.paths.searches_dir
-        )
-        target_dir = target_root / source.parent.name
-        target_dir.mkdir(parents=True, exist_ok=True)
-        target = target_dir / source.name
-        source.rename(target)
-        return BeetsImportResult(matched=self.matched, target_path=target)
 
 
 class FakeLibraryService:
@@ -173,8 +139,6 @@ def _complete_a_manual_download(tmp_config, db, *, is_library, mbid=None):
     (source_dir / "a").mkdir(parents=True, exist_ok=True)
     (source_dir / "a" / "Track.mp3").write_text("fake mp3 data")
 
-    tmp_config.beets.enabled = True
-    beets = FakeBeetsService(tmp_config)
     library = FakeLibraryService()
     monitor = DownloadMonitor(
         tmp_config,
@@ -183,7 +147,6 @@ def _complete_a_manual_download(tmp_config, db, *, is_library, mbid=None):
         db,
         hub,
         interval=15,
-        beets_service=beets,
     )
     monitor.poll_once()
     return library
@@ -237,7 +200,7 @@ class TestSearchesPlaylistSpec:
     )
     def test_mb_search_import_also_grows_the_searches_playlist(self, tmp_config, db):
         """Both search modes name-check "Searches" in the issue, so the fix
-        must not gate on which beets profile the file landed in."""
+        must not gate on how the download was routed."""
         library = _complete_a_manual_download(tmp_config, db, is_library=True)
 
         assert library.create_calls == ["Searches"]

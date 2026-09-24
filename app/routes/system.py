@@ -38,7 +38,6 @@ from app.dependencies import (
 from app.exceptions import ServiceConnectionError
 from app.logging_config import get_logger, get_recent_logs
 from app.services import health
-from app.services.beets import BeetsService
 from app.services.interfaces.download import DownloadService
 from app.services.interfaces.search import SearchService
 
@@ -229,24 +228,6 @@ def unblock_all_peers(db: Annotated[Database | None, Depends(get_db_or_none)]) -
     if db is None:
         return {"unblocked": 0}
     return {"unblocked": DownloadStore(db).unblock_all_peers()}
-
-
-@router.post("/system/consolidate")
-def consolidate_albums(config: ConfigDep) -> dict:
-    """Run the beets album-consolidation sweep (P6.9): regroup every live
-    item by album identity and unify each group — tracks of one album that
-    fragmented across trees, differently-spelled album directories, or
-    duplicate copies are brought to a single canonical home, retagged to
-    the canonical spelling, and renumbered from the MusicBrainz tracklist
-    when the release is known. Moves/deletes files inside the music tree.
-    """
-    logger.info("POST /api/system/consolidate")
-    result = BeetsService(config).consolidate_all()
-    logger.info(
-        "consolidation sweep: %s",
-        {k: v for k, v in result.items() if k != "skipped"},
-    )
-    return result
 
 
 @router.post("/system/listenbrainz/check", response_model=ServiceHealthResponse)
