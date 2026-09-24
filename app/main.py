@@ -52,7 +52,6 @@ from app.routes.downloads import router as downloads_router
 from app.routes.events import router as events_router
 from app.routes.library import router as library_router
 from app.routes.musicbrainz import router as musicbrainz_router
-from app.routes.recs import router as recs_router
 from app.routes.search import router as search_router
 from app.routes.setup import router as setup_router
 from app.routes.system import router as system_router
@@ -62,21 +61,15 @@ from app.services.bootstrap import (
     ensure_navidrome_files,
 )
 from app.services.download import SlskdDownload
-from app.services.feedback import ListenBrainzFeedback
 from app.services.interfaces.download import DownloadService
-from app.services.interfaces.recommendation import RecommendationService
 from app.services.interfaces.search import SearchService
 from app.services.library import LibraryService
 from app.services.musicbrainz_client import MusicBrainzClient
 from app.services.navidrome_library import NavidromeLibrary
-from app.services.recommendation import ListenBrainzRecs
 from app.services.search import SlskdSearch
 from app.sse import EventHub
 from app.workers.download_monitor import DownloadMonitor
 from app.workers.history_cleaner import HistoryCleaner
-from app.workers.love_sync import LoveSync
-from app.workers.rec_puller import RecPuller
-from app.workers.trash_purge import TrashPurge
 
 logger = get_logger(__name__)
 
@@ -109,7 +102,6 @@ def create_app(
     search_service: SearchService | None = None,
     download_service: DownloadService | None = None,
     library_service: LibraryService | None = None,
-    recs_service: RecommendationService | None = None,
     event_hub: EventHub | None = None,
     database: Database | None = None,
 ) -> FastAPI:
@@ -121,7 +113,6 @@ def create_app(
         search_service: SearchService implementation (SlskdSearch if None).
         download_service: DownloadService implementation (SlskdDownload if None).
         library_service: LibraryService implementation (NavidromeLibrary if None).
-        recs_service: RecommendationService implementation (ListenBrainzRecs if None).
         event_hub: EventHub instance (created if None).
 
     Returns:
@@ -152,8 +143,6 @@ def create_app(
             search_service=resolved_search_service,
         ),
         "library": library_service or NavidromeLibrary(config),
-        "recs": recs_service or ListenBrainzRecs(config),
-        "feedback": ListenBrainzFeedback(config),
         "musicbrainz": MusicBrainzClient(config),
     }
 
@@ -175,7 +164,6 @@ def create_app(
     app.include_router(config_router)
     app.include_router(events_router)
     app.include_router(system_router)
-    app.include_router(recs_router)
     app.include_router(musicbrainz_router)
     app.include_router(setup_router)
 
@@ -298,51 +286,6 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("Failed to start DownloadMonitor", exc_info=True)
 
-    # Start RecPuller worker
-    rec_puller: RecPuller | None = None
-    try:
-        rec_puller = RecPuller(
-            app.state.config,
-            app.state.services["recs"],
-            app.state.services["library"],
-            app.state.services["search"],
-            app.state.services["download"],
-            db,
-            app.state.event_hub,
-        )
-        app.state.rec_puller = rec_puller
-        rec_puller.start()
-    except Exception:
-        logger.warning("Failed to start RecPuller", exc_info=True)
-
-    # Start the sync workers (P6.7-5 / P6.7-6): once at startup, then every
-    # sync.interval_hours.
-    love_sync: LoveSync | None = None
-    try:
-        love_sync = LoveSync(
-            app.state.config,
-            app.state.services["library"],
-            app.state.services["feedback"],
-            db,
-        )
-        app.state.love_sync = love_sync
-        love_sync.start()
-    except Exception:
-        logger.warning("Failed to start LoveSync", exc_info=True)
-
-    trash_purge: TrashPurge | None = None
-    try:
-        trash_purge = TrashPurge(
-            app.state.config,
-            app.state.services["library"],
-            app.state.services["feedback"],
-            db,
-        )
-        app.state.trash_purge = trash_purge
-        trash_purge.start()
-    except Exception:
-        logger.warning("Failed to start TrashPurge", exc_info=True)
-
     # P6.9-7: periodically clear slskd's terminal transfer history (the
     # user's live finding: accumulated history congested the stack).
     history_cleaner: HistoryCleaner | None = None
@@ -366,26 +309,14 @@ async def lifespan(app: FastAPI):
     # — two sequential 5s joins could add up to ~10s, right at Docker's
     # default stop grace period, risking a SIGKILL instead of a clean exit.
     app.state.event_hub.signal_shutdown()
-    if rec_puller is not None:
-        rec_puller.request_stop()
     if worker is not None:
         worker.request_stop()
-    if love_sync is not None:
-        love_sync.request_stop()
-    if trash_purge is not None:
-        trash_purge.request_stop()
     if history_cleaner is not None:
         history_cleaner.request_stop()
 
     deadline = time.monotonic() + 5
-    if rec_puller is not None:
-        rec_puller.join(timeout=max(0.0, deadline - time.monotonic()))
     if worker is not None:
         worker.join(timeout=max(0.0, deadline - time.monotonic()))
-    if love_sync is not None:
-        love_sync.join(timeout=max(0.0, deadline - time.monotonic()))
-    if trash_purge is not None:
-        trash_purge.join(timeout=max(0.0, deadline - time.monotonic()))
     if history_cleaner is not None:
         history_cleaner.join(timeout=max(0.0, deadline - time.monotonic()))
 

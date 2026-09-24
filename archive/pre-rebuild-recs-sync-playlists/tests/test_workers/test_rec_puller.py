@@ -10,6 +10,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -375,6 +376,43 @@ def db(tmp_config):
 @pytest.fixture
 def hub():
     return EventHub()
+
+
+class TestAttemptQueue:
+    def test_cache_hit_search_id_is_not_forwarded_to_slskd_queue(self, tmp_path, db, hub):
+        """A "cache-*" search_id is minted locally by SearchService and
+        slskd 400s on it if forwarded ("The SearchId field must be a valid
+        GUID/UUID") — silently dropping the candidate with no retry trace
+        (#60). _attempt_queue must omit it from the queue() call while
+        still resolving and queuing successfully."""
+        config = _make_config(str(tmp_path))
+        rp = RecPuller(
+            config,
+            FakeRecsService(),
+            FakeLibraryService(),
+            FakeSearchService(),
+            FakeDownloadService(),
+            db,
+            hub,
+        )
+        job = SearchJob(
+            search_id="cache-deadbeefcafe",
+            query="Artist Track",
+            artist=None,
+            created_at=datetime.now(timezone.utc),
+            status="completed",
+        )
+        candidates = [
+            SearchResult("peer-one", "Artist - Track.mp3", 1000, True, 10, None, None)
+        ]
+        rec = SimpleNamespace(source="fresh_picks", artist="Artist", track="Track")
+
+        outcome = rp._attempt_queue(rec, job, candidates, set())
+
+        assert outcome["kind"] == "success"
+        assert rp._download_service.queue_calls
+        for call in rp._download_service.queue_calls:
+            assert call["search_id"] is None
 
 
 # ---------------------------------------------------------------------------

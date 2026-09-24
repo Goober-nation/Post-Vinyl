@@ -35,7 +35,6 @@ from app.dependencies import (
     get_download_service,
     get_search_service,
 )
-from app.exceptions import ServiceConnectionError
 from app.logging_config import get_logger, get_recent_logs
 from app.services import health
 from app.services.interfaces.download import DownloadService
@@ -80,13 +79,6 @@ class StopActivityResponse(BaseModel):
     cancelled_searches: int
     cancelled_transfers: int
     failed_transfers: int
-
-
-class SyncNowResponse(BaseModel):
-    """Response shape for POST /api/system/sync."""
-
-    love_sync: dict
-    trash_purge: dict
 
 
 # ============================================================================
@@ -190,21 +182,6 @@ def restart_app() -> dict:
 
     threading.Thread(target=_delayed_exit, daemon=True).start()
     return {"restarting": True}
-
-
-@router.post("/system/sync", response_model=SyncNowResponse)
-def sync_now(request: Request) -> dict:
-    """Run the love and trash synchronization workers immediately."""
-    love_sync = getattr(request.app.state, "love_sync", None)
-    trash_purge = getattr(request.app.state, "trash_purge", None)
-    if love_sync is None or trash_purge is None:
-        raise ServiceConnectionError("Sync workers are not available")
-
-    logger.info("POST /api/system/sync")
-    return {
-        "love_sync": love_sync.run_once(),
-        "trash_purge": trash_purge.run_once(),
-    }
 
 
 @router.post("/system/slskd/reconnect")

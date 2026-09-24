@@ -53,15 +53,17 @@ class TestSchemaAfterMigration005:
         assert "search_jobs" not in tables
         assert "search_responses" not in tables
 
-    def test_searches_and_worker_state_survive(self, db):
-        """`searches` is the header data musica owns; `worker_state` is
-        RecPuller's own state, not a copy of anything slskd has."""
+    def test_searches_survives(self, db):
+        """`searches` is the header data musica owns, untouched by the
+        005 cleanup. `worker_state` was RecPuller's own state and was
+        dropped by migration 013 once RecPuller was archived (see
+        archive/pre-rebuild-recs-sync-playlists/)."""
         tables = {
             r["name"]
             for r in db.fetch_all("SELECT name FROM sqlite_master WHERE type='table'")
         }
         assert "searches" in tables
-        assert "worker_state" in tables
+        assert "worker_state" not in tables
 
     def test_searches_holds_exactly_the_header_fields(self, db):
         cols = {

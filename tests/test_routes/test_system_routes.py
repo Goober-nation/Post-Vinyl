@@ -223,46 +223,6 @@ class TestListenBrainzCheck:
 
 
 # ============================================================================
-# POST /api/system/sync
-# ============================================================================
-
-
-class _FakeSyncWorker:
-    def __init__(self, result: dict):
-        self.result = result
-        self.calls = 0
-
-    def run_once(self) -> dict:
-        self.calls += 1
-        return self.result
-
-
-class TestSyncNow:
-    def test_runs_both_workers_and_returns_summaries(self) -> None:
-        app = create_app()
-        love_sync = _FakeSyncWorker({"synced": 2})
-        trash_purge = _FakeSyncWorker({"trashed": 1})
-        app.state.love_sync = love_sync
-        app.state.trash_purge = trash_purge
-
-        resp = TestClient(app).post("/api/system/sync")
-
-        assert resp.status_code == 200
-        assert resp.json() == {
-            "love_sync": {"synced": 2},
-            "trash_purge": {"trashed": 1},
-        }
-        assert love_sync.calls == 1
-        assert trash_purge.calls == 1
-
-    def test_returns_service_error_when_workers_are_unavailable(self, client) -> None:
-        resp = client.post("/api/system/sync")
-
-        assert resp.status_code == 503
-        assert resp.json()["error"]["message"] == "Sync workers are not available"
-
-
-# ============================================================================
 # GET /api/logs
 # ============================================================================
 

@@ -17,12 +17,9 @@ import pytest
 
 from app.db.database import Database
 from app.db.download_store import DownloadStore
-from app.db.playlist_store import PlaylistStore
-from app.db.recs_store import RecsStore
 from app.exceptions import SlskdConnectionError
 from app.services.interfaces.download import QueueResult, Transfer
 from app.services.library import PlaylistDetail, PlaylistInfo, Song
-from app.services.rec_playlist import RecPlaylistService
 from app.sse import EventHub
 from app.workers.download_monitor import DownloadMonitor
 
@@ -60,19 +57,12 @@ def _make_config(tmpdir, bad_peer_threshold=1):
 
     MockDownload.bad_peer_threshold = bad_peer_threshold
 
-    class MockRecs:
-        comfort_zone_playlist_name = "Comfort Zone"
-        fresh_picks_playlist_name = "Fresh Picks"
-        deep_cuts_playlist_name = "Deep Cuts"
-        rotation_trash_rating = 1
-
     class MockConfig:
         pass
 
     cfg = MockConfig()
     cfg.paths = paths
     cfg.download = MockDownload()
-    cfg.recs = MockRecs()
     return cfg
 
 
@@ -121,12 +111,7 @@ class FakeDownloadService:
 
 
 class FakeLibraryService:
-    """In-memory library for tests.
-
-    Playlist and search surfaces exist so the P6.7-7 add-on-completion hook
-    (RecPlaylistService) can run end-to-end in tests that exercise a
-    completed rec download.
-    """
+    """In-memory library for tests."""
 
     def __init__(self):
         self.scan_count = 0
@@ -457,239 +442,6 @@ class TestFileMove:
         moved = result["moved"]
         assert len(moved) == 1
         assert "(1)" in Path(moved[0]).name
-
-    def test_rec_download_also_lands_flat(self, tmp_config, db):
-        """A rec download (DB row is_rec_download=1) also lands in the
-        single flat landing dir — there is no per-category routing anymore
-        (that was beets-profile-selection, now removed)."""
-        # Seed a queue-time pending row with the rec flag set
-        store = DownloadStore(db)
-        store.insert_pending(
-            "rec-search-1",
-            "astuary",
-            "some\\dir\\Tangerine Sour.mp3",
-            5000,
-            True,
-        )
-        # Seed the queued recommendation row the hook must update
-        db.execute(
-            "INSERT INTO recommendations (source, artist, track, mbid, status, "
-            "search_id, created_at) VALUES ('deep_cuts', 'Emancipator', "
-            "'Tangerine Sour', NULL, 'queued', 'rec-search-1', ?)",
-            (int(time.time()),),
-        )
-
-        hub = EventHub()
-        transfers = [
-            _transfer(
-                "t-rec",
-                "astuary",
-                "some\\dir\\Tangerine Sour.mp3",
-                5000,
-                "completed",
-                progress=100.0,
-            ),
-        ]
-        download_svc = FakeDownloadService(transfers)
-        lib_svc = FakeLibraryService()
-        # P6.7-7 (S12): the completed rec's track is findable in the library,
-        # so the add-on-completion hook can add it to its category playlist.
-        lib_svc.songs_by_query["Tangerine Sour"] = [
-            Song(
-                "song-tangerine", "Tangerine Sour", "Emancipator", "Dusk to Dawn",
-                "", 300, 5000, None, None, None, None, 0, False,
-            )
-        ]
-
-        source_dir = (
-            Path(tmp_config.paths.download_dir) / "complete" / "soulseek" / "astuary"
-        )
-        source_dir.mkdir(parents=True, exist_ok=True)
-        (source_dir / "Tangerine Sour.mp3").write_text("fake mp3 data")
-
-        monitor = DownloadMonitor(
-            tmp_config,
-            download_svc,
-            lib_svc,
-            db,
-            hub,
-            interval=15,
-        )
-
-        result, events = _run_poll_and_capture(monitor, hub)
-
-        target_dir = tmp_config.paths.library_path / "new-system-tests"
-        assert len(result["moved"]) == 1
-        assert str(target_dir) in result["moved"][0]
-        # Rec completion hook fired: recommendation row linked via search_id
-        rec = db.fetch_one(
-            "SELECT status, download_id, playlist_id FROM recommendations "
-            "WHERE search_id = ?",
-            ("rec-search-1",),
-        )
-        assert rec is not None
-        assert rec["status"] == "downloaded"
-        assert rec["download_id"] == "t-rec"
-        # P6.7-7 (S12): the rec also reached its category playlist, and the
-        # playlist was created lazily for it.
-        assert rec["playlist_id"] is not None
-        assert "Deep Cuts" in lib_svc.create_calls
-        assert "song-tangerine" in {
-            s.song_id for s in lib_svc.playlist_songs[rec["playlist_id"]]
-        }
-        completed_ev = next(e for e in events if e[0] == "transfer.completed")
-        assert str(target_dir) in completed_ev[1]["target_dir"]
-
-    def test_rec_playlist_retries_after_index_lag(self, tmp_config, db):
-        """A later monitor poll links a rec once Navidrome indexes the import."""
-        store = DownloadStore(db)
-        store.insert_pending(
-            "rec-search-lag",
-            "astuary",
-            "some\\dir\\Tangerine Sour.mp3",
-            5000,
-            True,
-        )
-        db.execute(
-            "INSERT INTO recommendations (source, artist, track, mbid, status, "
-            "search_id, created_at) VALUES ('fresh_picks', 'Emancipator', "
-            "'Tangerine Sour', NULL, 'queued', 'rec-search-lag', ?)",
-            (int(time.time()),),
-        )
-
-        transfer = _transfer(
-            "t-rec-lag",
-            "astuary",
-            "some\\dir\\Tangerine Sour.mp3",
-            5000,
-            "completed",
-            progress=100.0,
-        )
-        source_dir = (
-            Path(tmp_config.paths.download_dir) / "complete" / "soulseek" / "astuary"
-        )
-        source_dir.mkdir(parents=True, exist_ok=True)
-        (source_dir / "Tangerine Sour.mp3").write_text("fake mp3 data")
-
-        lib_svc = FakeLibraryService()
-        monitor = DownloadMonitor(
-            tmp_config,
-            FakeDownloadService([transfer]),
-            lib_svc,
-            db,
-            EventHub(),
-            interval=15,
-        )
-
-        _run_poll_and_capture(monitor, monitor._event_hub)
-        first = db.fetch_one(
-            "SELECT status, playlist_id FROM recommendations WHERE search_id = ?",
-            ("rec-search-lag",),
-        )
-        assert first == {"status": "downloaded", "playlist_id": None}
-
-        lib_svc.songs_by_query["Tangerine Sour"] = [
-            Song(
-                "song-tangerine", "Tangerine Sour", "Emancipator", "Dusk to Dawn",
-                "", 300, 5000, None, None, None, None, 0, False,
-            )
-        ]
-        _run_poll_and_capture(monitor, monitor._event_hub)
-
-        second = db.fetch_one(
-            "SELECT status, playlist_id FROM recommendations WHERE search_id = ?",
-            ("rec-search-lag",),
-        )
-        assert second["status"] == "downloaded"
-        assert second["playlist_id"] is not None
-
-    def test_completed_rec_is_reconciled_when_first_poll_was_missed(
-        self, tmp_config, db
-    ):
-        """A completed transfer cannot leave its rec row stuck in queued."""
-        store = DownloadStore(db)
-        store.insert_pending(
-            "rec-search-missed",
-            "astuary",
-            "some\\dir\\Tangerine Sour.mp3",
-            5000,
-            True,
-        )
-        db.execute(
-            "INSERT INTO recommendations (source, artist, track, mbid, status, "
-            "search_id, created_at) VALUES ('fresh_picks', 'Emancipator', "
-            "'Tangerine Sour', NULL, 'queued', 'rec-search-missed', ?)",
-            (int(time.time()),),
-        )
-        transfer = _transfer(
-            "t-rec-missed",
-            "astuary",
-            "some\\dir\\Tangerine Sour.mp3",
-            5000,
-            "completed",
-            progress=100.0,
-        )
-        store.upsert_transfer(transfer)
-        store.mark_file_moved("t-rec-missed", "/music/Discovery/Fresh_Picks")
-
-        lib_svc = FakeLibraryService()
-        lib_svc.songs_by_query["Tangerine Sour"] = [
-            Song(
-                "song-tangerine", "Tangerine Sour", "Emancipator", "Dusk to Dawn",
-                "", 300, 5000, None, None, None, None, 0, False,
-            )
-        ]
-        monitor = DownloadMonitor(
-            tmp_config,
-            FakeDownloadService([transfer]),
-            lib_svc,
-            db,
-            EventHub(),
-            interval=15,
-        )
-
-        _run_poll_and_capture(monitor, monitor._event_hub)
-
-        rec = db.fetch_one(
-            "SELECT status, download_id, playlist_id FROM recommendations "
-            "WHERE search_id = ?",
-            ("rec-search-missed",),
-        )
-        assert rec == {
-            "status": "downloaded",
-            "download_id": "t-rec-missed",
-            "playlist_id": "pl-1",
-        }
-
-    def test_rec_playlist_matches_beets_normalized_metadata(self, tmp_config, db):
-        """Fresh Picks can be indexed under a shortened MusicBrainz title."""
-        recs_store = RecsStore(db)
-        rec_id = recs_store.insert_rec(
-            "fresh_picks",
-            "lovehead",
-            "sommerwind ep",
-            None,
-            "downloaded",
-        )
-        library = FakeLibraryService()
-        library.songs_by_query["lovehead"] = [
-            Song(
-                "song-sommerwind", "sommerwind", "lovehead", "sommerwind",
-                "", 180, 5000, None, None, None, None, 0, False,
-            )
-        ]
-
-        service = RecPlaylistService(tmp_config, library, recs_store, PlaylistStore(db))
-        assert service.add_downloaded_to_playlist(
-            {
-                "id": rec_id,
-                "source": "fresh_picks",
-                "artist": "lovehead",
-                "track": "sommerwind ep",
-            }
-        )
-        assert recs_store.get_rec(rec_id)["playlist_id"] == "pl-1"
-
 
 class TestFileImportMove:
     """beets is gone (issues #2, #55, #58): a completed download is now

@@ -556,26 +556,12 @@ class DownloadStore:
         library but aren't yet linked to the Searches playlist.
 
         Covers both the "searches" and "library" (MusicBrainz-tab) beets
-        profiles — the issue named both. A rec download never qualifies:
-        it uses recommendations.playlist_id via a separate mechanism
-        (RecPlaylistService), not this column.
+        profiles — the issue named both. A rec download previously used a
+        separate recommendations.playlist_id mechanism (RecPlaylistService,
+        archived — see archive/pre-rebuild-recs-sync-playlists/), not this
+        column.
         """
         return self._db.fetch_all(
             "SELECT * FROM downloads WHERE is_rec_download = 0 "
             "AND file_moved = 1 AND playlist_id IS NULL"
         )
-
-    # ------------------------------------------------------------------
-    # Recommendation completion hook
-    # ------------------------------------------------------------------
-
-    def mark_rec_downloaded(self, search_id: str, download_id: str) -> int:
-        """Mark queued recommendation rows as downloaded (link via search_id). Returns rowcount."""
-        now = int(time.time())
-        cursor = self._db.execute(
-            "UPDATE recommendations SET status = 'downloaded', "
-            "download_id = ?, processed_at = ? "
-            "WHERE search_id = ? AND status = 'queued'",
-            (download_id, now, search_id),
-        )
-        return cursor.rowcount

@@ -10,13 +10,11 @@ from fastapi import Request
 
 from app.config import Config
 from app.db.database import Database
-from app.exceptions import ServiceConnectionError
 from app.services.interfaces.download import DownloadService
 from app.services.interfaces.musicbrainz import MusicBrainzService
 from app.services.interfaces.search import SearchService
 from app.services.library import LibraryService
 from app.sse import EventHub
-from app.workers.rec_puller import RecPuller
 
 
 def get_event_hub(request: Request) -> EventHub:
@@ -59,11 +57,3 @@ def get_db(request: Request) -> Database:
 def get_db_or_none(request: Request) -> Database | None:
     """Get the Database instance from app state, or None if not set."""
     return getattr(request.app.state, "db", None)
-
-
-def get_rec_puller(request: Request) -> RecPuller:
-    """Get the RecPuller worker from app state (503 if not available)."""
-    rec_puller = getattr(request.app.state, "rec_puller", None)
-    if rec_puller is None:
-        raise ServiceConnectionError("RecPuller worker is not available")
-    return rec_puller

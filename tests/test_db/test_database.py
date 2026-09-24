@@ -70,11 +70,14 @@ class TestDatabaseSchema:
             assert "downloads" in table_names
             assert "peers" in table_names
             assert "download_retry_attempts" in table_names
-            assert "recommendations" in table_names
-            assert "sync_state" in table_names
             assert "config" in table_names
             assert "users" in table_names
             assert "sessions" in table_names
+            # recommendations/sync_state were dropped by migration 013 once
+            # the recs/sync subsystem was archived (see
+            # archive/pre-rebuild-recs-sync-playlists/).
+            assert "recommendations" not in table_names
+            assert "sync_state" not in table_names
             
             db.close()
     

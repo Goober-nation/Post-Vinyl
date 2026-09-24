@@ -295,6 +295,15 @@ class RecPuller:
         candidate in `candidates` was tried and failed, or the attempt cap
         was reached).
         """
+        # A cache-hit search_id (e.g. "cache-a1b2c3d4e5f6") is never
+        # something slskd has heard of — slskd's queue endpoint 400s on it
+        # ("The SearchId field must be a valid GUID/UUID"), silently
+        # dropping the candidate with no retry trace (#60, sibling of #59's
+        # retry()-path version of this bug). `job.search_id` below (used
+        # for DB bookkeeping via insert_pending) is unaffected — only the
+        # value sent to slskd needs to skip local ids.
+        slskd_search_id = None if job.search_id.startswith("cache-") else job.search_id
+
         last_message = "no candidates"
         for r in candidates:
             if len(tried_usernames) >= MAX_QUEUE_ATTEMPTS:
@@ -311,7 +320,7 @@ class RecPuller:
                 result = self._download_service.queue(
                     r.username,
                     [{"filename": r.filename, "size": r.size}],
-                    search_id=job.search_id,
+                    search_id=slskd_search_id,
                 )
             except Exception as e:  # noqa: BLE001 — queue() can raise impl-specific errors
                 logger.warning(

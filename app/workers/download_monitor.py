@@ -10,13 +10,8 @@ from pathlib import Path
 
 from app.db.database import Database
 from app.db.download_store import ALLOWED_EXTENSIONS, DownloadStore
-from app.db.playlist_store import PlaylistStore
-from app.db.recs_store import RecsStore
-from app.db.search_store import SearchStore
 from app.exceptions import SlskdConnectionError
 from app.logging_config import get_logger
-from app.services.rec_playlist import RecPlaylistService
-from app.services.searches_playlist import SearchesPlaylistService
 from app.sse import EventHub
 
 # slskd sub-states that mean "our end lost/never had a solid connection" —
@@ -53,22 +48,6 @@ class DownloadMonitor:
         self._download_service = download_service
         self._library_service = library_service
         self._store = DownloadStore(database)
-        # P-MB-1 wiring: source of "what the user actually asked for" for a
-        # completed download, passed to beets so the import can be
-        # constrained to it instead of trusting the peer's own tags.
-        self._search_store = SearchStore(database)
-        self._recs_store = RecsStore(database)
-        self._playlist_store = PlaylistStore(database)
-        # P6.7-7 (S12 gap): gets a completed rec download into its category
-        # playlist the moment its file lands in the library.
-        self._rec_playlist = RecPlaylistService(
-            config, library_service, self._recs_store, self._playlist_store
-        )
-        # #19: same idea for manual (non-rec) downloads — Searches instead
-        # of a rec category playlist.
-        self._searches_playlist = SearchesPlaylistService(
-            config, library_service, self._store, self._playlist_store
-        )
         self._event_hub = event_hub
         self.interval = interval or config.download.check_interval
         self._stopped = threading.Event()
@@ -242,13 +221,6 @@ class DownloadMonitor:
                 row = self._store.get_transfer(t.transfer_id)
                 target_dir = row["target_dir"] if row else ""
 
-                # Reconcile this on every completed-transfer poll, not only
-                # the first SSE emission. A row can already be `completed`
-                # when musica adopts it, and a previous playlist lookup may
-                # have lost a race with Navidrome's scan. Do it before the
-                # event so the frontend's refresh sees the new rec state.
-                self._sync_rec_completion(row, t.transfer_id)
-
                 if should_emit:
                     self._event_hub.publish(
                         "transfer.completed",
@@ -276,32 +248,12 @@ class DownloadMonitor:
             except Exception:
                 logger.warning("Failed to trigger library scan", exc_info=True)
 
-        playlist_linked = self._rec_playlist.retry_unplaylisted_downloads()
-        # #19: same delayed-indexing retry, for manual downloads -> Searches.
-        searches_linked = self._searches_playlist.retry_unplaylisted_downloads(
-            self._resolve_intent_for_row
-        )
-
         return {
             "transfers_seen": transfers_seen,
             "moved": moved_files,
             "scan_triggered": scan_triggered,
-            "searches_linked": searches_linked,
             "retried": retried,
-            "playlist_linked": playlist_linked,
         }
-
-    def _sync_rec_completion(self, row: dict | None, transfer_id: str) -> None:
-        """Synchronize a completed rec row and retry its playlist linkage."""
-        if not row or not row.get("is_rec_download") or not row.get("search_id"):
-            return
-
-        search_id = row["search_id"]
-        rowcount = self._store.mark_rec_downloaded(search_id, transfer_id)
-        if rowcount > 0:
-            logger.info(
-                "Recommendation marked downloaded: %s -> %s", search_id, transfer_id
-            )
 
     # ------------------------------------------------------------------
     # Retry
@@ -673,18 +625,6 @@ class DownloadMonitor:
             transfer.filename,
             timeout_minutes,
         )
-
-    def _resolve_intent_for_row(self, row: dict) -> tuple[str | None, str | None]:
-        """Same lookup as `_resolve_intent`, but from a `downloads` row
-        directly (SearchesPlaylistService's retry pass has no live Transfer
-        object, only rows already known to be manual and file_moved)."""
-        search_id = row.get("search_id")
-        if not search_id:
-            return None, None
-        search = self._search_store.get_search(search_id)
-        if not search:
-            return None, None
-        return search.get("query"), search.get("artist")
 
     def _resolve_source_path(self, transfer) -> Path | None:
         """
