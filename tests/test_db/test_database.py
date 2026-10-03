@@ -70,14 +70,17 @@ class TestDatabaseSchema:
             assert "downloads" in table_names
             assert "peers" in table_names
             assert "download_retry_attempts" in table_names
-            assert "config" in table_names
-            assert "users" in table_names
-            assert "sessions" in table_names
             # recommendations/sync_state were dropped by migration 013 once
             # the recs/sync subsystem was archived (see
             # archive/pre-rebuild-recs-sync-playlists/).
             assert "recommendations" not in table_names
             assert "sync_state" not in table_names
+            # config/users/sessions were dropped by migration 014 — dead
+            # tables, never read/written by any code path (config is
+            # TOML-backed, users/sessions were unbuilt login scaffolding).
+            assert "config" not in table_names
+            assert "users" not in table_names
+            assert "sessions" not in table_names
             
             db.close()
     
@@ -93,7 +96,9 @@ class TestDatabaseSchema:
             
             # Should not raise
             tables = db.fetch_all("SELECT name FROM sqlite_master WHERE type='table'")
-            assert len(tables) >= 9
+            # applied_migrations, sqlite_sequence, searches, downloads, peers,
+            # download_retry_attempts, setup_state — post 013+014 archival.
+            assert len(tables) >= 7
             
             db.close()
 
