@@ -1,0 +1,54 @@
+# Throwaway search-only slskd + harvester for the #34 corpus.
+# Lives in ~/projects/postvinyl-corpus/ on the server. The main slskd must be
+# stopped while this runs: it reuses the Soulseek listen port 50300.
+services:
+  slskd-corpus:
+    image: slskd/slskd:latest
+    container_name: slskd-corpus
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:8093:5030"   # web/API: localhost only
+      - "50300:50300/tcp"       # Soulseek listen port (same as main slskd)
+    environment:
+      - SLSKD_SLSK_USERNAME=${SOULSEEK_USERNAME}
+      - SLSKD_SLSK_PASSWORD=${SOULSEEK_PASSWORD}
+      - SLSKD_SLSK_LISTEN_PORT=50300
+      - SLSKD_API_KEY=${SLSKD_API_KEY}
+      - SLSKD_NO_AUTH=false
+      - SLSKD_REMOTE_CONFIGURATION=false
+      # search-only: nothing shared, nothing downloaded
+      - SLSKD_SHARED_DIR=/app/empty-share
+      - SLSKD_DOWNLOADS_DIR=/app/downloads
+    volumes:
+      - ./slskd:/app
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5030/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  harvester:
+    image: python:3.12-slim
+    container_name: corpus-harvester
+    user: "1000:1000"
+    depends_on:
+      slskd-corpus:
+        condition: service_healthy
+    working_dir: /work
+    environment:
+      - SLSKD_API_KEY=${SLSKD_API_KEY}
+      - PYTHONUNBUFFERED=1
+      - HOME=/tmp
+      - PIP_USER=1
+    volumes:
+      - ./:/work
+    # PLAN is plan_test.json or plan.json (set on the command line)
+    command: >
+      sh -c "pip install -q requests &&
+             python harvest.py --plan ${PLAN:-plan_test.json} --out data/corpus
+             --slskd http://slskd-corpus:5030 --per-minute ${PER_MINUTE:-6} --max-wait 10
+             --response-limit 300"
+    profiles: ["run"]

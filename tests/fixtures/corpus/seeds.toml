@@ -1,0 +1,1265 @@
+# Search-benchmark seed list (#34). DRAFT — edit freely.
+#
+# Each seed is one search target with a known correct answer.
+#   type     = "track" | "album" | "artist"
+#   bucket   = which hard case it exercises (see list below)
+#   mbid     = recording MBID (track) / release-group MBID (album) /
+#              artist MBID (artist). Left empty here and filled in by a
+#              resolver pass against MusicBrainz — never hand-typed.
+#   duration / track_count are filled by the same pass.
+#   expect   = "none" on negative seeds: the only correct outcome is no match.
+#   Remaster/deluxe/year suffixes count as the same song; live/remix/acoustic don't.
+#
+# Buckets: library, negative, baseline, long, symbols, feat, nonlatin, diacritics, classical,
+# compilation, short, common_title, remix_live, numeric, obscure
+
+# ── baseline: popular, plain names (control group) ───────────────────────
+[[seed]]
+type = "track"
+bucket = "baseline"
+artist = "Radiohead"
+title = "Karma Police"
+album = "OK Computer"
+mbid = "57465a5a-15f0-4dee-908c-c04f77b7a5fe"
+duration = 271
+mb_status = "ok"
+mb_note = "no match on album 'OK Computer'"
+
+[[seed]]
+type = "track"
+bucket = "baseline"
+artist = "Fleetwood Mac"
+title = "Dreams"
+album = "Rumours"
+mbid = "39339488-9e28-43e0-ab02-b9c9ddec2e0f"
+album_mbid = "416bb5e5-c7d1-3977-8fd7-7c9daf6c2be6"
+duration = 258
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "baseline"
+artist = "Daft Punk"
+title = "Digital Love"
+album = "Discovery"
+mbid = "15f16efc-8762-4151-95ab-c12d06268640"
+album_mbid = "48117b90-a16e-34ca-a514-19c702df1158"
+duration = 298
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "baseline"
+artist = "Kendrick Lamar"
+title = "Alright"
+album = "To Pimp a Butterfly"
+mbid = "b5e1e12f-8832-4ba4-b772-de15e2db2009"
+album_mbid = "d9103c72-3807-4378-9ce7-b6f3e8fdd547"
+duration = 219
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "baseline"
+artist = "Portishead"
+title = "Roads"
+album = "Dummy"
+mbid = "ef37de8d-8fab-42ed-82da-fbfe25715989"
+album_mbid = "48140466-cff6-3222-bd55-63c27e43190d"
+duration = 296
+mb_status = "ok"
+
+[[seed]]
+type = "album"
+bucket = "baseline"
+artist = "Pink Floyd"
+album = "Wish You Were Here"
+mbid = "1a272023-10d3-38ee-bab3-317b55fcc21d"
+track_count = 5
+mb_status = "ok"
+mb_note = "reviewed 2026-10-03: 2 release groups share this title"
+
+[[seed]]
+type = "album"
+bucket = "baseline"
+artist = "Massive Attack"
+album = "Mezzanine"
+mbid = "6f9f6899-c0d3-311d-ae87-a10ae6bc53a9"
+track_count = 11
+mb_status = "ok"
+
+[[seed]]
+type = "artist"
+bucket = "baseline"
+artist = "Boards of Canada"
+mbid = "69158f97-4c07-4c4e-baf8-4e4ab1ed666e"
+mb_status = "ok"
+mb_note = "reviewed 2026-10-03: 2 artists share the name; picked 'Scottish electronic duo' over: for fake releases and mistagged recordings"
+
+# ── long: long titles / album names ──────────────────────────────────────
+[[seed]]
+type = "track"
+bucket = "long"
+artist = "Sufjan Stevens"
+title = "They Are Night Zombies!! They Are Neighbors!! They Have Come Back from the Dead!! Ahhhh!"
+album = "Illinois"
+mbid = "a7a2f951-5aa0-4771-9539-88ba52eafc96"
+album_mbid = "1fb75447-c513-38c4-ad8f-1bfc441aa74c"
+duration = 310
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "long"
+artist = "Fall Out Boy"
+title = "I Slept with Someone in Fall Out Boy and All I Got Was This Stupid Song Written About Me"
+album = "From Under the Cork Tree"
+mbid = "e2631e49-7fd8-4531-8bdd-e3787148443c"
+album_mbid = "e848562f-a802-355c-a52c-90ba6aaa91d1"
+duration = 211
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "long"
+artist = "Godspeed You! Black Emperor"
+title = "Storm"
+album = "Lift Your Skinny Fists Like Antennas to Heaven"
+mbid = "519e6d2f-c762-48b1-8798-8f0299e11cc7"
+album_mbid = "3822abb6-ca53-3ae1-a4ec-7718cb321e9b"
+duration = 1352
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "long"
+artist = "Panic! at the Disco"
+title = "There's a Good Reason These Tables Are Numbered Honey, You Just Haven't Thought of It Yet"
+album = "A Fever You Can't Sweat Out"
+mbid = "69718c36-9056-44b0-b97c-58c389a1e568"
+album_mbid = "4c2e4e78-6b0f-3ca1-8131-06906e5b56e9"
+duration = 196
+mb_status = "ok"
+
+[[seed]]
+type = "album"
+bucket = "long"
+artist = "Fiona Apple"
+album = "The Idler Wheel Is Wiser Than the Driver of the Screw and Whipping Cords Will Serve You More Than Ropes Will Ever Do"
+mbid = "6086062c-f943-4b85-b1cb-43558425ec1c"
+track_count = 10
+mb_status = "ok"
+
+[[seed]]
+type = "album"
+bucket = "long"
+artist = "Neutral Milk Hotel"
+album = "In the Aeroplane Over the Sea"
+mbid = "8f310800-045b-3e12-8268-50b3d33a2267"
+track_count = 11
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "long"
+artist = "Pink Floyd"
+title = "Shine On You Crazy Diamond (Parts I-V)"
+album = "Wish You Were Here"
+mbid = "54029746-25ba-4f88-9885-387ac581e45f"
+album_mbid = "1a272023-10d3-38ee-bab3-317b55fcc21d"
+duration = 811
+mb_status = "ok"
+
+# ── symbols: punctuation / special chars (#17) ───────────────────────────
+[[seed]]
+type = "track"
+bucket = "symbols"
+artist = "AC/DC"
+title = "Back in Black"
+album = "Back in Black"
+mbid = "23bcab68-3164-46f0-9e0f-2330e06c2003"
+duration = 267
+mb_status = "ok"
+mb_note = "no match on album 'Back in Black'"
+
+[[seed]]
+type = "track"
+bucket = "symbols"
+artist = "Godspeed You! Black Emperor"
+title = "The Dead Flag Blues"
+album = "F♯ A♯ ∞"
+mbid = "96396ccc-239e-42cd-8f3e-b40b0818d4cb"
+album_mbid = "01d06c6e-a4e6-3d8b-8a45-42a598fe87d7"
+duration = 988
+mb_status = "ok"
+
+[[seed]]
+type = "album"
+bucket = "symbols"
+artist = "Godspeed You! Black Emperor"
+album = "F♯ A♯ ∞"
+mbid = "01d06c6e-a4e6-3d8b-8a45-42a598fe87d7"
+track_count = 2
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "symbols"
+artist = "Prince"
+title = "I Would Die 4 U"
+album = "Purple Rain"
+mbid = "3af11be5-fc60-41ca-abc4-207aed01cf3c"
+duration = 228
+mb_status = "ok"
+mb_note = "no match on album 'Purple Rain'"
+
+[[seed]]
+type = "track"
+bucket = "symbols"
+artist = "M83"
+title = "Midnight City"
+album = "Hurry Up, We're Dreaming"
+mbid = "e83bc6ba-eff9-412c-8c11-5153672f25e7"
+album_mbid = "5f898a60-acc5-48fc-a11b-2926084c0924"
+duration = 243
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "symbols"
+artist = "Sunn O)))"
+title = "Alice"
+album = "Monoliths & Dimensions"
+mbid = "eddb8ed7-e537-40c0-936b-f3f5976d52ee"
+album_mbid = "2c33e8a0-b2be-3224-8748-92e1d8ea948e"
+duration = 980
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "symbols"
+artist = "Bon Iver"
+title = "22 (OVER S∞∞N)"
+album = "22, A Million"
+mbid = "6379075a-414a-4dfd-9fab-6f8e06e32530"
+album_mbid = "f0e8f425-a941-48df-b5d7-2ceeaaf77c71"
+duration = 168
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "symbols"
+artist = "Panic! at the Disco"
+title = "I Write Sins Not Tragedies"
+album = "A Fever You Can't Sweat Out"
+mbid = "10175a71-2e47-4786-a60e-53dd1eb31821"
+album_mbid = "4c2e4e78-6b0f-3ca1-8131-06906e5b56e9"
+duration = 187
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "symbols"
+artist = "Florence + the Machine"
+title = "Dog Days Are Over"
+album = "Lungs"
+mbid = "c727135a-ccc7-4961-a716-dde6e9d8878b"
+album_mbid = "50fe703f-173e-496a-9155-b2a495d704e5"
+duration = 270
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "symbols"
+artist = "*NSYNC"
+title = "Bye Bye Bye"
+album = "No Strings Attached"
+mbid = "5aa053a9-5b84-418f-bb3c-d61df67b3880"
+album_mbid = "a648d0c2-1438-33d0-87d2-5fbab3c0990a"
+duration = 200
+mb_status = "ok"
+
+[[seed]]
+type = "artist"
+bucket = "symbols"
+artist = "$uicideboy$"
+mbid = "ef326b3d-61f0-4379-aca0-21237d696d63"
+mb_status = "ok"
+mb_note = "reviewed 2026-10-03: 2 artists share the name; picked 'American hip-hop duo' over: parody?"
+
+[[seed]]
+type = "track"
+bucket = "symbols"
+artist = "Guns N' Roses"
+title = "Sweet Child o' Mine"
+album = "Appetite for Destruction"
+mbid = "2135b7a6-e937-4c83-b568-5fcc58f07c4b"
+duration = 337
+mb_status = "ok"
+mb_note = "no match on album 'Appetite for Destruction'"
+
+# ── feat: featured artists in title/artist credit ────────────────────────
+[[seed]]
+type = "track"
+bucket = "feat"
+artist = "Daft Punk"
+title = "Get Lucky"
+album = "Random Access Memories"
+credit = "Daft Punk feat. Pharrell Williams & Nile Rodgers"
+mbid = "744787e9-444c-4494-a544-7640dafc0e9d"
+duration = 248
+mb_status = "ok"
+mb_note = "no match on album 'Random Access Memories'"
+
+[[seed]]
+type = "track"
+bucket = "feat"
+artist = "Gorillaz"
+title = "Feel Good Inc."
+album = "Demon Days"
+credit = "Gorillaz feat. De La Soul"
+mbid = "084982b8-926c-49f8-87c0-839635655676"
+album_mbid = "f959a46a-a136-3134-9412-6572b23fad95"
+duration = 221
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "feat"
+artist = "Kanye West"
+title = "All of the Lights"
+album = "My Beautiful Dark Twisted Fantasy"
+mbid = "a4c4457b-577e-4fac-b820-713bb91dbb6c"
+album_mbid = "5d6e21e1-deb5-428e-bb42-c2a567f3619b"
+duration = 300
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "feat"
+artist = "Massive Attack"
+title = "Teardrop"
+album = "Mezzanine"
+credit = "Massive Attack feat. Elizabeth Fraser"
+mbid = "22749d5f-91b3-49c8-8377-364c88870ed2"
+duration = 334
+mb_status = "ok"
+mb_note = "no match on album 'Mezzanine'"
+
+[[seed]]
+type = "track"
+bucket = "feat"
+artist = "Calvin Harris"
+title = "This Is What You Came For"
+album = "This Is What You Came For"
+credit = "Calvin Harris feat. Rihanna"
+mbid = "30ac9667-bc70-4541-a022-a3a881784ec2"
+album_mbid = "41e9758f-d99d-48d9-be99-4cd1bed84768"
+duration = 222
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "feat"
+artist = "Kendrick Lamar"
+title = "Money Trees"
+album = "good kid, m.A.A.d city"
+credit = "Kendrick Lamar feat. Jay Rock"
+mbid = "c294757b-0430-4eb4-ae7a-6abcffb87405"
+album_mbid = "499c19c8-0dab-4824-884b-6191d145e95b"
+duration = 387
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "feat"
+artist = "Lil Nas X"
+title = "Old Town Road (Remix)"
+album = "7"
+credit = "Lil Nas X feat. Billy Ray Cyrus"
+mbid = "d89febab-647a-4403-a157-1b25c515ab24"
+album_mbid = "c003aef3-c290-44f2-b47e-23cde7770a05"
+duration = 157
+mb_status = "ok"
+
+# ── nonlatin: CJK / Cyrillic / Arabic / Hebrew etc. ──────────────────────
+[[seed]]
+type = "track"
+bucket = "nonlatin"
+artist = "宇多田ヒカル"
+title = "First Love"
+album = "First Love"
+mbid = "5138e6be-39b2-46bf-a306-d3b5ee983a18"
+album_mbid = "947a1557-8462-30ea-bd8e-d5f82d41dad3"
+duration = 258
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "nonlatin"
+artist = "椎名林檎"
+title = "丸の内サディスティック"
+album = "無罪モラトリアム"
+mbid = "4f94f1c9-4e46-451b-917c-77ebdf8097e3"
+album_mbid = "923db16c-6620-3e44-ba00-a20745c6a957"
+duration = 236
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "nonlatin"
+artist = "Кино"
+title = "Группа крови"
+album = "Группа крови"
+mbid = "8bb7fd50-377c-4d57-8f8f-c83d00790c16"
+album_mbid = "7ff1eff0-a8c8-37dc-807e-eea5a9e173b5"
+duration = 286
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "nonlatin"
+artist = "Молчат Дома"
+title = "Судно (Борис Рыжий)"
+album = "Этажи"
+mbid = "d8b06f57-6d27-4666-8e7b-fcd9f8bca83e"
+album_mbid = "91843e1b-bce3-47b1-a756-8dd9817bdabc"
+duration = 141
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "nonlatin"
+artist = "BTS"
+title = "봄날"
+album = "YOU NEVER WALK ALONE"
+mbid = "9ad58f1e-e977-4599-925f-9fba9f30b48b"
+album_mbid = "ddbf733c-1182-42a2-9bae-059afcbc3b93"
+duration = 274
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "nonlatin"
+artist = "Fairuz"
+title = "Kifak Inta"
+album = "Kifak Inta"
+note = "Often tagged in Arabic script (فيروز) — tests romanised vs native"
+mbid = "d7ba62f0-6260-4aac-95d5-3f0a4adb4945"
+duration = 211
+mb_status = "ok"
+mb_note = "no match on album 'Kifak Inta'"
+
+[[seed]]
+type = "album"
+bucket = "nonlatin"
+artist = "王菲"
+album = "浮躁"
+mbid = "91f42713-b8e0-3a7b-981c-fddd20823d74"
+track_count = 10
+mb_status = "ok"
+
+[[seed]]
+type = "artist"
+bucket = "nonlatin"
+artist = "Кино"
+mbid = "064db6e8-fdfb-4acb-a327-fc2de75b37de"
+mb_status = "ok"
+
+# ── diacritics: accents that peers strip or keep inconsistently ──────────
+[[seed]]
+type = "track"
+bucket = "diacritics"
+artist = "Sigur Rós"
+title = "Hoppípolla"
+album = "Takk..."
+mbid = "d9642fee-939d-4357-b697-b55f9be3a17e"
+album_mbid = "47d8e9e2-dc13-3d94-afee-1f8c38cec091"
+duration = 269
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "diacritics"
+artist = "Björk"
+title = "Jóga"
+album = "Homogenic"
+mbid = "735b3549-eb6d-495b-8ce2-ef0e6ed22071"
+duration = 265
+mb_status = "ok"
+mb_note = "no match on album 'Homogenic'"
+
+[[seed]]
+type = "track"
+bucket = "diacritics"
+artist = "Motörhead"
+title = "Ace of Spades"
+album = "Ace of Spades"
+mbid = "97925ace-a00d-4c48-afe1-972c9b27e474"
+album_mbid = "51d51de2-0312-4798-8529-bed2ae2581c6"
+duration = 171
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "diacritics"
+artist = "Beyoncé"
+title = "Crazy in Love"
+album = "Dangerously in Love"
+mbid = "7b30a749-c655-474b-9572-c96298e8ad78"
+duration = 225
+mb_status = "ok"
+mb_note = "no match on album 'Dangerously in Love'"
+
+[[seed]]
+type = "track"
+bucket = "diacritics"
+artist = "Mötley Crüe"
+title = "Kickstart My Heart"
+album = "Dr. Feelgood"
+mbid = "7cc48e9f-fcbf-49be-8729-08a81de7ad73"
+album_mbid = "2fc8cf0a-2370-3238-b4f3-0fcea1511c12"
+duration = 283
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "diacritics"
+artist = "Stromae"
+title = "Papaoutai"
+album = "Racine carrée"
+mbid = "6574951b-e03c-400c-b807-476c4a7b7635"
+album_mbid = "d079dc50-fa9b-4a88-90f4-5e8723accd75"
+duration = 232
+mb_status = "ok"
+
+[[seed]]
+type = "album"
+bucket = "diacritics"
+artist = "Sigur Rós"
+album = "Ágætis byrjun"
+mbid = "62b427b8-1c52-34e7-b250-da2aa3e44860"
+track_count = 10
+mb_status = "ok"
+
+# ── classical: composer/performer/work naming chaos ──────────────────────
+[[seed]]
+type = "track"
+bucket = "classical"
+artist = "Glenn Gould"
+title = "Goldberg Variations, BWV 988: Aria"
+album = "Bach: The Goldberg Variations (1981)"
+composer = "Johann Sebastian Bach"
+mbid = "d57d7065-020f-4648-b1ca-12c9ba72f78d"
+duration = 114
+mb_status = "ok"
+mb_note = "no match on album 'Bach: The Goldberg Variations (1981)'"
+
+[[seed]]
+type = "track"
+bucket = "classical"
+artist = "Arvo Pärt"
+title = "Spiegel im Spiegel"
+album = "Alina"
+mb_status = "ok"
+mb_note = "no recording matched title+artist"
+mbid = "9547dfb8-8522-4c7c-874e-91f08defe82f"
+album_mbid = "03c79af2-34bf-3c8d-acc4-6a2d767d5a3d"
+duration = 636
+
+[[seed]]
+type = "track"
+bucket = "classical"
+artist = "Max Richter"
+title = "Spring 1"
+album = "Recomposed by Max Richter: Vivaldi – The Four Seasons"
+mbid = "8794236c-ba31-4edd-bb79-7eb1cbed9cf7"
+album_mbid = "b921615e-355b-47af-a13d-6a223ead16e6"
+duration = 152
+mb_status = "ok"
+
+[[seed]]
+type = "album"
+bucket = "classical"
+artist = "Philip Glass"
+album = "Glassworks"
+mbid = "e05203e6-5344-3fac-91d7-cc403832a247"
+track_count = 6
+mb_status = "ok"
+
+# ── compilation: Various Artists / soundtracks ───────────────────────────
+[[seed]]
+type = "track"
+bucket = "compilation"
+artist = "Dick Dale & His Del-Tones"
+title = "Misirlou"
+album = "Pulp Fiction (Music From the Motion Picture)"
+album_artist = "Various Artists"
+mbid = "254c0284-4af7-4dd2-bdf4-d0d6d0e83447"
+album_mbid = "1703cd63-9401-33c0-87c6-50c4ba2e0ba8"
+duration = 135
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "compilation"
+artist = "Kavinsky"
+title = "Nightcall"
+album = "Drive (Original Motion Picture Soundtrack)"
+album_artist = "Various Artists"
+mbid = "3a2f5805-565f-433f-a92d-d1ac7aee6575"
+album_mbid = "57dbf641-99ac-42f5-9981-5c11c0d1e48a"
+duration = 259
+mb_status = "ok"
+
+[[seed]]
+type = "album"
+bucket = "compilation"
+artist = "Various Artists"
+album = "Nuggets: Original Artyfacts From the First Psychedelic Era 1965–1968"
+mbid = "8692651e-a7df-3903-a47e-8a28bc1b492c"
+track_count = 27
+mb_status = "ok"
+
+[[seed]]
+type = "album"
+bucket = "compilation"
+artist = "Hans Zimmer"
+album = "Interstellar (Original Motion Picture Soundtrack)"
+mbid = "4513c7b9-854e-457f-81d6-3dbeb001beb8"
+track_count = 16
+mb_status = "ok"
+
+# ── short: very short / ambiguous artist names ───────────────────────────
+[[seed]]
+type = "track"
+bucket = "short"
+artist = "Yes"
+title = "Roundabout"
+album = "Fragile"
+mbid = "3ba1f7eb-88f4-4d1a-bacb-9147d781c79b"
+duration = 510
+mb_status = "ok"
+mb_note = "no match on album 'Fragile'"
+
+[[seed]]
+type = "track"
+bucket = "short"
+artist = "Low"
+title = "Lullaby"
+album = "I Could Live in Hope"
+mbid = "5f4028b7-e163-4e0f-8063-52a0d950ca0c"
+album_mbid = "05605e58-2923-319e-87f0-3cdbf97f57f8"
+duration = 590
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "short"
+artist = "U2"
+title = "One"
+album = "Achtung Baby"
+mbid = "29797146-1a89-423d-833a-9fe3ce42abc8"
+duration = 707
+mb_status = "ok"
+mb_note = "no match on album 'Achtung Baby'"
+
+[[seed]]
+type = "track"
+bucket = "short"
+artist = "X"
+title = "Los Angeles"
+album = "Los Angeles"
+mbid = "05d13522-3129-465c-98b7-4bcd995b4f1a"
+album_mbid = "700da083-bd95-3301-91f1-af571a001414"
+duration = 145
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "short"
+artist = "MGMT"
+title = "Kids"
+album = "Oracular Spectacular"
+mbid = "c741a7ef-dd33-4c79-a4d4-8745d9675620"
+album_mbid = "f7da2770-bf72-3dea-8904-ff6135822724"
+duration = 303
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "short"
+artist = "The The"
+title = "This Is the Day"
+album = "Soul Mining"
+mbid = "c6d5af08-0684-4f2b-a661-7ee317a48975"
+album_mbid = "923e256a-7bf0-31e0-bddc-ec76db526c32"
+duration = 300
+mb_status = "ok"
+
+[[seed]]
+type = "artist"
+bucket = "short"
+artist = "Can"
+mbid = "13501c7d-d181-45ba-af52-5f101d8516a0"
+mb_status = "ok"
+mb_note = "reviewed 2026-10-03: 7 artists share the name; picked 'German rock band' over: 캔, Korean duo, Strictly Breaks, Turkish rap artist, German electronic artist, German rapper, appears on REALITY FIRST TAKE"
+
+[[seed]]
+type = "artist"
+bucket = "short"
+artist = "Air"
+mbid = "cb67438a-7f50-4f2b-a6f1-2bb2729fd538"
+mb_status = "ok"
+mb_note = "reviewed 2026-10-03: 11 artists share the name; picked 'French band' over: Japanese band, Pete ‘Namlook’ Kuhlmann’s ambient project, 70s–80s US jazz trio, US jazz rock band, Chinese rapper, Software Crackers, A late-90s alternative pop-rock duo from Bandung, 70s psyche‐folk band from Sydney, 70’s German instrumental progressive rock band, 70s Japanese avant-garde jazz band"
+
+[[seed]]
+type = "album"
+bucket = "short"
+artist = "Weezer"
+album = "Weezer"
+mbid = "c7b245c9-8099-32ea-af95-893acedde2cf"
+track_count = 10
+mb_status = "ok"
+year = 1994
+note = "Self-titled ×7; only Blue (1994) is correct — the matcher must disambiguate by year/tracklist"
+mb_note = "reviewed 2026-10-03: Blue Album picked"
+
+# ── common_title: titles shared by many songs ────────────────────────────
+[[seed]]
+type = "track"
+bucket = "common_title"
+artist = "Muse"
+title = "Intro"
+album = "Absolution"
+mbid = "31a160a3-eaf9-4f2a-89ba-f9746fb475a7"
+album_mbid = "6f151223-f3a3-3e57-810f-598f7897006c"
+duration = 23
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "common_title"
+artist = "The xx"
+title = "Intro"
+album = "xx"
+mbid = "773a1557-a974-4f1e-978e-c240be4c3cb8"
+album_mbid = "23355caf-a543-4b5f-80fe-449101868fc1"
+duration = 128
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "common_title"
+artist = "Leona Lewis"
+title = "Run"
+album = "Spirit"
+note = "vs Snow Patrol original — tests artist disambiguation"
+mbid = "7b315413-f44a-43fc-9900-e70b1bafeca3"
+album_mbid = "9f5df671-c5f4-3431-874c-37fec2635ee6"
+duration = 278
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "common_title"
+artist = "Coldplay"
+title = "Yellow"
+album = "Parachutes"
+mbid = "04e77fa2-20b7-4461-a6ac-273965666ee8"
+album_mbid = "1dc4c347-a1db-32aa-b14f-bc9cc507b843"
+duration = 269
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "common_title"
+artist = "Joy Division"
+title = "Love Will Tear Us Apart"
+album = "Substance"
+note = "Covered by many — tests artist filter"
+mbid = "cfd5636b-a376-47aa-8de2-d06315a1ba08"
+duration = 207
+mb_status = "ok"
+mb_note = "no match on album 'Substance'"
+
+# ── remix_live: versions that must NOT be confused with the original ─────
+[[seed]]
+type = "track"
+bucket = "remix_live"
+artist = "Nirvana"
+title = "Where Did You Sleep Last Night"
+album = "MTV Unplugged in New York"
+mbid = "bf19906c-7912-48c4-935c-eee9e1b1751c"
+duration = 219
+mb_status = "ok"
+mb_note = "no match on album 'MTV Unplugged in New York'"
+
+[[seed]]
+type = "track"
+bucket = "remix_live"
+artist = "Lykke Li"
+title = "I Follow Rivers (The Magician Remix)"
+album = "I Follow Rivers"
+mbid = "8ec7848b-e266-4abc-99bf-b651206762ad"
+album_mbid = "3d4de617-ba77-4368-ba4a-f10a269922d6"
+duration = 280
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "remix_live"
+artist = "Radiohead"
+title = "Creep (Acoustic)"
+album = "My Iron Lung"
+mbid = "7cdf2e8e-f52c-4008-a493-d37b41fc1004"
+album_mbid = "99445a2b-578a-321e-851e-c6539bfbbd7f"
+duration = 259
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "remix_live"
+artist = "Talking Heads"
+title = "Once in a Lifetime (live)"
+album = "Stop Making Sense"
+mbid = "269dc815-35b1-4f6d-8672-72c38f739f13"
+duration = 332
+mb_status = "ok"
+mb_note = "no match on album 'Stop Making Sense'"
+
+[[seed]]
+type = "track"
+bucket = "remix_live"
+artist = "Tame Impala"
+title = "The Less I Know the Better"
+album = "Currents"
+note = "Original — many remixes exist; remixes are wrong answers"
+mbid = "78be434c-0908-458f-9693-f16cdebb68ef"
+album_mbid = "08aa7a6c-3e43-4459-87b2-e47faf3a088a"
+duration = 217
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "remix_live"
+artist = "Fleetwood Mac"
+title = "Dreams (2004 Remaster)"
+album = "Rumours"
+note = "Remaster/deluxe/year suffixes = same song (decided 2026-10-03)"
+mb_status = "ok"
+mb_note = "no recording matched title+artist"
+mbid = "248cc9d1-97ea-493e-84d4-4c5ec718683b"
+album_mbid = "416bb5e5-c7d1-3977-8fd7-7c9daf6c2be6"
+duration = 257
+
+# ── numeric: digits/years/track numbers that collide with filename noise ─
+[[seed]]
+type = "track"
+bucket = "numeric"
+artist = "Prince"
+title = "1999"
+album = "1999"
+mbid = "398c10c3-afcf-422f-8400-51eecf1a28b4"
+duration = 219
+mb_status = "ok"
+mb_note = "no match on album '1999'"
+
+[[seed]]
+type = "track"
+bucket = "numeric"
+artist = "blink-182"
+title = "All the Small Things"
+album = "Enema of the State"
+mbid = "f36d9818-019b-4379-ad13-5080feb9ad8a"
+album_mbid = "cd367c59-eb86-384b-bbc7-62f6d2d677b9"
+duration = 171
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "numeric"
+artist = "Aphex Twin"
+title = "#3"
+album = "Selected Ambient Works Volume II"
+mbid = "0fa45d07-f01c-4048-a762-54bb4ff5dafe"
+duration = 361
+mb_status = "ok"
+mb_note = "no match on album 'Selected Ambient Works Volume II'"
+
+[[seed]]
+type = "track"
+bucket = "numeric"
+artist = "The 1975"
+title = "Somebody Else"
+album = "I Like It When You Sleep, for You Are So Beautiful Yet So Unaware of It"
+mbid = "b9f0bddf-c79f-4a4d-be3b-3321babb1fd8"
+album_mbid = "c1125856-5eaa-4e76-9f63-2fd1f72281a6"
+duration = 347
+mb_status = "ok"
+
+[[seed]]
+type = "album"
+bucket = "numeric"
+artist = "Adele"
+album = "21"
+mbid = "e4174758-d333-4a8e-a31f-dd0edd51518e"
+track_count = 15
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "numeric"
+artist = "Aphex Twin"
+title = "minipops 67 [120.2][source field mix]"
+album = "Syro"
+mbid = "0c27d454-2eae-4f8b-9795-a3fd9b6f0182"
+duration = 287
+mb_status = "ok"
+mb_note = "no match on album 'Syro'"
+
+# ── obscure: few peers — tests recall, not precision ─────────────────────
+[[seed]]
+type = "track"
+bucket = "obscure"
+artist = "Duster"
+title = "Inside Out"
+album = "Stratosphere"
+mbid = "729f840e-4da6-43e1-94bd-7252ef936279"
+album_mbid = "764a8c35-aacc-3269-8b10-5972e051815a"
+duration = 141
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "obscure"
+artist = "Grouper"
+title = "Heavy Water/I'd Rather Be Sleeping"
+album = "Dragging a Dead Deer Up a Hill"
+mbid = "51d3c2b1-39aa-433c-a8a7-c111ab2f7689"
+mb_status = "ok"
+mb_note = "no match on album 'Dragging a Dead Deer Up a Hill'"
+
+[[seed]]
+type = "album"
+bucket = "obscure"
+artist = "Have a Nice Life"
+album = "Deathconsciousness"
+mbid = "bb449522-eefd-3d7e-b712-b2cf7e9de0b1"
+track_count = 13
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "obscure"
+artist = "Jessica Pratt"
+title = "Back, Baby"
+album = "On Your Own Love Again"
+mbid = "a0fc31f4-f289-498f-a577-1882d0f1543f"
+album_mbid = "778a369c-0f27-471b-b09d-71c87e7c71ef"
+duration = 235
+mb_status = "ok"
+
+[[seed]]
+type = "artist"
+bucket = "obscure"
+artist = "Planning for Burial"
+mbid = "49f035ad-1fa0-4a2b-9d8b-7f67333570e9"
+mb_status = "ok"
+
+# ── negative: must NOT be found; any match is a false positive ──────────
+[[seed]]
+type = "track"
+bucket = "negative"
+artist = "Sigur Rós"
+title = "Toxic"
+expect = "none"
+note = "Real song by another artist (Britney Spears)"
+mb_status = "trap_ok"
+mb_note = "MusicBrainz has it: Nirvana - Home (92a900bb-388f-430f-8280-69414f58d4cf)"
+
+[[seed]]
+type = "track"
+bucket = "negative"
+artist = "Fleetwood Mac"
+title = "Midnight City"
+expect = "none"
+note = "Real song by another artist (M83)"
+mb_status = "trap_ok"
+mb_note = "MusicBrainz has it: Radiohead - Wonderwall (ebf93e63-89a3-4075-b22c-e86e592c463b)"
+
+[[seed]]
+type = "track"
+bucket = "negative"
+artist = "Daft Punk"
+title = "Bohemian Rhapsody"
+expect = "none"
+note = "Real song by another artist (Queen)"
+mb_status = "trap_ok"
+
+[[seed]]
+type = "track"
+bucket = "negative"
+artist = "Portishead"
+title = "Hey Ya!"
+expect = "none"
+note = "Real song by another artist (OutKast)"
+mb_status = "trap_ok"
+
+[[seed]]
+type = "track"
+bucket = "negative"
+artist = "Boards of Canada"
+title = "Roygbiv II"
+expect = "none"
+note = "Plausible-looking sequel title that doesn't exist"
+mb_status = "trap_ok"
+
+[[seed]]
+type = "track"
+bucket = "negative"
+artist = "Björk"
+title = "Hyperballad Pt. 2"
+expect = "none"
+note = "Plausible-looking sequel title that doesn't exist"
+mb_status = "trap_ok"
+
+[[seed]]
+type = "track"
+bucket = "negative"
+artist = "The xx"
+title = "Midnight City"
+expect = "none"
+note = "Real song by another artist (M83)"
+mb_status = "trap_ok"
+
+[[seed]]
+type = "track"
+bucket = "negative"
+artist = "Kendrick Lamar"
+title = "Teardrop"
+expect = "none"
+note = "Real song by another artist (Massive Attack) — also in this corpus"
+mb_status = "trap_ok"
+
+# ── library: picked from the user's Navidrome favourites (2026-10-03) ──
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Tyler, The Creator"
+title = "I THINK"
+album = "IGOR"
+mbid = "08937107-2213-4e9f-8077-79542245fe9c"
+duration = 212
+note = "all-caps title, comma in artist"
+album_mbid = "0f1b9e07-b38b-4bba-9794-55e0924d7177"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Kendrick Lamar"
+title = "Mr. Morale"
+album = "Mr. Morale & the Big Steppers"
+credit = "Kendrick Lamar ft. Tanna Leone"
+mbid = "c8076826-a7c5-48c4-8ce4-445c84bd2ae5"
+duration = 210
+note = "feat in artist tag"
+album_mbid = "6bd70eee-bd46-4738-851a-f50c19d8d6db"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Clipse"
+title = "Inglorious Bastards"
+album = "Let God Sort Em Out"
+credit = "Clipse, Malice, Pusha T, AB-Liva"
+duration = 153
+note = "multi-artist credit"
+mbid = "79a9706b-3796-4379-80ad-698a88b4cfb3"
+album_mbid = "18cdc08c-03a1-4e55-9624-b7f9dbb968f5"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "PRESIDENT"
+title = "Angel Wings"
+album = "Blood of Your Empire"
+duration = 233
+note = "common-word artist name, metalcore"
+mbid = "12cc44bd-a0f3-4830-b365-a73168e78935"
+album_mbid = "23ea9e72-a09b-40aa-a62e-f113da85a7d7"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Kendrick Lamar"
+title = "PRIDE."
+album = "DAMN."
+duration = 275
+note = "trailing dots; library album is COLLECTORS EDITION"
+mbid = "11ed671b-b2ec-4756-932c-a205e38147f0"
+album_mbid = "b88655ba-7469-48b8-a296-b9011ab73ef3"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Tyler, The Creator"
+title = "Ring Ring Ring"
+album = "DON’T TAP THE GLASS"
+mbid = "1726498a-93a4-4625-92b8-ffbba651d62e"
+duration = 201
+note = "curly apostrophe in album, repeated words"
+album_mbid = "34cefdcf-dd34-408b-aafd-b55ffa9ccc4a"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Tove Lo"
+title = "I’m your girl right?"
+album = "Estrus"
+mbid = "5a5730f2-741b-4e3e-b4c8-ef8fe0626cf6"
+duration = 169
+note = "curly apostrophe + ?, very recent"
+album_mbid = "aad8a495-d447-477f-b4eb-15bef65aa311"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "KAYTRANADA"
+title = "GLOWED UP"
+album = "99.9%"
+mbid = "bc5dbaae-24c3-4edb-9d46-2a1fb45417f9"
+duration = 298
+note = "% in album"
+album_mbid = "2f915251-f0f3-4a08-9f31-4f3cbcfcbf3b"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Yaeji"
+title = "Raingurl"
+album = "EP2"
+duration = 237
+note = "EP naming"
+mbid = "f1451780-d6a9-4ac5-bdd9-d239c5d2facb"
+album_mbid = "123c33f4-fff5-40ec-88a9-1c9f5e759e1a"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "BADBADNOTGOOD"
+title = "Time Moves Slow"
+album = "IV"
+credit = "BADBADNOTGOOD feat. Samuel T. Herring"
+mbid = "b90c9607-698d-4810-9085-da4cabca9bfc"
+duration = 273
+note = "feat in artist tag, roman numeral album"
+album_mbid = "16297acb-896e-48e4-8390-f9ca95c4f0d9"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "MF DOOM"
+title = "Rapp Snitch Knishes"
+album = "MM..FOOD"
+credit = "MF DOOM feat. Mr. Fantastik"
+duration = 173
+note = "double dots in album, feat in title"
+mbid = "534bfb31-9e63-40bc-8e91-5418e95b393c"
+album_mbid = "ec84ab32-eb41-3d91-a099-7a01c72f21d2"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "J. Cole"
+title = "G.O.M.D"
+album = "2014 Forest Hills Drive"
+mbid = "37223d03-77e0-424e-a8f6-2b939d1365bb"
+duration = 301
+note = "dotted acronym title, year-led album"
+album_mbid = "5995738d-4b6f-4db6-847b-310a9dc67085"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "1-800-MIKEY"
+title = "Me And My Only"
+album = "In Yun"
+duration = 148
+note = "digits + hyphens in artist, obscure"
+mbid = "580a4bbb-4ee5-4ebd-adb5-6714fde42230"
+album_mbid = "6e58c6b0-6384-4149-8c12-97e291248eee"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Matty Wood$"
+title = "SUNDAY"
+album = "DOPEBOY"
+duration = 160
+note = "$ in artist; library tags polluted with track no./IDs"
+mbid = "b0befcd0-b39a-4599-8b8d-d7b85564779c"
+album_mbid = "53bcfd87-2517-460b-80db-f5089b06c3e6"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Ellis"
+title = "Brand New Phone"
+album = "Monstercat Instinct Vol. 6"
+credit = "Ellis • Pasha"
+duration = 197
+note = "bullet separator, label compilation"
+mbid = "0933e973-a3e9-46db-a60c-87064daac8ee"
+album_mbid = "550e8d7e-6ef2-4430-a75e-0ffcffbf8724"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Bigflo & Oli"
+title = "Personne"
+album = "La vraie vie"
+mbid = "a86aa538-2bf5-4e99-bd4a-1ce753a2dff6"
+duration = 271
+note = "French, & in artist"
+album_mbid = "7d8ff8ee-e4e5-47a4-a469-7bc15415bb44"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Jeff Buckley"
+title = "Last Goodbye"
+album = "Grace"
+mbid = "3156ff92-7e8f-4cd7-9ebc-b11b9373479b"
+duration = 275
+note = "classic, many peers (baseline)"
+album_mbid = "ea29c347-696f-3165-986d-7bad1394b178"
+mb_status = "ok"
+
+[[seed]]
+type = "track"
+bucket = "library"
+artist = "Casper Mcfadden"
+title = "Hackers Cafe"
+album = "Audio Diary"
+mbid = "7bb394f2-79dc-468e-9be6-05f87cbc9aa1"
+duration = 182
+note = "obscure jungle"
+album_mbid = "8336574f-506f-4269-9e95-b50497ff5512"
+mb_status = "ok"
