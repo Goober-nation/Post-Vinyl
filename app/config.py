@@ -290,7 +290,7 @@ class Config:
         # live-artifacts/hang-probe-1), while the rate limiter and query
         # cache below bound how often a new search happens at all, which is
         # the thing that actually mattered.
-        self.search.response_limit = self._get_int(data, "response_limit", 60)
+        self.search.response_limit = self._get_int(data, "response_limit", 300)
         self.search.rate_limit_max_searches = self._get_int(
             data, "rate_limit_max_searches", 4
         )
@@ -951,15 +951,15 @@ class SearchConfig:
         # Diagnosed 2026-08-13: bounds on the cost of a Soulseek search.
         # response_limit caps what slskd *records* per search (it does not
         # reduce the peer connections opened — measured, not a lever on its
-        # own) but there's no reason to keep more than needed, so it's set
-        # well under slskd's own 250 default. The rate limiter and query
+        # own); raised 60→300 on 2026-10-02 to widen the candidate pool for
+        # multi-strategy matching (#34). The rate limiter and query
         # cache are what actually matter: no more than
         # rate_limit_max_searches new searches may start within any
         # rate_limit_window_seconds (SlskdSearch blocks callers for up to
         # rate_limit_wait_timeout_seconds rather than failing outright), and
         # an identical query string within query_cache_ttl_seconds is served
         # from the prior search's responses instead of broadcasting again.
-        self.response_limit: int = 60
+        self.response_limit: int = 300
         self.rate_limit_max_searches: int = 4
         self.rate_limit_window_seconds: int = 60
         self.rate_limit_wait_timeout_seconds: int = 45

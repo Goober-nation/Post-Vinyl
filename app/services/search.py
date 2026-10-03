@@ -70,7 +70,7 @@ class SlskdSearch(SearchService):
         # and never drained. These two guards sit in front of every new
         # broadcast to slskd; see search_limiter.py for the full account.
         search_cfg = getattr(config, "search", None)
-        self._response_limit = getattr(search_cfg, "response_limit", 60)
+        self._response_limit = getattr(search_cfg, "response_limit", 300)
         self._response_cap = getattr(search_cfg, "response_cap", 250)
         self._rate_limiter = SearchRateLimiter(
             max_searches=getattr(search_cfg, "rate_limit_max_searches", 4),
