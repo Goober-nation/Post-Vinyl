@@ -223,6 +223,15 @@ class TestSetupSlskd:
         assert 'SLSKD_NETWORK_USERNAME="bob"' in env_text
         assert 'SLSKD_NETWORK_PASSWORD="hunter2"' in env_text
 
+    @pytest.mark.parametrize("password", ['hun"ter2', "hunter2\nEVIL=1"])
+    def test_rejects_values_that_would_break_env_quoting(self, client, config, password):
+        resp = client.post(
+            "/api/setup/slskd", json={"username": "bob", "password": password}
+        )
+
+        assert resp.status_code == 400
+        assert not config.env_path.exists() or "EVIL" not in config.env_path.read_text()
+
 
 class TestSlskdCheck:
     @patch("app.routes.setup.requests.get")

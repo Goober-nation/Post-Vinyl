@@ -29,9 +29,6 @@ class TestConfigLoading:
 
     def test_load_full_config(self):
         """Config should load all sections from TOML."""
-        for key in ["LISTENBRAINZ_TOKEN", "LISTENBRAINZ_USERNAME"]:
-            os.environ.pop(key, None)
-
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "config.toml"
             config_path.write_text("""
@@ -133,16 +130,6 @@ LISTENBRAINZ_USERNAME=testlb
 
     def test_env_file_optional(self):
         """Config should work without .env file."""
-        # Clear any env vars from previous tests
-        for key in [
-            "NAVIDROME_USERNAME",
-            "NAVIDROME_PASSWORD",
-            "SLSKD_API_KEY",
-            "LISTENBRAINZ_TOKEN",
-            "LISTENBRAINZ_USERNAME",
-        ]:
-            os.environ.pop(key, None)
-
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "config.toml"
             config_path.write_text("[server]\nport = 8000\n")
@@ -533,9 +520,6 @@ class TestConfigSections:
 
     def test_listenbrainz_config(self):
         """ListenBrainzConfig.enabled should be derived from username+token, not a TOML flag."""
-        for key in ["LISTENBRAINZ_TOKEN", "LISTENBRAINZ_USERNAME"]:
-            os.environ.pop(key, None)
-
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "config.toml"
             config_path.write_text("[listenbrainz]\n")

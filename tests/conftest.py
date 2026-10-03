@@ -9,6 +9,8 @@ config/env file already pass explicit tmpdir paths (see test_config.py),
 so this only changes what the *default*, unspecified path resolves to.
 """
 
+import os
+
 import pytest
 
 
@@ -32,3 +34,35 @@ def pytest_configure(config):
 @pytest.fixture(autouse=True)
 def _isolate_cwd(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
+
+
+# Every secret app.config.Config reads via _get_env().
+_APP_ENV_KEYS = (
+    "LISTENBRAINZ_TOKEN",
+    "LISTENBRAINZ_USERNAME",
+    "MUSICA_AUTH_PASSWORD",
+    "MUSICA_AUTH_USERNAME",
+    "NAVIDROME_PASSWORD",
+    "NAVIDROME_USERNAME",
+    "SLSKD_API_KEY",
+    "SLSKD_NETWORK_PASSWORD",
+    "SLSKD_NETWORK_USERNAME",
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_env(monkeypatch):
+    """Give every test a clean process environment.
+
+    Config._load_env() copies every .env value into os.environ, which is
+    process-wide, so a test that loads an .env with credentials would
+    otherwise leak them into every later test. Each test starts with the
+    app's secret keys unset (whatever the developer's shell has), and the
+    whole environment is restored afterwards.
+    """
+    saved = os.environ.copy()
+    for key in _APP_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
+    yield
+    os.environ.clear()
+    os.environ.update(saved)

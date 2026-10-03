@@ -22,7 +22,7 @@ from typing import Annotated
 
 import requests
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.config import Config
 from app.db.database import Database
@@ -67,6 +67,14 @@ class SetupStatusResponse(BaseModel):
 class AccountRequest(BaseModel):
     username: str = Field(min_length=1, max_length=200)
     password: str = Field(min_length=1, max_length=200)
+
+    @field_validator("username", "password")
+    @classmethod
+    def _env_safe(cls, value: str) -> str:
+        """Both values are written into .env inside double quotes."""
+        if "\n" in value or "\r" in value or '"' in value:
+            raise ValueError("value must not contain newlines or double quotes")
+        return value
 
 
 class NavidromeSetupResponse(BaseModel):

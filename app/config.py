@@ -146,7 +146,11 @@ class Config:
         return True
 
     def write_env_values(self, values: dict[str, str]) -> None:
-        """Write raw KEY=value pairs into .env, preserving unrelated lines.
+        """Write KEY="value" pairs into .env, preserving unrelated lines.
+
+        Values are double-quoted so Docker Compose, which also reads this
+        file, doesn't treat a " #" inside a value as the start of a comment.
+        Callers reject values containing double quotes or newlines.
 
         Shared by /api/config/secrets and /api/setup/* — both write .env
         entries by key, replacing an existing line for that key or appending
@@ -162,14 +166,14 @@ class Config:
             stripped = line.strip()
             key = stripped.split("=", 1)[0].strip() if "=" in stripped else stripped
             if key and key in values:
-                new_lines.append(f"{key}={values[key]}")
+                new_lines.append(f'{key}="{values[key]}"')
                 processed_keys.add(key)
             else:
                 new_lines.append(line)
 
         for key, value in values.items():
             if key not in processed_keys:
-                new_lines.append(f"{key}={value}")
+                new_lines.append(f'{key}="{value}"')
 
         self.env_path.write_text("\n".join(new_lines) + "\n")
 
