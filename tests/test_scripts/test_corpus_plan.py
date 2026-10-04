@@ -20,6 +20,10 @@ class TestFold:
     def test_accents_folded(self):
         assert plan.fold_query("Sigur Rós") == "Sigur Ros"
 
+    def test_non_latin_marks_survive(self):
+        assert plan.fold_query("丸の内サディスティック") == "丸の内サディスティック"
+        assert plan.fold_query("Судно (Борис Рыжий)") == "Судно Борис Рыжий"
+
     def test_punctuation_becomes_space(self):
         assert plan.fold_query("AC/DC") == "AC DC"
 
@@ -127,3 +131,25 @@ def test_real_seed_list_plans_cleanly():
     assert len(p["seeds"]) == len(seeds)
     assert all(q["query"].strip() for q in p["queries"])
     assert len({q["qid"] for q in p["queries"]}) == len(p["queries"])
+
+
+def test_lw_and_at_for_tracks():
+    s = dict(
+        plan.seed_queries(
+            {
+                "type": "track",
+                "artist": "Gorillaz",
+                "title": "Feel Good Inc.",
+                "album": "Demon Days",
+            }
+        )
+    )
+    assert s["LW"] == "demon gorillaz"
+    assert s["AT"] == "demon feel"
+
+
+def test_single_uses_title_as_album():
+    s = dict(
+        plan.seed_queries({"type": "track", "artist": "Bleeker", "title": "ELEPHANT"})
+    )
+    assert s["LW"] == "elephant bleeker"

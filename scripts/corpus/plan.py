@@ -59,7 +59,15 @@ def fold_query(text: str) -> str:
     """Symbol-mapped, accent-folded form of a field (shape F)."""
     text = text.translate(_SYMBOL_MAP)
     text = unicodedata.normalize("NFKD", text)
-    text = "".join(c for c in text if not unicodedata.combining(c))
+    # Strip a combining mark only from a Latin base letter. Elsewhere the
+    # mark is part of the letter: dropping it turned サディ into サティ and
+    # Рыжий into Рыжии (live 2026-10-04: both returned 0 peers).
+    out: list[str] = []
+    for c in text:
+        if unicodedata.combining(c) and out and out[-1].isascii():
+            continue
+        out.append(c)
+    text = unicodedata.normalize("NFC", "".join(out))
     text = re.sub(r"[^\w\s']+", " ", text)
     return " ".join(text.split())
 
@@ -103,6 +111,22 @@ def seed_queries(seed: dict) -> list[tuple[str, str]]:
         for i, q in enumerate(build_search_queries(title, artist)):
             add(f"L{i}", q)
         add("W2", two_longest(title, album))
+        # LW: album word + artist word, filtered by title afterwards. A
+        # single (or a track with no album) is its own album (user,
+        # 2026-10-04). AT drops the artist for artists whose name is on
+        # Soulseek's excluded-phrase list (Gorillaz, Beyoncé…).
+        album_or_title = album or title
+        lw = select_words(album_or_title)[:1] + select_words(artist)[:1]
+        add("LW", " ".join(dict.fromkeys(lw)))
+        at = (
+            select_words(album_or_title)[:1]
+            + [
+                w
+                for w in select_words(title)
+                if w not in select_words(album_or_title)[:1]
+            ][:1]
+        )
+        add("AT", " ".join(at))
         add("T", title)
         add("A", artist)
         if album:
@@ -171,12 +195,29 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seeds", type=Path, default=SEEDS_PATH)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--sample", type=int, default=None, help="only N track seeds")
+    ap.add_argument("--types", default=None, help="seed types to keep, e.g. track")
+    ap.add_argument(
+        "--shapes", default=None, help="comma-separated shapes to keep, e.g. LW,AT"
+    )
     args = ap.parse_args(argv)
 
     seeds = tomllib.loads(args.seeds.read_text())["seed"]
+    if args.types:
+        seeds = [s for s in seeds if s["type"] in args.types.split(",")]
     if args.sample:
         seeds = sample_seeds(seeds, args.sample)
     plan = build_plan(seeds)
+    if args.shapes:
+        keep = set(args.shapes.split(","))
+        # "L" keeps every ladder rung (L0, L1, …).
+        for q in plan["queries"]:
+            q["uses"] = [
+                u
+                for u in q["uses"]
+                if u["shape"] in keep
+                or ("L" in keep and u["shape"][0] == "L" and u["shape"][1:].isdigit())
+            ]
+        plan["queries"] = [q for q in plan["queries"] if q["uses"]]
     args.out.write_text(json.dumps(plan, ensure_ascii=False, indent=1))
     uses = sum(len(q["uses"]) for q in plan["queries"])
     print(

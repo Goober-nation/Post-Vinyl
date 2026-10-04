@@ -3,7 +3,7 @@
 # Live 2026-10-03: after a server-side drop slskd sat in "Disconnecting"
 # for an hour and never reconnected on its own. Exits when the harvester
 # container stops. Run from ~/projects/postvinyl-corpus:
-#   nohup ./watchdog.sh >> data/corpus/watchdog.log 2>&1 &
+#   sh watchdog.sh   (run_suite.sh starts it and captures its output)
 KEY=$(grep '^SLSKD_API_KEY=' .env | cut -d= -f2-)
 down_since=""
 sleep 60  # let the harvester container start

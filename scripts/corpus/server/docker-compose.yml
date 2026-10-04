@@ -46,9 +46,8 @@ services:
     volumes:
       - ./:/work
     # PLAN is plan_test.json or plan.json (set on the command line)
-    command: >
-      sh -c "pip install -q requests &&
-             python harvest.py --plan ${PLAN:-plan_test.json} --out data/corpus
-             --slskd http://slskd-corpus:5030 --per-minute ${PER_MINUTE:-6} --max-wait 10
-             --response-limit 300"
+    # One line on purpose: a folded YAML block keeps the newlines of its
+    # more-indented lines, so sh ran only the first line and silently
+    # dropped every flag after it (live 2026-10-04: cap/pace ignored).
+    command: ["sh", "-c", "pip install -q requests && python harvest.py --plan ${PLAN:-plan_test.json} --out ${OUT:-data/corpus} --slskd http://slskd-corpus:5030 --per-minute ${PER_MINUTE:-6} --max-wait 10 --response-limit ${RESPONSE_LIMIT:-300}"]
     profiles: ["run"]
