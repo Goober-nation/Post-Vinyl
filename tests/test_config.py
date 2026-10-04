@@ -371,8 +371,8 @@ class TestConfigValidation:
             config = Config(config_path=str(config_path))
             config.load()
 
-            assert config.search.response_limit == 300
-            assert config.search.response_cap == 250
+            assert config.search.response_limit == 600
+            assert config.search.response_cap == 600
             assert config.search.rate_limit_max_searches == 4
             assert config.search.rate_limit_window_seconds == 60
             assert config.search.rate_limit_wait_timeout_seconds == 45

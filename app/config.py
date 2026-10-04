@@ -280,7 +280,7 @@ class Config:
         self.search.wait_seconds = self._get_int(data, "wait_seconds", 10)
         self.search.poll_interval = self._get_int(data, "poll_interval", 1)
         self.search.response_threshold = self._get_int(data, "response_threshold", 10)
-        self.search.response_cap = self._get_int(data, "response_cap", 250)
+        self.search.response_cap = self._get_int(data, "response_cap", 600)
         self.search.min_wait_seconds = self._get_int(data, "min_wait_seconds", 3)
         self.search.pass_ratio_threshold = self._get_float(
             data, "pass_ratio_threshold", 0.75
@@ -294,7 +294,7 @@ class Config:
         # live-artifacts/hang-probe-1), while the rate limiter and query
         # cache below bound how often a new search happens at all, which is
         # the thing that actually mattered.
-        self.search.response_limit = self._get_int(data, "response_limit", 300)
+        self.search.response_limit = self._get_int(data, "response_limit", 600)
         self.search.rate_limit_max_searches = self._get_int(
             data, "rate_limit_max_searches", 4
         )
@@ -935,7 +935,7 @@ class SearchConfig:
         self.wait_seconds: int = 10
         self.poll_interval: int = 1
         self.response_threshold: int = 10
-        self.response_cap: int = 250
+        self.response_cap: int = 600
         self.min_wait_seconds: int = 3
         # P6.5-6: pass-ratio threshold for the re-query ladder — a query
         # rung counts as a hit when this fraction of its results survive
@@ -955,7 +955,7 @@ class SearchConfig:
         # Diagnosed 2026-08-13: bounds on the cost of a Soulseek search.
         # response_limit caps what slskd *records* per search (it does not
         # reduce the peer connections opened — measured, not a lever on its
-        # own); raised 60→300 on 2026-10-02 to widen the candidate pool for
+        # own); raised 60→300 on 2026-10-02, then 300→600 on 2026-10-04 (#34: ~40–70% more helpful peers) for
         # multi-strategy matching (#34). The rate limiter and query
         # cache are what actually matter: no more than
         # rate_limit_max_searches new searches may start within any
@@ -963,7 +963,7 @@ class SearchConfig:
         # rate_limit_wait_timeout_seconds rather than failing outright), and
         # an identical query string within query_cache_ttl_seconds is served
         # from the prior search's responses instead of broadcasting again.
-        self.response_limit: int = 300
+        self.response_limit: int = 600
         self.rate_limit_max_searches: int = 4
         self.rate_limit_window_seconds: int = 60
         self.rate_limit_wait_timeout_seconds: int = 45

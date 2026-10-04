@@ -103,10 +103,50 @@ def excluded_word(filename: str, seed: dict) -> str | None:
 
 
 def _contains_all(haystack: list[str], needle: list[str]) -> bool:
-    # Words must appear in order-independent fashion but each as a whole
-    # word; a phrase check would fail "Police - Karma" style reversals.
     pool = set(haystack)
     return bool(needle) and all(w in pool for w in needle)
+
+
+_PAREN_RE = re.compile(r"[(\[{][^)\]}]*[)\]}]")
+
+
+def title_matches(stem: str, title: str) -> bool:
+    """The title's main part as an in-order phrase in the filename; words in
+    its brackets anywhere in it.
+
+    Loose words let "South City Midnight Lady" pass for "Midnight City"
+    (live 2026-10-04, a false positive on a trap seed). Bracketed parts are
+    checked loosely because peers move them around: "Old Town Road (Remix)"
+    is often "Old Town Road (feat. Billy Ray Cyrus) [Remix]".
+    """
+    main = norm_title(_PAREN_RE.sub(" ", title)).split()
+    extra = norm_title(" ".join(_PAREN_RE.findall(title))).split()
+    words = _words(stem)
+    if not main:  # title is all brackets
+        return _contains_all(words, extra)
+    return _has_phrase(words, " ".join(main)) and (
+        not extra or _contains_all(words, extra)
+    )
+
+
+def artist_matches(folders: list[str], stem: str, artist: str) -> bool:
+    """The artist as an in-order phrase in the path. A name of 2 characters
+    or fewer ("xx", "X", "U2") must stand as its own segment — a whole
+    folder, or bounded by separators — or "The xx" matches the "xx" in a
+    date like "1975 09 xx Memphis" (live 2026-10-04)."""
+    want = artist_words({"artist": artist})
+    if not want:
+        return False
+    segments = folders + [stem]
+    if len("".join(want)) > 2:
+        return _has_phrase(_words(" ".join(segments)), " ".join(want))
+    for seg in segments:
+        for part in re.split(r"\s+[-–—]\s+|[_\\/]|^\d+[.)]?\s+", seg):
+            if norm(part) == " ".join(want):
+                return True
+        if norm(seg) == " ".join(want):
+            return True
+    return False
 
 
 def artist_words(seed: dict) -> list[str]:
@@ -129,9 +169,9 @@ def label_track_file(f: dict, seed: dict) -> FileLabel:
         return FileLabel("not_audio", name)
     if word := excluded_word(name, seed):
         return FileLabel(f"excluded:{word}", name)
-    if not _contains_all(_words(stem), norm_title(seed["title"]).split()):
+    if not title_matches(stem, seed["title"]):
         return FileLabel("no_title", name)
-    if not _contains_all(_words(" ".join(folders + [stem])), artist_words(seed)):
+    if not artist_matches(folders, stem, seed["artist"]):
         return FileLabel("no_artist", name)
     want, got = seed.get("duration"), f.get("length")
     if want and got and abs(int(got) - int(want)) > DURATION_TOLERANCE_S:

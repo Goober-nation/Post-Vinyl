@@ -169,3 +169,31 @@ def test_plan_uses_are_merged_by_qid():
         {"seed": "album", "shape": "LW"},
         {"seed": "track", "shape": "LW"},
     ]
+
+
+def test_title_words_out_of_order_do_not_match():
+    seed = {"type": "track", "artist": "The xx", "title": "Midnight City"}
+    f = _f("Doobie Brothers\\1975 09 xx Memphis TN\\04- South City Midnight Lady.flac")
+    assert lb.label_track_file(f, seed).label != "correct"
+
+
+def test_short_artist_must_be_its_own_segment():
+    seed = {"type": "track", "artist": "X", "title": "Los Angeles"}
+    ok = _f("X - Los Angeles (1980)\\01 - Los Angeles.mp3")
+    assert lb.label_track_file(ok, seed).label == "correct"
+    ok2 = _f("Music\\X\\Los Angeles\\Los Angeles.mp3")
+    assert lb.label_track_file(ok2, seed).label == "correct"
+    bad = _f("Compilations\\Volume X\\Los Angeles.mp3")
+    assert lb.label_track_file(bad, seed).label == "no_artist"
+
+
+def test_bracketed_title_parts_can_move():
+    seed = {"type": "track", "artist": "Lil Nas X", "title": "Old Town Road (Remix)"}
+    f = _f("Lil Nas X\\7\\Old Town Road (feat. Billy Ray Cyrus) [Remix].mp3")
+    assert lb.label_track_file(f, seed).label == "correct"
+
+
+def test_title_inside_longer_title_still_needs_phrase():
+    seed = {"type": "track", "artist": "Muse", "title": "Intro"}
+    f = _f("Muse\\Absolution\\01 - Intro.flac")
+    assert lb.label_track_file(f, seed).label == "correct"

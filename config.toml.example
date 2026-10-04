@@ -44,7 +44,7 @@ url = "https://api.listenbrainz.org"  # default; not user-editable via the UI
 [search]
 wait_seconds = 10          # Max time to wait for slskd search
 response_threshold = 10    # Early cutoff: cancel once responseCount reaches this
-response_cap = 250          # Hard stop: cancel once responseCount reaches this
+response_cap = 600          # Hard stop: cancel once responseCount reaches this
 min_wait_seconds = 3       # Minimum elapsed time before early cutoff allowed
 pass_ratio_threshold = 0.75
 artist_match_min_words = 1 # How many of the artist's words a candidate filename must contain
@@ -59,7 +59,7 @@ poll_interval = 1          # Seconds between metadata polls (min 1)
 # cache are what actually bound the connection storm: they stop musica from
 # re-broadcasting the same or new searches faster than one search's peer
 # connections can drain (~1 min on slskd's side).
-response_limit = 60                     # Cap on recorded responses per search
+response_limit = 600                    # Cap on recorded responses per search
 rate_limit_max_searches = 4             # Max NEW searches per rate_limit_window_seconds
 rate_limit_window_seconds = 60          # Sliding window for the above
 rate_limit_wait_timeout_seconds = 45    # How long a caller blocks for a free slot before erroring (429)
