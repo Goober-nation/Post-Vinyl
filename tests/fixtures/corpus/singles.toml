@@ -1,0 +1,254 @@
+# Singles without album info (#34, 2026-10-04). Every recording verified on
+# MusicBrainz to appear on no official studio album (singles, EPs,
+# compilations or soundtracks only). No `album` key on purpose: the test is
+# how search does when the album is unknown.
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Frank Ocean"
+title = "Chanel"
+mbid = "eff2afd0-8d3a-4efb-99cb-fa88e1fae2a2"
+duration = 210
+mb_status = "ok"
+note = "popular, short title"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Frank Ocean"
+title = "Lens"
+mbid = "0869a37e-08a5-4a86-be64-59089fb6dbd2"
+duration = 228
+mb_status = "ok"
+note = "short common word title"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Tyler, The Creator"
+title = "Okra"
+mbid = "540c55f8-b472-42d0-a985-ade2e7d1f30d"
+duration = 150
+mb_status = "ok"
+note = "short title, comma in artist"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Radiohead"
+title = "Harry Patch (In Memory Of)"
+mbid = "0375106f-890a-4969-be0c-0fbe90e38fa3"
+duration = 333
+mb_status = "ok"
+note = "bracketed title part"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Arctic Monkeys"
+title = "Leave Before the Lights Come On"
+mbid = "13b04acf-fe13-4202-9c19-edd1e6c61496"
+duration = 232
+mb_status = "ok"
+note = "long title"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Oasis"
+title = "Whatever"
+mbid = "c61ef973-3b2f-4320-ac37-64a245a69f89"
+duration = 333
+mb_status = "ok"
+note = "common-word title, compilations only"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "The Beatles"
+title = "Hey Jude"
+mbid = "7953cb71-41c1-449a-bd23-aa2daf394332"
+duration = 239
+mb_status = "ok"
+note = "very popular, compilations only"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Joy Division"
+title = "Atmosphere"
+mbid = "8b9a8d5d-a6bb-40c7-bd81-8aed651437b0"
+duration = 274
+mb_status = "ok"
+note = "common-word title"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Kendrick Lamar"
+title = "The Heart Part 4"
+mbid = "57beaa06-9e61-4759-808f-5e241d187470"
+duration = 288
+mb_status = "ok"
+note = "blocked full-name phrase, part number"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Gorillaz"
+title = "Sleeping Powder"
+mbid = "df31bc0f-fd0f-4079-b667-9b20ce08c9e3"
+duration = 162
+mb_status = "ok"
+note = "blocked artist"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Bon Iver"
+title = "PDLIF"
+mbid = "25ab9f91-2c54-43aa-a914-73ee7b0387f6"
+duration = 177
+mb_status = "ok"
+note = "acronym title"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Phoebe Bridgers"
+title = "Sidelines"
+mbid = "7a897be9-1be5-4348-8a7b-baaa9088a0bc"
+duration = 264
+mb_status = "ok"
+note = "single from a TV series"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Nirvana"
+title = "Sliver"
+mbid = "e1ce6ebe-beac-4a8f-a723-3ade911aecef"
+duration = 131
+mb_status = "ok"
+note = "non-album single, on a compilation"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Childish Gambino"
+title = "This Is America"
+mbid = "7544776d-c0a8-4c75-9bc6-3d071176eec6"
+duration = 226
+mb_status = "ok"
+note = "very popular"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Beyoncé"
+title = "Black Parade"
+mbid = "89ac67a4-5deb-4286-9956-6c3d773e0ae0"
+duration = 281
+mb_status = "ok"
+note = "blocked artist, accent"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Adele"
+title = "Skyfall"
+mbid = "d74ce039-fb99-44fb-aa54-43bf707acf46"
+duration = 286
+mb_status = "ok"
+note = "blocked artist, soundtrack single"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Aphex Twin"
+title = "T69 Collapse"
+mbid = "3cdd5cec-3d1d-4a62-9435-48daeb2f4cde"
+duration = 322
+mb_status = "ok"
+note = "alphanumeric title"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "New Order"
+title = "Blue Monday"
+mbid = "e23b1450-c854-492b-9fe8-f551ac6937ad"
+duration = 428
+mb_status = "ok"
+note = "very popular, many versions"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Burial"
+title = "Rival Dealer"
+mbid = "82c99291-f07a-43f1-ad1b-b28b7d04a03e"
+duration = 643
+mb_status = "ok"
+note = "EP title track, long"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Jai Paul"
+title = "BTSTU"
+mbid = "aafc4bde-7390-4343-8f58-1b1e8029c2f6"
+duration = 211
+mb_status = "ok"
+note = "acronym title, obscure"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "Fiona Apple"
+title = "Container"
+mbid = "7c778b65-8f83-44c2-bb46-91aaf83cf29f"
+duration = 59
+mb_status = "ok"
+note = "common-word title, very short track"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "YOASOBI"
+title = "アイドル"
+mbid = "c4b0920b-70f3-42c5-8377-25ff30f19d79"
+duration = 212
+mb_status = "ok"
+note = "non-Latin title"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "宇多田ヒカル"
+title = "Gold 〜また逢う日まで〜"
+mbid = "5203eb9f-922c-463c-a4ac-e64a89beca98"
+duration = 256
+mb_status = "ok"
+note = "non-Latin artist, mixed title"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "IU"
+title = "Love wins all"
+mbid = "5a30eb21-d05b-436b-8e39-e1322ed9cbd6"
+duration = 271
+mb_status = "ok"
+note = "2-letter artist"
+
+[[seed]]
+type = "track"
+bucket = "single"
+artist = "NewJeans"
+title = "Ditto"
+mbid = "adf44a12-e5f4-48aa-9029-b9ef4b5f1d6d"
+duration = 186
+mb_status = "ok"
+note = "short title"
