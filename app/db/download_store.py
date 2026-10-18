@@ -1,8 +1,22 @@
 """
-DownloadStore — SQLite persistence for download and peer state.
+DownloadStore — the network side of a download (migration 015, #67).
 
-Replaces the in-memory dicts in SlskdDownload with durable storage.
-Used by the DownloadMonitor worker and the download routes.
+One `downloads` row per requested file, kept through every retry: a retry
+moves the same row to a new peer instead of inserting a new one. Every peer
+ever tried is a `download_attempts` row (the first is the original request),
+so peer selection can skip all of them and the retry count is just
+attempts - 1.
+
+The row is always written *before* slskd is asked to queue the file, with
+`slskd_id` still NULL. DownloadMonitor fills `slskd_id` in when slskd first
+reports the transfer (adopt()). slskd transfers with no matching row were
+not started by this app and are ignored.
+
+When a row reaches 'completed', the `downloads_completed_handoff` trigger
+creates its file_management row; after that the download row and its slskd
+record can both be deleted (handed_off()).
+
+slskd owns live transfer state (progress, speed); none of it is stored here.
 """
 
 import time
@@ -14,554 +28,219 @@ logger = get_logger(__name__)
 # Audio extensions for peer file filtering
 ALLOWED_EXTENSIONS = {".mp3", ".flac", ".m4a", ".wav", ".ogg", ".aac"}
 
+TERMINAL_STATES = ("completed", "failed", "cancelled")
+ACTIVE_STATES = ("queued", "downloading")
+
 
 class DownloadStore:
-    """SQLite-backed store for download transfers and peer reputation."""
+    """SQLite-backed store for downloads and their attempts."""
 
     def __init__(self, database):
-        """
-        Initialize DownloadStore.
-
-        Args:
-            database: Database instance
-        """
         self._db = database
 
     # ------------------------------------------------------------------
-    # Pending rows (queue-time, before slskd assigns a UUID)
+    # Queueing and retry
     # ------------------------------------------------------------------
 
-    def insert_pending(
+    def insert_queued(
         self,
+        request_id: int,
         search_id: str,
         username: str,
         filename: str,
-        size: int,
-        is_rec_download: bool,
-        is_library_download: bool = False,
-        mb_recording_id: str | None = None,
-        retry_count: int = 0,
-    ) -> str:
-        """Insert a pending download row before slskd assigns a transfer UUID.
+        size: int | None = None,
+    ) -> int:
+        """Write a download row and its first attempt; return the row id.
 
-        `is_library_download` / `mb_recording_id` (P6.8) mark a MusicBrainz-
-        initiated download: it imports into the beets "library" profile,
-        pinned to `mb_recording_id`. Defaults keep every existing caller on
-        the plain manual path.
+        Call this before asking slskd to queue the file, then
+        mark_attempt_accepted() once slskd accepts it.
         """
-        download_id = f"pending:{username}:{filename}:{int(time.time())}"
         now = int(time.time())
-        self._db.execute(
-            "INSERT INTO downloads (id, search_id, username, filename, size, "
-            "state, retry_count, is_rec_download, created_at, target_dir, "
-            "slskd_id, progress, speed, file_moved, mb_recording_id, "
-            "is_library_download) "
-            "VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, ?, NULL, NULL, 0, NULL, 0, ?, ?)",
-            (
-                download_id,
-                search_id,
-                username,
-                filename,
-                size,
-                retry_count,
-                int(is_rec_download),
-                now,
-                mb_recording_id,
-                int(is_library_download),
-            ),
-        )
-        logger.debug(f"Inserted pending download: {download_id}")
+        with self._db.transaction() as conn:
+            download_id = conn.execute(
+                "INSERT INTO downloads (request_id, search_id, username, filename, size, "
+                "state, created_at) VALUES (?, ?, ?, ?, ?, 'queued', ?)",
+                (request_id, search_id, username, filename, size, now),
+            ).lastrowid
+            conn.execute(
+                "INSERT INTO download_attempts (download_id, username, attempted_at) "
+                "VALUES (?, ?, ?)",
+                (download_id, username, now),
+            )
         return download_id
 
-    def get_pending_search_id(self, username: str, filename: str) -> str | None:
-        """Get the search_id stored on a download row (pending or adopted)."""
-        row = self._db.fetch_one(
-            "SELECT search_id FROM downloads "
-            "WHERE username = ? AND filename = ? AND search_id IS NOT NULL "
-            "LIMIT 1",
-            (username, filename),
-        )
-        return row["search_id"] if row else None
+    def move_to_peer(
+        self, download_id: int, username: str, filename: str, size: int | None = None
+    ) -> None:
+        """Point an existing download at a new peer (a retry).
 
-    # ------------------------------------------------------------------
-    # Transfer upsert (worker-driven from slskd state)
-    # ------------------------------------------------------------------
-
-    def upsert_transfer(self, transfer) -> tuple[bool, str | None]:
+        Resets it to 'queued' with no slskd id and records the attempt. Call
+        before asking slskd to queue the new peer's file.
         """
-        Insert or update a download row from a Transfer object.
-
-        Returns (is_new: bool, prev_state: str | None).
-        """
-        tid = transfer.transfer_id
-        username = transfer.username
-        filename = transfer.filename
-
-        # (a) Match by slskd_id first
-        existing = self._db.fetch_one(
-            "SELECT id, state FROM downloads WHERE slskd_id = ?", (tid,)
-        )
-        if existing:
-            prev_state = existing["state"]
-            self._db.execute(
-                "UPDATE downloads SET state = ?, progress = ?, speed = ?, "
-                "completed_at = ? WHERE slskd_id = ?",
-                (
-                    transfer.state,
-                    transfer.progress,
-                    transfer.speed,
-                    int(time.time())
-                    if transfer.state in ("completed", "failed", "cancelled")
-                    else None,
-                    tid,
-                ),
-            )
-            return (False, prev_state)
-
-        # (b) Match pending row by username+filename (queue-time row)
-        pending = self._db.fetch_one(
-            "SELECT id, state, search_id, is_rec_download, created_at FROM downloads "
-            "WHERE username = ? AND filename = ? "
-            "AND (slskd_id IS NULL OR id LIKE 'pending:%') "
-            "LIMIT 1",
-            (username, filename),
-        )
-        if pending:
-            prev_state = pending["state"]
-            # Adopt: rewrite the id to the slskd UUID
-            now = int(time.time())
-            self._db.execute(
-                "UPDATE downloads SET id = ?, slskd_id = ?, state = ?, "
-                "progress = ?, speed = ?, completed_at = ? "
-                "WHERE id = ?",
-                (
-                    tid,
-                    tid,
-                    transfer.state,
-                    transfer.progress,
-                    transfer.speed,
-                    now
-                    if transfer.state in ("completed", "failed", "cancelled")
-                    else None,
-                    pending["id"],
-                ),
-            )
-            return (False, prev_state)
-
-        # (c) New row
         now = int(time.time())
+        with self._db.transaction() as conn:
+            conn.execute(
+                "UPDATE downloads SET username = ?, filename = ?, size = ?, slskd_id = NULL, "
+                "state = 'queued', completed_at = NULL WHERE id = ?",
+                (username, filename, size, download_id),
+            )
+            conn.execute(
+                "INSERT INTO download_attempts (download_id, username, attempted_at) "
+                "VALUES (?, ?, ?)",
+                (download_id, username, now),
+            )
+
+    def mark_attempt_accepted(self, download_id: int) -> None:
+        """Mark the download's latest attempt as accepted by slskd."""
         self._db.execute(
-            "INSERT INTO downloads (id, slskd_id, search_id, username, filename, "
-            "size, state, retry_count, is_rec_download, created_at, completed_at, "
-            "target_dir, progress, speed, file_moved) "
-            "VALUES (?, ?, NULL, ?, ?, ?, ?, 0, ?, ?, ?, NULL, ?, ?, 0)",
-            (
-                tid,
-                tid,
-                username,
-                filename,
-                transfer.size,
-                transfer.state,
-                int(transfer.is_rec_download),
-                now,
-                now if transfer.state in ("completed", "failed", "cancelled") else None,
-                transfer.progress,
-                transfer.speed,
-            ),
+            "UPDATE download_attempts SET success = 1 WHERE id = ("
+            "  SELECT id FROM download_attempts WHERE download_id = ? "
+            "  ORDER BY id DESC LIMIT 1)",
+            (download_id,),
         )
-        return (True, None)
+
+    def tried_peers(self, download_id: int) -> set[str]:
+        """Every peer this download has been queued from, current one included."""
+        rows = self._db.fetch_all(
+            "SELECT DISTINCT username FROM download_attempts WHERE download_id = ?",
+            (download_id,),
+        )
+        return {row["username"] for row in rows}
+
+    def retry_count(self, download_id: int) -> int:
+        """Retries so far: attempts minus the original request."""
+        row = self._db.fetch_one(
+            "SELECT COUNT(*) AS n FROM download_attempts WHERE download_id = ?",
+            (download_id,),
+        )
+        return max(0, (row["n"] if row else 0) - 1)
 
     # ------------------------------------------------------------------
-    # Queries
+    # Tracking slskd's transfers
     # ------------------------------------------------------------------
 
-    def get_transfer(self, transfer_id: str) -> dict | None:
-        """Get a download row by transfer id."""
+    def adopt(self, username: str, filename: str, slskd_id: str) -> dict | None:
+        """Link a transfer slskd just reported to the row queued for it.
+
+        Matches the most recent row for that peer and file that slskd hasn't
+        reported yet. Returns the updated row, or None when no row matches —
+        a transfer this app didn't start, which callers ignore.
+        """
+        with self._db.transaction() as conn:
+            row = conn.execute(
+                "SELECT id FROM downloads WHERE username = ? AND filename = ? "
+                "AND slskd_id IS NULL AND state = 'queued' ORDER BY id DESC LIMIT 1",
+                (username, filename),
+            ).fetchone()
+            if row is None:
+                return None
+            conn.execute(
+                "UPDATE downloads SET slskd_id = ? WHERE id = ?", (slskd_id, row["id"])
+            )
+            adopted = conn.execute(
+                "SELECT * FROM downloads WHERE id = ?", (row["id"],)
+            ).fetchone()
+        return dict(adopted)
+
+    def set_state(self, download_id: int, state: str) -> str | None:
+        """Update a download's state; returns the previous state.
+
+        Terminal states stamp completed_at. Reaching 'completed' fires the
+        file_management handoff trigger.
+        """
+        row = self._db.fetch_one(
+            "SELECT state FROM downloads WHERE id = ?", (download_id,)
+        )
+        if row is None:
+            return None
+        completed_at = int(time.time()) if state in TERMINAL_STATES else None
+        self._db.execute(
+            "UPDATE downloads SET state = ?, completed_at = ? WHERE id = ?",
+            (state, completed_at, download_id),
+        )
+        return row["state"]
+
+    def get(self, download_id: int) -> dict | None:
         return self._db.fetch_one(
-            "SELECT * FROM downloads WHERE id = ?", (transfer_id,)
+            "SELECT * FROM downloads WHERE id = ?", (download_id,)
         )
 
-    def get_transfers_by_state(self, state: str) -> list[dict]:
-        """Get all downloads in a given state."""
-        return self._db.fetch_all("SELECT * FROM downloads WHERE state = ?", (state,))
+    def get_by_slskd_id(self, slskd_id: str) -> dict | None:
+        return self._db.fetch_one(
+            "SELECT * FROM downloads WHERE slskd_id = ?", (slskd_id,)
+        )
 
-    def get_adopted_live_transfers(self) -> list[dict]:
-        """Rows slskd has adopted that are still in flight.
+    def get_with_request(self, download_id: int) -> dict | None:
+        """A download plus its request's source and mbid."""
+        return self._db.fetch_one(
+            "SELECT d.*, r.source, r.mbid FROM downloads d "
+            "JOIN requests r ON r.id = d.request_id WHERE d.id = ?",
+            (download_id,),
+        )
 
-        Only rows with a real slskd id — queue-time 'pending:' rows are
-        excluded because slskd has never confirmed them, so their absence
-        from a status poll means nothing. Drives orphan reconciliation:
-        these are the rows slskd *should* still be reporting.
-        """
+    def adopted_active(self) -> list[dict]:
+        """In-flight rows slskd has reported, i.e. ones it should keep
+        reporting. Drives orphan reconciliation."""
         return self._db.fetch_all(
-            "SELECT id, username, filename, is_rec_download FROM downloads "
-            "WHERE state IN ('queued', 'downloading') AND slskd_id IS NOT NULL"
+            "SELECT * FROM downloads WHERE state IN ('queued', 'downloading') "
+            "AND slskd_id IS NOT NULL"
         )
 
-    def get_stranded_downloads(self) -> list[dict]:
-        """Rows whose import was declined and whose file was never moved
-        (P6.7-6 stranded sweep).
-
-        `import_skipped` is terminal for DownloadMonitor — a duplicate beets
-        refused, or a 'completed' transfer whose source file never showed up
-        on disk within missing_source_timeout_minutes. The file (when it
-        exists at all) sits in `downloads/complete/soulseek/<username>/`
-        with nothing else disposing of it, so TrashPurge removes it and
-        prunes the empty directories it left behind.
-        """
-        return self._db.fetch_all(
-            "SELECT id, username, filename FROM downloads "
-            "WHERE import_skipped = 1 AND file_moved = 0"
+    def fail_stale_unadopted(self, older_than_seconds: int) -> list[dict]:
+        """Fail rows slskd never reported within `older_than_seconds` of
+        their latest attempt. Returns the rows that were failed."""
+        cutoff = int(time.time()) - older_than_seconds
+        stale = self._db.fetch_all(
+            "SELECT d.* FROM downloads d WHERE d.state = 'queued' AND d.slskd_id IS NULL "
+            "AND (SELECT MAX(attempted_at) FROM download_attempts a "
+            "     WHERE a.download_id = d.id) < ?",
+            (cutoff,),
         )
-
-    def mark_failed(self, transfer_ids: list[str]) -> int:
-        """Move download rows to 'failed'. Returns rowcount."""
-        if not transfer_ids:
-            return 0
-        placeholders = ",".join("?" for _ in transfer_ids)
-        cursor = self._db.execute(
-            f"UPDATE downloads SET state = 'failed', completed_at = ? "
-            f"WHERE id IN ({placeholders})",
-            (int(time.time()), *transfer_ids),
-        )
-        return cursor.rowcount
-
-    def get_downloads_by_search_ids(self, search_ids: list[str]) -> list[dict]:
-        """Get all download rows whose search_id is in the given list."""
-        if not search_ids:
-            return []
-        placeholders = ",".join("?" for _ in search_ids)
-        return self._db.fetch_all(
-            f"SELECT * FROM downloads WHERE search_id IN ({placeholders})",
-            tuple(search_ids),
-        )
+        for row in stale:
+            self.set_state(row["id"], "failed")
+        return stale
 
     def has_active_manual_downloads(
         self, queued_grace_seconds: int | None = None
     ) -> bool:
-        """True while any manual (non-rec) download is queued or in progress.
+        """True while a non-rec download is queued or in progress.
 
-        Drives RecPuller's queue-priority gate (P6.5-5): rec queueing pauses
-        while a manual transfer is in flight, so manual downloads always
-        beat recommendations. 'queued' includes queue-time pending rows
-        (adopted by DownloadMonitor once slskd reports the transfer).
-
-        Library downloads (P6.8) are manual here: they carry
-        `is_rec_download = 0`, so the `is_rec_download = 0` filter already
-        treats them as gate-holding manual work with no change needed.
-
-        `queued_grace_seconds` caps how long a *still-queued* row may hold
-        the gate. Found live 2026-08-11: a manual download adopted by slskd
-        and left in "Queued, Remotely" — the peer has it in *their* upload
-        queue — held the gate for 11+ minutes and would have held it for
-        hours. That's routine Soulseek behavior, not an error, so nothing
-        else would ever clear it: it isn't an orphan (slskd keeps reporting
-        it) and it isn't a stale pending row (it has a real slskd id). Recs
-        would simply stop.
-
-        Rows in 'downloading' are never aged out — bytes are moving, and a
-        large file legitimately takes a long time. Only the "waiting on a
-        peer that may never get to us" case is time-limited, and even then
-        the transfer itself is untouched: it keeps going and still completes
-        if the peer comes through. It just stops starving recs.
-
-        A pending row slskd never adopts is handled separately by
-        fail_stale_pending(), which moves it out of 'queued' entirely.
+        A still-queued row only counts for `queued_grace_seconds` after its
+        latest attempt: a peer can hold a file in its own upload queue for
+        hours, which is routine on Soulseek and must not block recs forever.
+        Rows in 'downloading' always count.
         """
         if queued_grace_seconds is None:
             row = self._db.fetch_one(
-                "SELECT 1 FROM downloads "
-                "WHERE state IN ('queued', 'downloading') AND is_rec_download = 0 "
-                "LIMIT 1"
+                "SELECT 1 FROM downloads d JOIN requests r ON r.id = d.request_id "
+                "WHERE d.state IN ('queued', 'downloading') AND r.source <> 'rec' LIMIT 1"
             )
             return row is not None
-
         cutoff = int(time.time()) - queued_grace_seconds
         row = self._db.fetch_one(
-            "SELECT 1 FROM downloads WHERE is_rec_download = 0 AND ("
-            "  state = 'downloading'"
-            "  OR (state = 'queued' AND created_at >= ?)"
-            ") LIMIT 1",
+            "SELECT 1 FROM downloads d JOIN requests r ON r.id = d.request_id "
+            "WHERE r.source <> 'rec' AND (d.state = 'downloading' OR (d.state = 'queued' AND "
+            "(SELECT MAX(attempted_at) FROM download_attempts a WHERE a.download_id = d.id) >= ?"
+            ")) LIMIT 1",
             (cutoff,),
         )
         return row is not None
 
-    def fail_stale_pending(self, older_than_seconds: int) -> list[dict]:
-        """Mark queue-time pending rows slskd never adopted as failed.
+    # ------------------------------------------------------------------
+    # Cleanup
+    # ------------------------------------------------------------------
 
-        A row inserted by insert_pending() keeps its 'pending:' id and a
-        NULL slskd_id until DownloadMonitor sees the matching transfer.
-        If slskd never reports it, the row sits in 'queued' forever: it
-        blocks rec queueing via has_active_manual_downloads(), it shows in
-        the UI as a phantom active download, and no route can remove it
-        (cancel needs a real slskd transfer id; the bulk delete only covers
-        finished states).
+    def handed_off(self) -> list[dict]:
+        """Completed downloads. Their file is already tracked in
+        file_management, so the row and slskd's record can both go."""
+        return self._db.fetch_all("SELECT * FROM downloads WHERE state = 'completed'")
 
-        Moving it to 'failed' fixes all three at once — the gate only
-        counts queued/downloading, the UI shows a failure with a reason,
-        and 'failed' is in the routes' FINISHED_STATES so the existing
-        delete-finished endpoint clears it. The row keeps its 'pending:'
-        id and NULL slskd_id, so a late adoption still matches it in
-        upsert_transfer() and overwrites the state with slskd's real one.
-
-        Returns the rows that were failed (id, username, filename).
-        """
-        cutoff = int(time.time()) - older_than_seconds
-        stale = self._db.fetch_all(
-            "SELECT id, username, filename FROM downloads "
-            "WHERE id LIKE 'pending:%' AND slskd_id IS NULL "
-            "AND state = 'queued' AND created_at < ?",
-            (cutoff,),
-        )
-        if not stale:
-            return []
-        placeholders = ",".join("?" for _ in stale)
-        self._db.execute(
-            f"UPDATE downloads SET state = 'failed', completed_at = ? "
-            f"WHERE id IN ({placeholders})",
-            (int(time.time()), *(row["id"] for row in stale)),
-        )
-        return stale
-
-    def delete_transfers(self, transfer_ids: list[str]) -> int:
-        """Permanently delete download rows by id. Returns rowcount."""
-        if not transfer_ids:
+    def delete(self, download_ids: list[int]) -> int:
+        """Delete download rows (their attempts cascade). Returns rowcount."""
+        if not download_ids:
             return 0
-        placeholders = ",".join("?" for _ in transfer_ids)
+        placeholders = ",".join("?" for _ in download_ids)
         cursor = self._db.execute(
-            f"DELETE FROM downloads WHERE id IN ({placeholders})",
-            tuple(transfer_ids),
+            f"DELETE FROM downloads WHERE id IN ({placeholders})", tuple(download_ids)
         )
         return cursor.rowcount
-
-    # ------------------------------------------------------------------
-    # Retry tracking
-    # ------------------------------------------------------------------
-
-    def get_retry_count(self, transfer_id: str) -> int:
-        """Get retry_count for a transfer."""
-        row = self._db.fetch_one(
-            "SELECT retry_count FROM downloads WHERE id = ?", (transfer_id,)
-        )
-        return row["retry_count"] if row else 0
-
-    def increment_retry_count(self, transfer_id: str) -> None:
-        """Increment retry_count for a transfer."""
-        self._db.execute(
-            "UPDATE downloads SET retry_count = retry_count + 1 WHERE id = ?",
-            (transfer_id,),
-        )
-
-    def record_retry_attempt(
-        self,
-        transfer_id: str,
-        username: str,
-        success: bool,
-    ) -> None:
-        """Record a retry attempt in download_retry_attempts."""
-        self._db.execute(
-            "INSERT INTO download_retry_attempts "
-            "(download_id, username, attempted_at, success) VALUES (?, ?, ?, ?)",
-            (transfer_id, username, int(time.time()), int(success)),
-        )
-
-    # ------------------------------------------------------------------
-    # Peer reputation
-    # ------------------------------------------------------------------
-
-    def increment_peer_failure(self, username: str) -> int:
-        """Increment a peer's failure count. Returns the new count."""
-        now = int(time.time())
-        existing = self._db.fetch_one(
-            "SELECT failure_count FROM peers WHERE username = ?", (username,)
-        )
-        if existing:
-            new_count = existing["failure_count"] + 1
-            self._db.execute(
-                "UPDATE peers SET failure_count = ?, last_seen = ? WHERE username = ?",
-                (new_count, now, username),
-            )
-        else:
-            new_count = 1
-            self._db.execute(
-                "INSERT INTO peers (username, failure_count, last_seen) "
-                "VALUES (?, ?, ?)",
-                (username, new_count, now),
-            )
-        return new_count
-
-    def set_peer_blocked(self, username: str) -> None:
-        """Mark a peer as blocked."""
-        self._db.execute(
-            "UPDATE peers SET is_blocked = 1, blocked_at = ? WHERE username = ?",
-            (int(time.time()), username),
-        )
-
-    def is_peer_blocked(
-        self, username: str, ban_duration_seconds: int | None = None
-    ) -> bool:
-        """Check if a peer is blocked.
-
-        `ban_duration_seconds`, when given, makes a block temporary: a peer
-        blocked longer ago than this is unbanned on the spot — `is_blocked`
-        cleared, `failure_count` reset to 0, so it gets a genuinely clean
-        slate rather than starting one failure away from re-blocking.
-        Checked lazily here rather than by a periodic sweep, so it can never
-        drift out of sync with what a caller actually observes. Omitting it
-        preserves the old permanent-ban behavior (existing callers/tests).
-        """
-        row = self._db.fetch_one(
-            "SELECT is_blocked, blocked_at FROM peers WHERE username = ?", (username,)
-        )
-        if not row or not row["is_blocked"]:
-            return False
-        if ban_duration_seconds is None:
-            return True
-        blocked_at = row["blocked_at"]
-        if (
-            blocked_at is not None
-            and int(time.time()) - blocked_at >= ban_duration_seconds
-        ):
-            self._db.execute(
-                "UPDATE peers SET is_blocked = 0, blocked_at = NULL, failure_count = 0 "
-                "WHERE username = ?",
-                (username,),
-            )
-            return False
-        return True
-
-    def unblock_all_peers(self) -> int:
-        """Clear every peer block and reset failure counts. Manual escape
-        hatch for a burst ban caused by something other than actual peer
-        misbehavior (e.g. before the connectivity-vs-peer-fault distinction
-        in DownloadMonitor existed, a wifi/VPN reconnect could ban every
-        currently-transferring peer at once for `peer_ban_days`). Returns
-        the number of peers that were actually blocked.
-        """
-        row = self._db.fetch_one("SELECT COUNT(*) AS n FROM peers WHERE is_blocked = 1")
-        count = row["n"] if row else 0
-        self._db.execute(
-            "UPDATE peers SET is_blocked = 0, blocked_at = NULL, failure_count = 0 "
-            "WHERE is_blocked = 1"
-        )
-        return count
-
-    def get_peer_failure_count(self, username: str) -> int:
-        """Get a peer's failure count (0 if unknown)."""
-        row = self._db.fetch_one(
-            "SELECT failure_count FROM peers WHERE username = ?", (username,)
-        )
-        return row["failure_count"] if row else 0
-
-    # ------------------------------------------------------------------
-    # File move tracking
-    # ------------------------------------------------------------------
-
-    def mark_file_moved(self, transfer_id: str, target_dir: str) -> None:
-        """Mark a transfer's file as moved to target_dir.
-
-        `target_dir` is required: file_moved = 1 is what the UI, the
-        transfer.completed SSE payload and /api/downloads all read as "the
-        file is at target_dir", so recording a move with no destination
-        makes the file unfindable. A caller that did not move anything wants
-        mark_import_skipped() instead (migration 007).
-        """
-        if not target_dir:
-            raise ValueError(
-                "mark_file_moved requires a target_dir; use "
-                "mark_import_skipped() for a file that was not moved"
-            )
-        self._db.execute(
-            "UPDATE downloads SET file_moved = 1, target_dir = ? WHERE id = ?",
-            (target_dir, transfer_id),
-        )
-
-    def mark_import_skipped(self, transfer_id: str) -> None:
-        """Record that the import was declined and the file was NOT moved.
-
-        Terminal for the monitor's purposes — re-running the import would
-        hit the same refusal every poll — without claiming a move that
-        never happened. target_dir is deliberately left alone.
-        """
-        self._db.execute(
-            "UPDATE downloads SET import_skipped = 1 WHERE id = ?",
-            (transfer_id,),
-        )
-
-    def file_moved(self, transfer_id: str) -> bool:
-        """Check if a transfer's file has been moved."""
-        row = self._db.fetch_one(
-            "SELECT file_moved FROM downloads WHERE id = ?", (transfer_id,)
-        )
-        return bool(row["file_moved"]) if row else False
-
-    def import_handled(self, transfer_id: str) -> bool:
-        """Is there anything left to do about this download's file?
-
-        True once it has been moved into a library tree *or* beets has
-        declined it. This is the monitor's "don't run the import again"
-        gate — file_moved() alone is not, since a skipped import is equally
-        terminal but moved nothing.
-        """
-        row = self._db.fetch_one(
-            "SELECT file_moved, import_skipped FROM downloads WHERE id = ?",
-            (transfer_id,),
-        )
-        if not row:
-            return False
-        return bool(row["file_moved"]) or bool(row["import_skipped"])
-
-    def import_pending(self, transfer_id: str) -> bool:
-        """Does musica have a download row for this transfer that beets
-        still has work left to do on?
-
-        Not simply `not import_handled()`: that would also be True when
-        there is no row at all for this transfer_id, which is a different
-        thing entirely — it means musica has no record of this transfer
-        (e.g. slskd reporting a transfer from before musica's last reset,
-        which keeps its own history independently). "No memory of it" is
-        not "still importing"; callers surfacing progress to a user (the
-        `/api/transfers` "importing" label, the delete-finished eligibility
-        check) want False for both "already done" and "not ours" alike.
-        """
-        row = self._db.fetch_one(
-            "SELECT file_moved, import_skipped FROM downloads WHERE id = ?",
-            (transfer_id,),
-        )
-        if not row:
-            return False
-        return not (bool(row["file_moved"]) or bool(row["import_skipped"]))
-
-    def set_import_unmatched(self, transfer_id: str, unmatched: bool) -> None:
-        """Flag whether a beets import matched MusicBrainz metadata (P6.6-4)."""
-        self._db.execute(
-            "UPDATE downloads SET import_unmatched = ? WHERE id = ?",
-            (int(unmatched), transfer_id),
-        )
-
-    # ------------------------------------------------------------------
-    # Manual-download playlist linkage (#19)
-    # ------------------------------------------------------------------
-
-    def set_playlist(self, transfer_id: str, playlist_id: str) -> None:
-        """Record that a manual download's track has been added to the
-        Searches playlist (mirrors recommendations.playlist_id for recs)."""
-        self._db.execute(
-            "UPDATE downloads SET playlist_id = ? WHERE id = ?",
-            (playlist_id, transfer_id),
-        )
-
-    def get_unplaylisted_manual_downloads(self) -> list[dict]:
-        """Manual (non-rec) downloads whose file has been moved into the
-        library but aren't yet linked to the Searches playlist.
-
-        Covers both the "searches" and "library" (MusicBrainz-tab) beets
-        profiles — the issue named both. A rec download previously used a
-        separate recommendations.playlist_id mechanism (RecPlaylistService,
-        archived — see archive/pre-rebuild-recs-sync-playlists/), not this
-        column.
-        """
-        return self._db.fetch_all(
-            "SELECT * FROM downloads WHERE is_rec_download = 0 "
-            "AND file_moved = 1 AND playlist_id IS NULL"
-        )

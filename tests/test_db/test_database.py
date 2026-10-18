@@ -2,6 +2,8 @@
 Unit tests for database module.
 """
 
+import sqlite3
+
 import pytest
 import tempfile
 from pathlib import Path
@@ -66,10 +68,23 @@ class TestDatabaseSchema:
             tables = db.fetch_all("SELECT name FROM sqlite_master WHERE type='table'")
             table_names = [t["name"] for t in tables]
             
-            assert "searches" in table_names
-            assert "downloads" in table_names
-            assert "peers" in table_names
-            assert "download_retry_attempts" in table_names
+            # Core schema from migration 015 (#67).
+            for name in (
+                "origins",
+                "catalog_searches",
+                "requests",
+                "slskd_searches",
+                "downloads",
+                "download_attempts",
+                "file_management",
+                "mb_provenance",
+                "peers",
+                "setup_state",
+            ):
+                assert name in table_names
+            # Replaced by migration 015.
+            assert "searches" not in table_names
+            assert "download_retry_attempts" not in table_names
             # recommendations/sync_state were dropped by migration 013 once
             # the recs/sync subsystem was archived (see
             # archive/pre-rebuild-recs-sync-playlists/).
@@ -82,6 +97,22 @@ class TestDatabaseSchema:
             assert "users" not in table_names
             assert "sessions" not in table_names
             
+            db.close()
+
+    def test_foreign_keys_are_enforced(self):
+        """Every connection turns FK enforcement on; without it the schema's
+        ON DELETE CASCADE / SET NULL rules would silently do nothing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db = Database(MockConfig(tmpdir))
+            db.initialize_schema()
+
+            assert db.fetch_one("PRAGMA foreign_keys") == {"foreign_keys": 1}
+            with pytest.raises(sqlite3.IntegrityError):
+                db.execute(
+                    "INSERT INTO slskd_searches (id, request_id, query, created_at) "
+                    "VALUES ('s', 999, 'q', 0)"
+                )
+
             db.close()
     
     def test_initialize_schema_idempotent(self):
@@ -96,9 +127,9 @@ class TestDatabaseSchema:
             
             # Should not raise
             tables = db.fetch_all("SELECT name FROM sqlite_master WHERE type='table'")
-            # applied_migrations, sqlite_sequence, searches, downloads, peers,
-            # download_retry_attempts, setup_state — post 013+014 archival.
-            assert len(tables) >= 7
+            # 10 core tables from migration 015, plus applied_migrations
+            # and sqlite_sequence.
+            assert len(tables) >= 12
             
             db.close()
 
@@ -114,7 +145,7 @@ class TestDatabaseOperations:
             db.initialize_schema()
             
             db.execute(
-                "INSERT INTO peers (username, failure_count, is_blocked) VALUES (?, ?, ?)",
+                "INSERT INTO peers (username, failure_count, blocked_at) VALUES (?, ?, ?)",
                 ("testuser", 5, 0)
             )
             
@@ -139,7 +170,7 @@ class TestDatabaseOperations:
             
             # With data
             db.execute(
-                "INSERT INTO peers (username, failure_count, is_blocked) VALUES (?, ?, ?)",
+                "INSERT INTO peers (username, failure_count, blocked_at) VALUES (?, ?, ?)",
                 ("testuser", 0, 0)
             )
             result = db.fetch_one("SELECT * FROM peers WHERE username = ?", ("testuser",))
@@ -162,8 +193,8 @@ class TestDatabaseOperations:
             assert results == []
             
             # With data
-            db.execute("INSERT INTO peers (username, failure_count, is_blocked) VALUES (?, ?, ?)", ("user1", 0, 0))
-            db.execute("INSERT INTO peers (username, failure_count, is_blocked) VALUES (?, ?, ?)", ("user2", 1, 0))
+            db.execute("INSERT INTO peers (username, failure_count, blocked_at) VALUES (?, ?, ?)", ("user1", 0, 0))
+            db.execute("INSERT INTO peers (username, failure_count, blocked_at) VALUES (?, ?, ?)", ("user2", 1, 0))
             
             results = db.fetch_all("SELECT * FROM peers ORDER BY username")
             
@@ -187,7 +218,7 @@ class TestDatabaseTransaction:
             
             with db.transaction() as conn:
                 conn.execute(
-                    "INSERT INTO peers (username, failure_count, is_blocked) VALUES (?, ?, ?)",
+                    "INSERT INTO peers (username, failure_count, blocked_at) VALUES (?, ?, ?)",
                     ("testuser", 0, 0)
                 )
             
@@ -206,7 +237,7 @@ class TestDatabaseTransaction:
             try:
                 with db.transaction() as conn:
                     conn.execute(
-                        "INSERT INTO peers (username, failure_count, is_blocked) VALUES (?, ?, ?)",
+                        "INSERT INTO peers (username, failure_count, blocked_at) VALUES (?, ?, ?)",
                         ("testuser", 0, 0)
                     )
                     raise ValueError("Simulated error")

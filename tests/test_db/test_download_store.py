@@ -1,418 +1,202 @@
-"""
-Unit tests for DownloadStore.
-"""
+"""DownloadStore: one row per requested file, attempts, adoption, handoff (#67)."""
 
-import tempfile
-from unittest.mock import MagicMock
+import time
 
 import pytest
 
-from app.db.database import Database
-from app.db.download_store import DownloadStore
 
-
-class _MockConfig:
-    """Minimal config for Database in tests."""
-
-    class PathsConfig:
-        data_dir: str
-
-    def __init__(self, data_dir: str) -> None:
-        self.paths = self.PathsConfig()
-        self.paths.data_dir = data_dir
+@pytest.fixture
+def request_and_search(requests_):
+    request_id = requests_.create_request("catalog", "MF DOOM – Accordion", "mbid-1")
+    requests_.add_slskd_search("s-1", request_id, "mf doom accordion")
+    return request_id, "s-1"
 
 
 @pytest.fixture
-def db():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        cfg = _MockConfig(tmpdir)
-        database = Database(cfg)
-        database.initialize_schema()
-        yield database
-        database.close()
+def download_id(downloads, request_and_search):
+    request_id, search_id = request_and_search
+    return downloads.insert_queued(
+        request_id, search_id, "peer-a", "a/Accordion.flac", 100
+    )
 
 
-@pytest.fixture
-def store(db):
-    return DownloadStore(db)
+class TestQueueing:
+    def test_insert_queued_records_row_and_first_attempt(
+        self, downloads, download_id, db
+    ):
+        row = downloads.get(download_id)
 
-
-def _make_transfer(
-    tid, username, filename, size, state, progress=0.0, speed=None, is_rec=False
-):
-    t = MagicMock()
-    t.transfer_id = tid
-    t.username = username
-    t.filename = filename
-    t.size = size
-    t.state = state
-    t.progress = progress
-    t.speed = speed
-    t.is_rec_download = is_rec
-    return t
-
-
-class TestInsertPending:
-    def test_insert_pending_returns_id(self, store):
-        sid = store.insert_pending("search-1", "peer1", "song.mp3", 100, False)
-        assert sid.startswith("pending:peer1:song.mp3:")
-        row = store.get_transfer(sid)
-        assert row is not None
         assert row["state"] == "queued"
-        assert row["search_id"] == "search-1"
+        assert row["slskd_id"] is None
+        assert downloads.tried_peers(download_id) == {"peer-a"}
+        assert downloads.retry_count(download_id) == 0
+        assert db.fetch_one("SELECT success FROM download_attempts") == {"success": 0}
 
-    def test_get_pending_search_id_returns_correct_value(self, store):
-        store.insert_pending("search-X", "userA", "track.flac", 42, False)
-        sid = store.get_pending_search_id("userA", "track.flac")
-        assert sid == "search-X"
+    def test_mark_attempt_accepted_only_touches_latest_attempt(
+        self, downloads, download_id, db
+    ):
+        downloads.move_to_peer(download_id, "peer-b", "b/Accordion.flac")
+        downloads.mark_attempt_accepted(download_id)
 
-    def test_get_pending_search_id_returns_none_when_unknown(self, store):
-        assert store.get_pending_search_id("no", "nope") is None
-
-    def test_insert_pending_writes_library_columns(self, store):
-        sid = store.insert_pending(
-            "search-1",
-            "peer1",
-            "song.mp3",
-            100,
-            False,
-            is_library_download=True,
-            mb_recording_id="mbid-123",
+        rows = db.fetch_all(
+            "SELECT username, success FROM download_attempts ORDER BY id"
         )
-        row = store.get_transfer(sid)
-        assert row["is_library_download"] == 1
-        assert row["mb_recording_id"] == "mbid-123"
+        assert rows == [
+            {"username": "peer-a", "success": 0},
+            {"username": "peer-b", "success": 1},
+        ]
 
-    def test_insert_pending_defaults_library_columns(self, store):
-        sid = store.insert_pending("search-1", "peer1", "song.mp3", 100, False)
-        row = store.get_transfer(sid)
-        assert row["is_library_download"] == 0
-        assert row["mb_recording_id"] is None
+    def test_unknown_search_id_is_rejected(self, downloads, request_and_search):
+        import sqlite3
 
-    def test_library_download_is_manual_for_the_queue_gate(self, store):
-        """A MusicBrainz-initiated download carries is_rec_download = 0, so
-        has_active_manual_downloads() already treats it as manual work that
-        gates rec queueing — no change to that filter was needed."""
-        store.insert_pending(
-            "s1", "peer1", "a.mp3", 100, False, is_library_download=True
+        request_id, _ = request_and_search
+        with pytest.raises(sqlite3.IntegrityError):
+            downloads.insert_queued(request_id, "cache-abc", "peer", "f.flac")
+
+
+class TestRetry:
+    def test_retry_keeps_one_row_and_remembers_every_peer(self, downloads, download_id):
+        downloads.adopt("peer-a", "a/Accordion.flac", "slskd-1")
+        downloads.set_state(download_id, "failed")
+
+        downloads.move_to_peer(download_id, "peer-b", "b/Accordion.flac", 200)
+        downloads.move_to_peer(download_id, "peer-c", "c/Accordion.flac", 300)
+
+        row = downloads.get(download_id)
+        assert (
+            row["username"],
+            row["state"],
+            row["slskd_id"],
+            row["completed_at"],
+        ) == (
+            "peer-c",
+            "queued",
+            None,
+            None,
         )
-        assert store.has_active_manual_downloads() is True
+        assert downloads.tried_peers(download_id) == {"peer-a", "peer-b", "peer-c"}
+        assert downloads.retry_count(download_id) == 2
+
+    def test_created_at_marks_the_start_of_the_chain(self, downloads, download_id, db):
+        db.execute("UPDATE downloads SET created_at = 1 WHERE id = ?", (download_id,))
+
+        downloads.move_to_peer(download_id, "peer-b", "b.flac")
+
+        assert downloads.get(download_id)["created_at"] == 1
 
 
-class TestUpsertTransfer:
-    def test_upsert_new_transfer(self, store):
-        t = _make_transfer(
-            "uuid-1", "peer1", "song.mp3", 100, "downloading", progress=45.0, speed=1024
+class TestAdoption:
+    def test_adopt_links_slskd_id_to_the_queued_row(self, downloads, download_id):
+        adopted = downloads.adopt("peer-a", "a/Accordion.flac", "slskd-1")
+
+        assert adopted["id"] == download_id
+        assert downloads.get_by_slskd_id("slskd-1")["id"] == download_id
+
+    def test_transfer_the_app_did_not_start_is_not_adopted(
+        self, downloads, download_id
+    ):
+        assert downloads.adopt("stranger", "x.flac", "slskd-9") is None
+        assert downloads.get_by_slskd_id("slskd-9") is None
+
+    def test_already_adopted_row_is_not_matched_again(self, downloads, download_id):
+        downloads.adopt("peer-a", "a/Accordion.flac", "slskd-1")
+
+        assert downloads.adopt("peer-a", "a/Accordion.flac", "slskd-2") is None
+
+    def test_adopted_active_lists_only_reported_in_flight_rows(
+        self, downloads, download_id, request_and_search
+    ):
+        request_id, search_id = request_and_search
+        downloads.insert_queued(request_id, search_id, "peer-x", "x.flac")
+        downloads.adopt("peer-a", "a/Accordion.flac", "slskd-1")
+
+        assert [r["id"] for r in downloads.adopted_active()] == [download_id]
+
+    def test_fail_stale_unadopted_uses_latest_attempt_time(
+        self, downloads, download_id, db
+    ):
+        db.execute("UPDATE download_attempts SET attempted_at = 1")
+        downloads.move_to_peer(download_id, "peer-b", "b.flac")  # fresh attempt now
+
+        assert downloads.fail_stale_unadopted(60) == []
+
+        db.execute("UPDATE download_attempts SET attempted_at = 1")
+        assert [r["id"] for r in downloads.fail_stale_unadopted(60)] == [download_id]
+        assert downloads.get(download_id)["state"] == "failed"
+
+
+class TestStateAndHandoff:
+    def test_set_state_returns_previous_and_stamps_terminal(
+        self, downloads, download_id
+    ):
+        assert downloads.set_state(download_id, "downloading") == "queued"
+        assert downloads.get(download_id)["completed_at"] is None
+
+        assert downloads.set_state(download_id, "failed") == "downloading"
+        assert downloads.get(download_id)["completed_at"] is not None
+
+    def test_set_state_on_unknown_row_returns_none(self, downloads):
+        assert downloads.set_state(999, "failed") is None
+
+    def test_completion_hands_the_file_to_file_management(
+        self, downloads, download_id, files
+    ):
+        downloads.set_state(download_id, "completed")
+
+        [placed] = files.pending()
+        assert (placed["source"], placed["username"], placed["filename"]) == (
+            "catalog",
+            "peer-a",
+            "a/Accordion.flac",
         )
-        is_new, prev = store.upsert_transfer(t)
-        assert is_new is True
-        assert prev is None
-        row = store.get_transfer("uuid-1")
-        assert row["state"] == "downloading"
-        assert row["progress"] == 45.0
+        assert files.get(placed["id"])["mb_recording_id"] == "mbid-1"
 
-    def test_upsert_by_slskd_id_updates_existing(self, store):
-        t = _make_transfer("uuid-2", "peer2", "track.mp3", 200, "downloading")
-        store.upsert_transfer(t)
-        t.state = "completed"
-        t.progress = 100.0
-        is_new, prev = store.upsert_transfer(t)
-        assert is_new is False
-        assert prev == "downloading"
-        row = store.get_transfer("uuid-2")
-        assert row["state"] == "completed"
+    def test_handoff_fires_once(self, downloads, download_id, files):
+        downloads.set_state(download_id, "completed")
+        downloads.set_state(download_id, "completed")
 
-    def test_upsert_adopts_pending_row(self, store):
-        store.insert_pending("search-3", "peer3", "adopt.mp3", 300, False)
-        t = _make_transfer(
-            "uuid-adopt", "peer3", "adopt.mp3", 300, "downloading", progress=50.0
-        )
-        is_new, prev = store.upsert_transfer(t)
-        assert is_new is False
-        assert prev == "queued"
-        row = store.get_transfer("uuid-adopt")
-        assert row["slskd_id"] == "uuid-adopt"
-        assert row["search_id"] == "search-3"
+        assert len(files.pending()) == 1
 
-    def test_upsert_new_untracked_transfer(self, store):
-        t = _make_transfer("uuid-nt", "newguy", "newtrack.mp3", 500, "queued")
-        is_new, prev = store.upsert_transfer(t)
-        assert is_new is True
-        assert prev is None
+    def test_slskd_downloads_get_no_mb_provenance(self, requests_, downloads, files):
+        request_id = requests_.get_or_create_slskd_request("q")
+        requests_.add_slskd_search("s-9", request_id, "q")
+        download_id = downloads.insert_queued(request_id, "s-9", "peer", "f.flac")
+
+        downloads.set_state(download_id, "completed")
+
+        [placed] = files.pending()
+        assert placed["source"] == "slskd"
+        assert files.get(placed["id"])["mb_recording_id"] is None
+
+    def test_deleting_handed_off_download_keeps_file_and_drops_attempts(
+        self, downloads, download_id, files, db
+    ):
+        downloads.set_state(download_id, "completed")
+
+        assert [r["id"] for r in downloads.handed_off()] == [download_id]
+        assert downloads.delete([download_id]) == 1
+
+        assert len(files.pending()) == 1
+        assert db.fetch_all("SELECT * FROM download_attempts") == []
 
 
-class TestDeleteTransfers:
-    def test_deletes_given_ids(self, store):
-        store.upsert_transfer(_make_transfer("uuid-d1", "p1", "a.mp3", 1, "completed"))
-        store.upsert_transfer(_make_transfer("uuid-d2", "p2", "b.mp3", 1, "failed"))
-        store.upsert_transfer(_make_transfer("uuid-d3", "p3", "c.mp3", 1, "queued"))
+class TestManualGate:
+    def test_manual_download_holds_the_gate(self, downloads, download_id):
+        assert downloads.has_active_manual_downloads() is True
 
-        deleted = store.delete_transfers(["uuid-d1", "uuid-d2"])
+    def test_rec_download_does_not_hold_the_gate(self, requests_, downloads):
+        request_id = requests_.create_request("rec", "r", "mbid-r")
+        requests_.add_slskd_search("s-r", request_id, "r")
+        downloads.insert_queued(request_id, "s-r", "peer", "r.flac")
 
-        assert deleted == 2
-        assert store.get_transfer("uuid-d1") is None
-        assert store.get_transfer("uuid-d2") is None
-        assert store.get_transfer("uuid-d3") is not None
+        assert downloads.has_active_manual_downloads() is False
 
-    def test_empty_list_returns_zero(self, store):
-        assert store.delete_transfers([]) == 0
-
-    def test_unknown_ids_return_zero(self, store):
-        assert store.delete_transfers(["does-not-exist"]) == 0
-
-
-class TestRetryTracking:
-    def test_increment_and_get_retry_count(self, store):
-        t = _make_transfer("uuid-r", "pr", "fr.mp3", 1, "failed")
-        store.upsert_transfer(t)
-        assert store.get_retry_count("uuid-r") == 0
-        store.increment_retry_count("uuid-r")
-        assert store.get_retry_count("uuid-r") == 1
-        store.increment_retry_count("uuid-r")
-        assert store.get_retry_count("uuid-r") == 2
-
-    def test_record_retry_attempt(self, store, db):
-        t = _make_transfer("uuid-ra", "pr2", "fra.mp3", 1, "failed")
-        store.upsert_transfer(t)
-        store.record_retry_attempt("uuid-ra", "altpeer", True)
-        store.record_retry_attempt("uuid-ra", "altpeer2", False)
-        attempts = db.fetch_all(
-            "SELECT * FROM download_retry_attempts WHERE download_id = ?",
-            ("uuid-ra",),
-        )
-        assert len(attempts) == 2
-        assert attempts[0]["success"] == 1
-        assert attempts[1]["success"] == 0
-
-
-class TestPeerReputation:
-    def test_increment_peer_failure_new_peer(self, store):
-        count = store.increment_peer_failure("badpeer")
-        assert count == 1
-        assert store.get_peer_failure_count("badpeer") == 1
-
-    def test_increment_peer_failure_existing_peer(self, store):
-        store.increment_peer_failure("badpeer")
-        store.increment_peer_failure("badpeer")
-        assert store.get_peer_failure_count("badpeer") == 2
-
-    def test_block_and_check_peer(self, store):
-        store.increment_peer_failure("blockme")
-        assert not store.is_peer_blocked("blockme")
-        store.set_peer_blocked("blockme")
-        assert store.is_peer_blocked("blockme")
-
-    def test_is_peer_blocked_unknown_returns_false(self, store):
-        assert not store.is_peer_blocked("nobody")
-
-    def test_get_peer_failure_count_unknown_returns_zero(self, store):
-        assert store.get_peer_failure_count("nobody") == 0
-
-    def test_ban_duration_none_is_permanent(self, store):
-        """Omitting ban_duration_seconds preserves the pre-expiry behavior:
-        a block never lifts on its own, however old blocked_at gets."""
-        store.increment_peer_failure("blockme")
-        store.set_peer_blocked("blockme")
-        store._db.execute(
-            "UPDATE peers SET blocked_at = ? WHERE username = ?",
-            (0, "blockme"),
-        )
-        assert store.is_peer_blocked("blockme")
-
-    def test_ban_expires_and_resets_failure_count(self, store):
-        import time
-
-        store.increment_peer_failure("stale")
-        store.increment_peer_failure("stale")
-        store.set_peer_blocked("stale")
-        # Backdate blocked_at well past a 1-second ban duration.
-        store._db.execute(
-            "UPDATE peers SET blocked_at = ? WHERE username = ?",
-            (int(time.time()) - 10, "stale"),
-        )
-        assert not store.is_peer_blocked("stale", ban_duration_seconds=1)
-        assert store.get_peer_failure_count("stale") == 0
-        # Lifted for good, not just for this one check.
-        assert not store.is_peer_blocked("stale", ban_duration_seconds=1)
-
-    def test_ban_still_active_within_window(self, store):
-        store.increment_peer_failure("fresh")
-        store.set_peer_blocked("fresh")
-        assert store.is_peer_blocked("fresh", ban_duration_seconds=86400)
-
-
-class TestFileMoved:
-    def test_mark_and_check_file_moved(self, store):
-        t = _make_transfer("uuid-fm", "p", "f.mp3", 1, "completed")
-        store.upsert_transfer(t)
-        assert not store.file_moved("uuid-fm")
-        store.mark_file_moved("uuid-fm", "/target/dir")
-        assert store.file_moved("uuid-fm")
-        row = store.get_transfer("uuid-fm")
-        assert row["target_dir"] == "/target/dir"
-
-
-class TestHasActiveManualDownloads:
-    def test_false_when_empty(self, store):
-        assert store.has_active_manual_downloads() is False
-
-    def test_true_when_manual_pending_row(self, store):
-        store.insert_pending("s1", "peer1", "a.mp3", 100, False)
-        assert store.has_active_manual_downloads() is True
-
-    def test_false_when_only_rec_rows(self, store):
-        store.insert_pending("s1", "peer1", "a.mp3", 100, True)
-        assert store.has_active_manual_downloads() is False
-
-    def test_false_when_manual_finished(self, store):
-        store.insert_pending("s1", "peer1", "a.mp3", 100, False)
-        db = store._db
-        db.execute("UPDATE downloads SET state = 'completed' WHERE state = 'queued'")
-        assert store.has_active_manual_downloads() is False
-
-    def test_false_when_mixed_rec_active(self, store):
-        """A completed manual row plus an active rec row is not 'manual active'."""
-        store.insert_pending("s1", "peer1", "a.mp3", 100, False)
-        store.insert_pending("s2", "peer2", "b.mp3", 100, True)
-        db = store._db
-        db.execute("UPDATE downloads SET state = 'completed' WHERE is_rec_download = 0")
-        assert store.has_active_manual_downloads() is False
-
-
-class TestFailStalePending:
-    """P6.5 review fix (2026-08-11): a queue-time pending row slskd never
-    adopts used to hold has_active_manual_downloads() True forever, gating
-    all rec queueing with no way to clear it."""
-
-    def _age_rows(self, store, seconds):
-        store._db.execute(
-            "UPDATE downloads SET created_at = created_at - ?", (seconds,)
+    def test_long_queued_row_stops_holding_the_gate(self, downloads, download_id, db):
+        db.execute(
+            "UPDATE download_attempts SET attempted_at = ?", (int(time.time()) - 3600,)
         )
 
-    def test_no_op_when_nothing_stale(self, store):
-        store.insert_pending("s1", "peer1", "a.mp3", 100, False)
-        assert store.fail_stale_pending(300) == []
-        assert store.has_active_manual_downloads() is True
+        assert downloads.has_active_manual_downloads(queued_grace_seconds=600) is False
 
-    def test_marks_old_pending_row_failed(self, store):
-        store.insert_pending("s1", "peer1", "a.mp3", 100, False)
-        self._age_rows(store, 600)
-
-        failed = store.fail_stale_pending(300)
-        assert len(failed) == 1
-        assert failed[0]["username"] == "peer1"
-        assert failed[0]["filename"] == "a.mp3"
-
-    def test_failing_the_row_releases_the_rec_queue_gate(self, store):
-        store.insert_pending("s1", "peer1", "a.mp3", 100, False)
-        self._age_rows(store, 600)
-        assert store.has_active_manual_downloads() is True
-
-        store.fail_stale_pending(300)
-        assert store.has_active_manual_downloads() is False
-
-    def test_failed_row_is_deletable_via_finished_states(self, store):
-        """'failed' is in the routes' FINISHED_STATES, so the existing
-        delete-finished endpoint can clear the row — no new route needed."""
-        store.insert_pending("s1", "peer1", "a.mp3", 100, False)
-        self._age_rows(store, 600)
-        store.fail_stale_pending(300)
-
-        stale = store.get_transfers_by_state("failed")
-        assert len(stale) == 1
-        assert store.delete_transfers([stale[0]["id"]]) == 1
-
-    def test_leaves_adopted_rows_alone(self, store):
-        """Only unadopted 'pending:' rows are reaped — a row with a real
-        slskd id is a live transfer no matter how old."""
-        store.insert_pending("s1", "peer1", "a.mp3", 100, False)
-        store._db.execute(
-            "UPDATE downloads SET id = 'uuid-1', slskd_id = 'uuid-1', "
-            "state = 'downloading'"
-        )
-        self._age_rows(store, 600)
-        assert store.fail_stale_pending(300) == []
-        assert store.has_active_manual_downloads() is True
-
-    def test_reaps_rec_pending_rows_too(self, store):
-        """The gate only counts manual rows, but a rec row slskd dropped is
-        just as dead — leaving it 'queued' would misreport active work."""
-        store.insert_pending("s1", "peer1", "a.mp3", 100, True)
-        self._age_rows(store, 600)
-        assert len(store.fail_stale_pending(300)) == 1
-
-    def test_late_adoption_still_matches_the_failed_row(self, store):
-        """The row keeps its 'pending:' id and NULL slskd_id, so if slskd
-        does eventually report the transfer, upsert_transfer() adopts it
-        and overwrites the state instead of creating a duplicate."""
-        store.insert_pending("s1", "peer1", "a.mp3", 100, False)
-        self._age_rows(store, 600)
-        store.fail_stale_pending(300)
-
-        transfer = _make_transfer("uuid-late", "peer1", "a.mp3", 100, "downloading")
-        is_new, prev_state = store.upsert_transfer(transfer)
-
-        assert is_new is False
-        assert prev_state == "failed"
-        assert store.get_transfer("uuid-late")["state"] == "downloading"
-        # Adopted in place, not duplicated: the old pending id is gone.
-        assert store.get_transfers_by_state("failed") == []
-
-
-class TestManualGateTimeLimit:
-    """Found live 2026-08-11: a manual download adopted by slskd and parked
-    in "Queued, Remotely" — the peer has it in *their* upload queue — held
-    the rec-queue gate for 11+ minutes and would have held it for hours.
-    Nothing else clears that state: it isn't an orphan (slskd keeps
-    reporting it) and isn't a stale pending row (it has a real slskd id).
-    """
-
-    def _age(self, store, seconds):
-        store._db.execute(
-            "UPDATE downloads SET created_at = created_at - ?", (seconds,)
-        )
-
-    def _adopt(self, store, state="queued"):
-        store.insert_pending("s1", "peer1", "a.mp3", 100, False)
-        store._db.execute(
-            "UPDATE downloads SET id = 'uuid-1', slskd_id = 'uuid-1', state = ?",
-            (state,),
-        )
-
-    def test_no_grace_argument_keeps_the_old_behavior(self, store):
-        self._adopt(store)
-        self._age(store, 86400)
-        assert store.has_active_manual_downloads() is True
-
-    def test_fresh_queued_row_still_holds_the_gate(self, store):
-        self._adopt(store)
-        assert store.has_active_manual_downloads(600) is True
-
-    def test_long_queued_row_stops_holding_the_gate(self, store):
-        self._adopt(store)
-        self._age(store, 700)
-        assert store.has_active_manual_downloads(600) is False
-
-    def test_downloading_row_is_never_aged_out(self, store):
-        """Bytes are moving — a large file legitimately takes a long time."""
-        self._adopt(store, state="downloading")
-        self._age(store, 86400)
-        assert store.has_active_manual_downloads(600) is True
-
-    def test_rec_rows_never_hold_the_gate_either_way(self, store):
-        store.insert_pending("s1", "peer1", "a.mp3", 100, True)
-        assert store.has_active_manual_downloads(600) is False
-
-    def test_the_transfer_row_itself_is_untouched(self, store):
-        """Only the gate claim expires. The download keeps going and still
-        completes if the peer eventually comes through."""
-        self._adopt(store)
-        self._age(store, 700)
-        store.has_active_manual_downloads(600)
-        assert store.get_transfer("uuid-1")["state"] == "queued"
-
-    def test_a_fresh_row_still_gates_when_an_old_one_has_expired(self, store):
-        self._adopt(store)
-        self._age(store, 700)
-        store.insert_pending("s2", "peer2", "b.mp3", 100, False)
-        assert store.has_active_manual_downloads(600) is True
+        downloads.set_state(download_id, "downloading")
+        assert downloads.has_active_manual_downloads(queued_grace_seconds=600) is True

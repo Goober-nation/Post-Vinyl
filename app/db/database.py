@@ -51,6 +51,9 @@ class Database:
                 isolation_level=None,  # Autocommit mode
             )
             self._connection.row_factory = sqlite3.Row
+            # SQLite ignores every FOREIGN KEY clause (ON DELETE CASCADE /
+            # SET NULL included) unless this is set on the connection.
+            self._connection.execute("PRAGMA foreign_keys = ON")
             logger.info("Database connection established")
 
         return self._connection
