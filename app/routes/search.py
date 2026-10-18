@@ -12,15 +12,13 @@ Error responses follow the spec format:
 Status codes are handled centrally in app/main.py exception handlers.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.db.database import Database
-from app.db.search_store import SearchStore
-from app.dependencies import get_db_or_none, get_event_hub, get_search_service
+from app.dependencies import get_event_hub, get_search_service
 from app.exceptions import SearchNotFoundError
 from app.logging_config import get_logger
 from app.services.interfaces.search import SearchJob, SearchResult, SearchService
@@ -32,7 +30,6 @@ router = APIRouter(prefix="/api", tags=["search"])
 
 SearchServiceDep = Annotated[SearchService, Depends(get_search_service)]
 EventHubDep = Annotated[EventHub, Depends(get_event_hub)]
-DbDep = Annotated[Database | None, Depends(get_db_or_none)]
 
 RECENT_SEARCHES_LIMIT = 20
 
@@ -134,19 +131,6 @@ def _job_to_dict(job: SearchJob) -> dict:
     }
 
 
-def _header_row_to_dict(row: dict) -> dict:
-    """Serialize a `searches` table row to the SearchResponse shape."""
-    return {
-        "search_id": row["id"],
-        "query": row["query"],
-        "artist": row["artist"],
-        "created_at": datetime.fromtimestamp(
-            row["created_at"], tz=timezone.utc
-        ).isoformat(),
-        "status": row["status"],
-    }
-
-
 def _result_to_dict(result: SearchResult) -> dict:
     """Serialize SearchResult to dict."""
     return {
@@ -169,7 +153,6 @@ def _result_to_dict(result: SearchResult) -> dict:
 def create_search(
     body: SearchRequest,
     search_service: SearchServiceDep,
-    db: DbDep,
     event_hub: EventHubDep,
 ) -> dict:
     """
@@ -189,12 +172,6 @@ def create_search(
     job = search_service.search(query, artist=artist)
     logger.info(f"Search initiated: id={job.search_id}")
 
-    # Persist the header only — never the peer responses. slskd already
-    # retains those for a period; results are re-fetched via search_id
-    # when a saved search is reopened (see get_search below).
-    if db is not None:
-        SearchStore(db).insert_search(job.search_id, job.query, job.artist, job.status)
-
     event_hub.publish(
         "search.started",
         {"search_id": job.search_id, "query": job.query, "artist": job.artist},
@@ -205,18 +182,13 @@ def create_search(
 @router.get("/searches", response_model=list[SearchResponse])
 def list_searches(
     search_service: SearchServiceDep,
-    db: DbDep,
 ) -> list[dict]:
     """List recent searches, newest first, capped at the last 20.
 
-    Backed by the durable `searches` table rather than the search
-    service's in-memory job list, so history survives a restart. Falls
-    back to the in-memory list when no database is configured.
+    Served from the search service's in-memory job list. The durable
+    `searches` table is gone (migration 015), so history does not survive
+    a restart until a replacement exists.
     """
-    if db is not None:
-        rows = SearchStore(db).list_recent(RECENT_SEARCHES_LIMIT)
-        return [_header_row_to_dict(row) for row in rows]
-
     jobs = search_service.list_searches()
     return [_job_to_dict(job) for job in jobs[:RECENT_SEARCHES_LIMIT]]
 
@@ -225,7 +197,6 @@ def list_searches(
 def get_search(
     search_id: str,
     search_service: SearchServiceDep,
-    db: DbDep,
     event_hub: EventHubDep,
 ) -> dict:
     """
@@ -234,37 +205,13 @@ def get_search(
     Note: get_results() drives the search to completion (cancel-to-flush),
     so this may block until results are available.
 
-    If the search job has fallen out of the search service's in-memory
-    cache (e.g. after a restart) but its header is still in the database,
-    slskd itself has very likely also expired the underlying search by
-    now — this returns the stored header with an empty result set and
-    `expired: true` instead of a bare 404, so the caller can prompt a
-    re-search instead of treating it as an unknown id.
+    A search that has fallen out of the search service's in-memory cache
+    (e.g. after a restart) returns 404, as any unknown id does.
     """
     logger.info(f"GET /api/searches/{search_id}")
 
-    try:
-        job = search_service.get_status(search_id)
-        results = search_service.get_results(search_id)
-    except SearchNotFoundError:
-        if db is not None:
-            row = SearchStore(db).get_search(search_id)
-            if row is not None:
-                logger.info(f"Search expired from service cache: id={search_id}")
-                return {
-                    "search": _header_row_to_dict(row),
-                    "results": [],
-                    "expired": True,
-                }
-        raise
-
-    if db is not None:
-        SearchStore(db).update_status(
-            search_id,
-            job.status,
-            response_count=len({r.username for r in results}),
-            file_count=len(results),
-        )
+    job = search_service.get_status(search_id)
+    results = search_service.get_results(search_id)
 
     event_hub.publish(
         "search.completed",

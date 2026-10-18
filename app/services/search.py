@@ -33,31 +33,21 @@ class SlskdSearch(SearchService):
     Implements the cancel-to-flush pattern for slskd 0.26.0+.
     """
 
-    def __init__(self, config: Config, store=None):
+    def __init__(self, config: Config):
         """
         Initialize SlskdSearch.
 
         Args:
             config: Config object with slskd settings
-            store: Optional SearchStore (SQLite-backed). When given, the
-                in-memory job map below is rebuilt from the persisted search
-                *headers* on first use, so a saved search still resolves
-                after a restart. Peer responses are never persisted — slskd
-                owns those and serves them by search_id (see migration 005).
-                When None (e.g. tests or no database), behavior is purely
-                in-memory.
         """
         self.config = config
         self.base_url = config.slskd.url
         self.api_key = config.slskd.api_key
         self.session = requests.Session()
 
-        # In-memory caches. `_searches` is rebuilt from the `searches` table
-        # when a store is present; `_responses` is a within-process cache
-        # only — on a miss the results are re-fetched from slskd, which is
-        # where they actually live.
-        self._store = store
-        self._hydrated = False
+        # In-memory caches. `_responses` is a within-process cache only — on
+        # a miss the results are re-fetched from slskd, which is where they
+        # actually live.
         self._searches: dict[str, SearchJob] = {}
         self._responses: dict[str, list[SearchResult]] = {}
         self._progress: dict[str, dict] = {}
@@ -98,46 +88,6 @@ class SlskdSearch(SearchService):
         # exactly what _drive_search() would have produced, just without
         # asking slskd again.
         self._pending_raw: dict[str, list[dict]] = {}
-
-    def _hydrate(self) -> None:
-        """Rebuild the job map from persisted search headers (lazy, once).
-
-        Must be lazy: the SQLite schema is initialized by the app lifespan,
-        which runs after services are constructed — touching the DB before
-        that would hit missing tables. Without a store this is a no-op.
-
-        Headers only, and user-initiated searches only, so this stays cheap
-        no matter how long the app has been running. The version this
-        replaced also loaded and JSON-parsed every peer response ever
-        stored, making startup proportional to all history.
-        """
-        if self._hydrated or self._store is None:
-            return
-        self._hydrated = True
-        for row in self._store.all_searches():
-            try:
-                job = SearchJob(
-                    search_id=row["id"],
-                    query=row["query"],
-                    artist=row["artist"],
-                    created_at=datetime.fromtimestamp(row["created_at"]),
-                    status=row["status"],
-                )
-            except Exception:  # noqa: BLE001 — a corrupt row must not kill hydration
-                logger.warning("Skipping corrupt searches row: %s", row.get("id"))
-                continue
-            self._searches[job.search_id] = job
-        if self._searches:
-            logger.info("Hydrated %d search headers from SQLite", len(self._searches))
-
-    def _persist_status(self, job: SearchJob) -> None:
-        """Record a job's status change (no-op without a store).
-
-        Silently affects zero rows for rec-puller searches, which never get
-        a header row — that's intended, not a failure.
-        """
-        if self._store is not None:
-            self._store.update_status(job.search_id, job.status)
 
     def _get_headers(self) -> dict:
         """Get HTTP headers for slskd API."""
@@ -209,7 +159,6 @@ class SlskdSearch(SearchService):
         """
         logger.info(f"Initiating search: query='{query}', artist='{artist}'")
 
-        self._hydrate()
 
         cache_key = self._cache_key(query)
         cached = self._query_cache.get(cache_key)
@@ -278,7 +227,6 @@ class SlskdSearch(SearchService):
         """
         logger.debug(f"Fetching results for search: {search_id}")
 
-        self._hydrate()
 
         # Check if search exists
         if search_id not in self._searches:
@@ -334,7 +282,6 @@ class SlskdSearch(SearchService):
         self._responses[search_id] = results
 
         job.status = "completed"
-        self._persist_status(job)
 
         logger.info(f"Search completed: id={search_id}, results={len(results)}")
         return results
@@ -351,7 +298,6 @@ class SlskdSearch(SearchService):
         """
         logger.info(f"Cancelling search: {search_id}")
 
-        self._hydrate()
 
         if search_id not in self._searches:
             raise SearchNotFoundError(search_id)
@@ -360,7 +306,6 @@ class SlskdSearch(SearchService):
             # slskd has never heard of a query-cache-hit search_id — nothing
             # to cancel over the network.
             self._searches[search_id].status = "cancelled"
-            self._persist_status(self._searches[search_id])
             self._pending_raw.pop(search_id, None)
             logger.info(f"Search cancelled (cache hit, local only): {search_id}")
             return True
@@ -372,7 +317,6 @@ class SlskdSearch(SearchService):
 
             if resp.status_code in (200, 204, 304):
                 self._searches[search_id].status = "cancelled"
-                self._persist_status(self._searches[search_id])
                 logger.info(f"Search cancelled: {search_id}")
                 return True
             else:
@@ -393,7 +337,6 @@ class SlskdSearch(SearchService):
         Returns:
             SearchJob with updated status
         """
-        self._hydrate()
 
         if search_id not in self._searches:
             raise SearchNotFoundError(search_id)
@@ -418,7 +361,6 @@ class SlskdSearch(SearchService):
             # Update status based on slskd response
             if meta.get("isComplete"):
                 job.status = "completed"
-                self._persist_status(job)
 
             return job
 
@@ -433,7 +375,6 @@ class SlskdSearch(SearchService):
         Returns:
             List of SearchJob objects
         """
-        self._hydrate()
         return sorted(
             self._searches.values(),
             key=lambda job: (job.created_at, job.search_id),
@@ -451,7 +392,6 @@ class SlskdSearch(SearchService):
             Dict with response_count, file_count, is_complete,
             elapsed_seconds, threshold, max_wait_seconds
         """
-        self._hydrate()
 
         if search_id not in self._searches:
             raise SearchNotFoundError(search_id)

@@ -32,7 +32,6 @@ from app import APP_NAME, APP_VERSION
 from app.config import Config
 from app.db.database import Database
 from app.db.download_store import DownloadStore
-from app.db.search_store import SearchStore
 from app.exceptions import (
     ConfigError,
     ConfigValidationError,
@@ -131,9 +130,7 @@ def create_app(
         if database is not None
         else (Database(config) if config_provided else None)
     )
-    resolved_search_service = search_service or SlskdSearch(
-        config, store=SearchStore(db) if db is not None else None
-    )
+    resolved_search_service = search_service or SlskdSearch(config)
     services = {
         "search": resolved_search_service,
         "download": download_service
