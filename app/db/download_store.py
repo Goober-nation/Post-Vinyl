@@ -69,6 +69,71 @@ class DownloadStore:
             )
         return download_id
 
+    def insert_pending(
+        self,
+        search_id: str,
+        username: str,
+        filename: str,
+        size: int | None = None,
+        is_rec: bool = False,
+        mb_recording_id: str | None = None,
+    ) -> int:
+        """Create the request, search and download rows for one queued file.
+
+        Writes, in one transaction:
+          - a `requests` row (source 'rec' or 'slskd', with the MusicBrainz
+            recording id when given);
+          - a `slskd_searches` row for `search_id`, only if it does not exist
+            yet. An existing row keeps its request_id: a search may serve
+            several requests, and the first one owns it;
+          - the `downloads` row in state 'queued';
+          - its first `download_attempts` row (success = 0), since the
+            original request is the first peer tried.
+
+        Returns the new downloads.id. Call mark_attempt_accepted() once slskd
+        accepts the queue request.
+        """
+        now = int(time.time())
+        with self._db.transaction() as conn:
+            request_id = conn.execute(
+                "INSERT INTO requests (source, mbid, created_at, last_used_at) "
+                "VALUES (?, ?, ?, ?)",
+                ("rec" if is_rec else "slskd", mb_recording_id, now, now),
+            ).lastrowid
+            exists = conn.execute(
+                "SELECT 1 FROM slskd_searches WHERE id = ?", (search_id,)
+            ).fetchone()
+            if exists is None:
+                conn.execute(
+                    "INSERT INTO slskd_searches (id, request_id, query, created_at) "
+                    "VALUES (?, ?, '', ?)",
+                    (search_id, request_id, now),
+                )
+            download_id = conn.execute(
+                "INSERT INTO downloads (request_id, search_id, username, filename, size, "
+                "state, created_at) VALUES (?, ?, ?, ?, ?, 'queued', ?)",
+                (request_id, search_id, username, filename, size, now),
+            ).lastrowid
+            conn.execute(
+                "INSERT INTO download_attempts (download_id, username, attempted_at, success) "
+                "VALUES (?, ?, ?, 0)",
+                (download_id, username, now),
+            )
+        return download_id
+
+    def import_pending(self, username: str, filename: str) -> bool:
+        """True when a file_management row for this peer file is at stage 'pending'.
+
+        A pure lookup: it changes nothing. The caller decides the next stage
+        (FileStore.mark_moved / mark_missing).
+        """
+        row = self._db.fetch_one(
+            "SELECT 1 FROM file_management WHERE username = ? AND filename = ? "
+            "AND stage = 'pending' LIMIT 1",
+            (username, filename),
+        )
+        return row is not None
+
     def move_to_peer(
         self, download_id: int, username: str, filename: str, size: int | None = None
     ) -> None:
