@@ -14,7 +14,7 @@ Schema source: `agents_memory/topics/core-db-redesign.md` and `app/db/migrations
 - [ ] Add the `failTag` and `unindexed` stages to `file_management.stage` (CHECK or app-side
   enum). Stage set: `pending | moved | failTag | unindexed | indexed | missing`.
 - [x] SearchStore removed (`ca3f52a`); DownloadStore `insert_pending` / `import_pending` added (`ae627a3`).
-- [ ] Stores: `request_store`, `download_store`, `file_store`, `peer_store`, `search_store`
+- [ ] Stores: `request_store`, `download_store`, `file_store`, `peer_store`
   already exist as WIP. Bring each to the design: one method per table action, no SQL outside
   its store.
 - [x] `tests/test_db` green: 78 passed, 0 failed (Docker).
