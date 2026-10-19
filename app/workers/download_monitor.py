@@ -134,20 +134,18 @@ class DownloadRetrier:
         return RetryOutcome(True, peer=peer)
 
     def abandon_at_slskd(self, transfer_id: str, username: str, filename: str) -> None:
-        """Drop a transfer musica has moved on from (superseded by a retry, or
-        stalled with no retry queued) so slskd stops working on it.
+        """Remove a transfer slskd should stop working on.
 
-        Used once a retry is queued: the superseded transfer is dropped.
-        Also used for a stalled transfer whose retry did not go through.
+        Called once a retry is queued, for the superseded transfer. musica
+        gives up on a peer while slskd keeps working on it, and a 'failed'
+        state is often transient, so the original can complete after the same
+        track was re-queued elsewhere and both copies land. Live-confirmed
+        2026-08-11: a Comfort Zone pull of 5 tracks downloaded 2 of them
+        twice, from the exact peer pairs this would have separated
+        (whitelamp+N+3 and M3H9X+bob-bob-bob-123).
 
-        Without this musica gives up on a peer while slskd keeps working on
-        it: a 'failed' state is often transient (queued-then-retried by
-        slskd itself, or a peer that comes back), so the original transfer
-        can complete *after* musica has already re-queued the same track
-        elsewhere — and both copies land. Live-confirmed 2026-08-11: a
-        Comfort Zone pull of 5 tracks downloaded 2 of them twice, from the
-        exact peer pairs this method would have separated (whitelamp+N+3 and
-        M3H9X+bob-bob-bob-123).
+        Also called for a stalled transfer that no retry replaced, so it
+        cannot finish behind a failed row.
 
         Best-effort: a failure here only risks the duplicate we already
         have today, so it must never break the retry that just succeeded.
