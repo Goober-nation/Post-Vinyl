@@ -335,7 +335,9 @@ def retry_transfer(
     `new_transfer_id` is null in the response.
     """
     logger.info(f"POST /api/queue/retry/{transfer_id}")
-    row = DownloadStore(db).get_by_slskd_id(transfer_id) if db is not None else None
+    if db is None:
+        raise TransferNotFoundError(transfer_id)
+    row = DownloadStore(db).get_by_slskd_id(transfer_id)
     if row is None:
         raise TransferNotFoundError(transfer_id)
 
