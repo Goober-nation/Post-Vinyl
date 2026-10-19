@@ -63,8 +63,8 @@ back.
 | Method & Path | Purpose |
 |---|---|
 | `GET /api/transfers` | List active/recent download transfers. |
-| `POST /api/queue` | Queue one or more files for download from a peer, given a search result. Returns 201. Validates the destination path. |
-| `POST /api/queue/retry/{transfer_id}` | Retry a failed download — re-reads the same stored search results and re-picks a peer; does **not** start a new Soulseek search. |
+| `POST /api/queue` | Queue one or more files for download from a peer, given a search result. `search_id` is required (400 without it): every download is tracked against the search it came from. Returns 201, or 207 on partial success. Validates the destination path. |
+| `POST /api/queue/retry/{transfer_id}` | Retry a failed download. `transfer_id` is slskd's id from `GET /api/transfers`. Moves the download's own row to the next peer it has not tried (same search results; does **not** start a new Soulseek search), bypassing `download.auto_retry_manual_soulseek`. Returns `new_transfer_id: null`, since slskd reports the new transfer later. 404 if no row exists for the id, 500 `MAX_RETRIES_EXCEEDED` or `NO_VIABLE_PEER` when no retry is possible. |
 | `DELETE /api/transfers/{transfer_id}` | Cancel an active transfer. |
 | `DELETE /api/transfers` | Bulk-delete finished transfer records from Post-Vinyl's own bookkeeping (does not affect files already imported). |
 
