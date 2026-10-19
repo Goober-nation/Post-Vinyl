@@ -19,7 +19,6 @@ from app.services.health import ServiceHealth
 from app.services.interfaces.download import (
     DownloadService,
     QueueResult,
-    RetryResult,
     Transfer,
 )
 from app.services.interfaces.search import SearchJob, SearchResult, SearchService
@@ -353,8 +352,6 @@ class FakeDownloadServiceForStop(DownloadService):
     def get_status(self) -> list[Transfer]:
         return list(self.transfers.values())
 
-    def retry(self, transfer_id: str) -> RetryResult:
-        raise NotImplementedError
 
     def cancel(self, transfer_id: str) -> bool:
         self.cancel_calls.append(transfer_id)

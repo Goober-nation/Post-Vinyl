@@ -31,7 +31,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app import APP_NAME, APP_VERSION
 from app.config import Config
 from app.db.database import Database
-from app.db.download_store import DownloadStore
 from app.exceptions import (
     ConfigError,
     ConfigValidationError,
@@ -136,7 +135,6 @@ def create_app(
         "download": download_service
         or SlskdDownload(
             config,
-            store=DownloadStore(db) if db is not None else None,
             search_service=resolved_search_service,
         ),
         "library": library_service or NavidromeLibrary(config),

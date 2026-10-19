@@ -292,8 +292,6 @@ class _RouteService(DownloadService):
     def get_status(self):
         return []
 
-    def retry(self, transfer_id):
-        raise NotImplementedError
 
     def get_transfer(self, transfer_id):
         raise NotImplementedError

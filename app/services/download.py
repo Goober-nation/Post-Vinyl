@@ -6,14 +6,11 @@ Handles downloading files from Soulseek peers via slskd.
 
 import urllib.parse
 from datetime import datetime
-from pathlib import Path
 
 import requests
 
 from app.config import Config
 from app.exceptions import (
-    MaxRetriesExceededError,
-    NoViablePeerError,
     QueueError,
     SlskdConnectionError,
     TransferNotFoundError,
@@ -22,7 +19,6 @@ from app.logging_config import get_logger
 from app.services.interfaces.download import (
     DownloadService,
     QueueResult,
-    RetryResult,
     Transfer,
 )
 
@@ -36,23 +32,19 @@ class SlskdDownload(DownloadService):
     Uses the slskd REST API to download files from Soulseek peers.
     """
 
-    def __init__(self, config: Config, store=None, search_service=None):
+    def __init__(self, config: Config, search_service=None):
         """
         Initialize SlskdDownload.
 
         Args:
             config: Config object with slskd settings
-            store: Optional DownloadStore (SQLite) — used to resolve a
-                transfer's search_id so retry can re-fetch that search's
-                peers from slskd after a restart. Without it (e.g. tests),
-                retry only sees whatever was set via store_search_responses().
-            search_service: Optional SearchService — used by retry() to
-                serve a query-cache-hit search_id (`cache-*`, see
-                app.services.search.SlskdSearch._make_local_job) through the
-                same in-process cache SearchService already guards those IDs
-                with, instead of asking slskd about an ID it never issued
-                (issue #59). Retry for a real slskd search_id is unaffected
-                either way — that path always goes straight to slskd.
+            search_service: Optional SearchService — used by
+                fetch_search_responses() to serve a query-cache-hit search_id
+                (`cache-*`, see app.services.search.SlskdSearch._make_local_job)
+                through the same in-process cache SearchService already guards
+                those IDs with, instead of asking slskd about an ID it never
+                issued (issue #59). A real slskd search_id always goes straight
+                to slskd.
         """
         self.config = config
         self.base_url = config.slskd.url
@@ -60,21 +52,8 @@ class SlskdDownload(DownloadService):
         self.session = requests.Session()
         self._search_service = search_service
 
-        # In-memory storage. The search-responses cache below is a
-        # within-process cache only: on a miss, retry() re-fetches the
-        # search's peers from slskd, which is where they actually live.
+        # In-memory transfer tracking only.
         self._transfers: dict[str, Transfer] = {}
-        self._search_responses: dict[str, list[dict]] = {}  # tracker_key -> responses
-        self._tried_peers: dict[str, list[str]] = {}  # tracker_key -> [usernames]
-        self._retry_counts: dict[str, int] = {}  # tracker_key -> count
-        self._blocked_peers: set[str] = set()
-        self._bad_peers: dict[str, int] = {}  # username -> failure_count
-
-        # Optional SQLite-backed store (resolves filename -> search_id)
-        self._store = store
-
-        # Audio extensions
-        self.allowed_extensions = {".mp3", ".flac", ".m4a", ".wav", ".ogg", ".aac"}
 
     def _get_headers(self) -> dict:
         """Get HTTP headers for slskd API."""
@@ -174,14 +153,6 @@ class SlskdDownload(DownloadService):
                 )
 
                 self._transfers[transfer_id] = transfer
-
-                # Store search responses for retry
-                if search_id:
-                    tracker_key = f"{username}:{filename}"
-                    # Left empty on purpose: retry() fetches this search's
-                    # peers from slskd on demand rather than caching a copy
-                    # of data slskd already holds.
-                    self._search_responses.setdefault(tracker_key, [])
 
             return QueueResult(
                 enqueued_count=enqueued, failures=failures, search_id=search_id
@@ -303,7 +274,7 @@ class SlskdDownload(DownloadService):
 
     def fetch_search_responses(self, search_id: str) -> list[dict]:
         """
-        Fetch stored peer responses for a search (for retry).
+        Fetch peer responses for a search (used by DownloadMonitor's retry).
 
         Args:
             search_id: The slskd search ID
@@ -318,10 +289,7 @@ class SlskdDownload(DownloadService):
         app.services.search.SlskdSearch._make_local_job) is not something
         slskd has ever heard of; asking it directly always fails (#59, root
         cause of #56). Those are served through SearchService instead
-        (`_fetch_cached_responses`), which already tracks them in-process —
-        every caller of this method (retry()'s own fallback,
-        DownloadMonitor._attempt_retry) is fixed by handling it here rather
-        than at each call site.
+        (`_fetch_cached_responses`), which already tracks them in-process.
         """
         if search_id.startswith("cache-"):
             return self._fetch_cached_responses(search_id)
@@ -394,115 +362,6 @@ class SlskdDownload(DownloadService):
             fail_reason=fail_reason,
         )
 
-    def retry(self, transfer_id: str) -> RetryResult:
-        """
-        Retry a failed download from stored search results.
-
-        Args:
-            transfer_id: ID of failed transfer
-
-        Returns:
-            RetryResult with success status and new transfer ID
-        """
-        logger.info(f"Retrying transfer: {transfer_id}")
-
-        if transfer_id not in self._transfers:
-            raise TransferNotFoundError(transfer_id)
-
-        old_transfer = self._transfers[transfer_id]
-        username = old_transfer.username
-        filename = old_transfer.filename
-        tracker_key = f"{username}:{filename}"
-
-        # Check retry count
-        current_count = self._retry_counts.get(tracker_key, 0)
-        if current_count >= self.config.download.max_retries_per_track:
-            raise MaxRetriesExceededError(
-                transfer_id, self.config.download.max_retries_per_track
-            )
-
-        # Get stored search responses
-        stored_responses = self._search_responses.get(tracker_key, [])
-        if not stored_responses:
-            # After a restart the in-memory cache is empty — re-fetch this
-            # track's search from slskd, which retains it.
-            stored_responses = self._fetch_responses_for_track(username, filename)
-        if not stored_responses:
-            raise NoViablePeerError(filename, "No stored search responses available")
-
-        # Get tried peers
-        tried = set(self._tried_peers.get(tracker_key, []))
-        tried.add(username)  # Skip original peer
-
-        # Find alternative peer
-        for response in stored_responses:
-            peer = response.get("username", "")
-
-            # Skip if already tried
-            if peer in tried:
-                continue
-
-            # Skip if blocked
-            if peer.lower() in self._blocked_peers:
-                continue
-
-            # Skip if bad peer
-            if self._bad_peers.get(peer, 0) >= self.config.download.bad_peer_threshold:
-                continue
-
-            # Skip if no free slot
-            if not response.get("hasFreeUploadSlot"):
-                continue
-
-            # Find audio file
-            peer_files = response.get("files", [])
-            candidate_file = None
-            for f in peer_files:
-                fname = f.get("filename", "")
-                ext = Path(fname).suffix.lower()
-                if ext in self.allowed_extensions:
-                    candidate_file = f
-                    break
-
-            if not candidate_file:
-                continue
-
-            # Try to queue from this peer
-            logger.info(f"Retry {tracker_key}: trying peer {peer}")
-
-            try:
-                result = self.queue(peer, [candidate_file])
-
-                if result.enqueued_count > 0:
-                    # Success - delete old transfer
-                    self.cancel(transfer_id)
-
-                    # Update tracking
-                    self._tried_peers.setdefault(tracker_key, []).append(peer)
-                    self._retry_counts[tracker_key] = current_count + 1
-
-                    # Get new transfer ID
-                    new_transfer_id = list(self._transfers.keys())[-1]
-
-                    logger.info(f"Retry successful: queued from {peer}")
-                    return RetryResult(
-                        success=True,
-                        message=f"Retrying from {peer}",
-                        new_transfer_id=new_transfer_id,
-                    )
-                else:
-                    # Queue failed, try next peer
-                    tried.add(peer)
-                    continue
-
-            except Exception as e:
-                logger.warning(f"Queue from {peer} failed: {e}")
-                tried.add(peer)
-                continue
-
-        # No viable peer found
-        self._retry_counts[tracker_key] = current_count + 1
-        raise NoViablePeerError(filename, "No alternative peer with free upload slot")
 
     @staticmethod
     def _extract_download_id(transfer_id: str) -> str:
@@ -613,49 +472,10 @@ class SlskdDownload(DownloadService):
 
         return self._transfers[transfer_id]
 
-    def store_search_responses(self, tracker_key: str, responses: list[dict]):
-        """
-        Store search responses for retry (called by SlskdSearch).
-
-        Args:
-            tracker_key: username:filename
-            responses: List of peer responses
-        """
-        self._search_responses[tracker_key] = responses
-
-    def _fetch_responses_for_track(self, username: str, filename: str) -> list[dict]:
-        """Re-fetch the peers from the search this track came from.
-
-        Looks the track's search_id up in the downloads table, then asks
-        slskd for that search's responses. This is what makes alternative-peer
-        retry survive a restart without musica keeping its own copy of the
-        results — and it is *not* a fresh search: no new search is initiated,
-        the same completed search is re-read, so retry still picks from the
-        same candidate pool. Returns [] when there's no store, no search_id,
-        or slskd can't be reached.
-
-        A `cache-*` search_id is handled by fetch_search_responses() itself
-        (#59) — same-process retry (the common case: a failure and its
-        retry both happen while musica keeps running) works; one from
-        before musica's last restart still returns [] here, same as today,
-        since SearchService's own in-memory response cache doesn't survive
-        a restart either.
-        """
-        if self._store is None:
-            return []
-        search_id = self._store.get_pending_search_id(username, filename)
-        if not search_id:
-            return []
-        try:
-            return self.fetch_search_responses(search_id)
-        except SlskdConnectionError as e:
-            logger.warning(f"Could not re-fetch responses for {search_id}: {e}")
-            return []
-
     def _fetch_cached_responses(self, search_id: str) -> list[dict]:
         """Serve a query-cache-hit search_id's responses via SearchService,
         converting its per-file SearchResult rows back into the raw,
-        grouped-by-peer shape retry()'s peer-selection loop expects."""
+        grouped-by-peer shape slskd returns for a real search."""
         if self._search_service is None:
             return []
         try:
@@ -675,28 +495,3 @@ class SlskdDownload(DownloadService):
             peer["files"].append({"filename": r.filename, "size": r.size})
         return list(grouped.values())
 
-    def mark_peer_bad(self, username: str):
-        """
-        Mark a peer as bad (increment failure count).
-
-        Args:
-            username: Peer username
-        """
-        self._bad_peers[username] = self._bad_peers.get(username, 0) + 1
-
-        if self._bad_peers[username] >= self.config.download.bad_peer_threshold:
-            self._blocked_peers.add(username.lower())
-            logger.warning(
-                f"Peer {username} blocked (failures: {self._bad_peers[username]})"
-            )
-
-    def unblock_peer(self, username: str):
-        """
-        Unblock a peer.
-
-        Args:
-            username: Peer username
-        """
-        self._blocked_peers.discard(username.lower())
-        self._bad_peers.pop(username, None)
-        logger.info(f"Peer {username} unblocked")

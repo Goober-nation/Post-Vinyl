@@ -10,7 +10,6 @@ from app.services.interfaces.download import (
     DownloadService,
     QueueResult,
     Transfer,
-    RetryResult
 )
 
 
@@ -79,42 +78,6 @@ class MockDownloadService(DownloadService):
     def get_status(self) -> list[Transfer]:
         return list(self.transfers.values())
     
-    def retry(self, transfer_id: str) -> RetryResult:
-        if transfer_id not in self.transfers:
-            raise ValueError(f"Transfer {transfer_id} not found")
-        
-        old_transfer = self.transfers[transfer_id]
-        
-        # Simulate no viable peer
-        if "nopeer" in old_transfer.username.lower():
-            return RetryResult(
-                success=False,
-                message="No viable peer found"
-            )
-        
-        # Create new transfer
-        new_transfer_id = f"transfer-{self.next_id}"
-        self.next_id += 1
-        
-        new_transfer = Transfer(
-            transfer_id=new_transfer_id,
-            username=f"retry-peer-{self.next_id}",
-            filename=old_transfer.filename,
-            size=old_transfer.size,
-            state="queued",
-            progress=0.0,
-            speed=None,
-            started_at=datetime.now(),
-            completed_at=None,
-            is_rec_download=old_transfer.is_rec_download
-        )
-        self.transfers[new_transfer_id] = new_transfer
-        
-        return RetryResult(
-            success=True,
-            message="Retrying from new peer",
-            new_transfer_id=new_transfer_id
-        )
     
     def cancel(self, transfer_id: str) -> bool:
         if transfer_id not in self.transfers:
@@ -244,36 +207,6 @@ class TestDownloadServiceMock:
         
         assert transfers == []
     
-    def test_retry_success(self):
-        """retry() should create new transfer on success."""
-        service = MockDownloadService()
-        service.queue("peer1", [{"filename": "song.mp3", "size": 1000000}])
-        transfer_id = list(service.transfers.keys())[0]
-        
-        result = service.retry(transfer_id)
-        
-        assert result.success is True
-        assert result.new_transfer_id is not None
-        assert result.new_transfer_id != transfer_id
-        assert len(service.transfers) == 2  # Old + new
-    
-    def test_retry_no_viable_peer(self):
-        """retry() should return failure when no viable peer."""
-        service = MockDownloadService()
-        service.queue("nopeer1", [{"filename": "song.mp3", "size": 1000000}])
-        transfer_id = list(service.transfers.keys())[0]
-        
-        result = service.retry(transfer_id)
-        
-        assert result.success is False
-        assert "No viable peer" in result.message
-    
-    def test_retry_not_found(self):
-        """retry() should raise error for unknown transfer_id."""
-        service = MockDownloadService()
-        
-        with pytest.raises(ValueError, match="Transfer unknown not found"):
-            service.retry("unknown")
     
     def test_cancel_success(self):
         """cancel() should mark transfer as cancelled."""
@@ -393,29 +326,3 @@ class TestTransferDataclass:
         assert transfer.completed_at == now
         assert transfer.is_rec_download is True
 
-
-class TestRetryResultDataclass:
-    """Test RetryResult dataclass."""
-    
-    def test_retry_result_success(self):
-        """RetryResult should represent successful retry."""
-        result = RetryResult(
-            success=True,
-            message="Retrying from peer2",
-            new_transfer_id="transfer-456"
-        )
-        
-        assert result.success is True
-        assert result.message == "Retrying from peer2"
-        assert result.new_transfer_id == "transfer-456"
-    
-    def test_retry_result_failure(self):
-        """RetryResult should represent failed retry."""
-        result = RetryResult(
-            success=False,
-            message="No viable peer found"
-        )
-        
-        assert result.success is False
-        assert result.message == "No viable peer found"
-        assert result.new_transfer_id is None

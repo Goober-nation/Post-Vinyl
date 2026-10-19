@@ -39,14 +39,6 @@ class Transfer:
     (rejected/errored) instead of treating every failure identically."""
 
 
-@dataclass
-class RetryResult:
-    """Result of a retry operation."""
-    success: bool
-    message: str
-    new_transfer_id: str | None = None
-
-
 class DownloadService(ABC):
     """
     Abstract base class for download operations.
@@ -99,22 +91,6 @@ class DownloadService(ABC):
         """
         pass
     
-    @abstractmethod
-    def retry(self, transfer_id: str) -> RetryResult:
-        """
-        Retry a failed download from stored search results.
-        
-        Args:
-            transfer_id: ID of failed transfer to retry
-            
-        Returns:
-            RetryResult with success status and new transfer ID
-            
-        Raises:
-            TransferNotFoundError: If transfer_id not found
-            NoViablePeerError: If no alternative peer available
-        """
-        pass
     
     @abstractmethod
     def cancel(self, transfer_id: str) -> bool:

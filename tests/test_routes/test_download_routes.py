@@ -26,7 +26,6 @@ from app.main import create_app
 from app.services.interfaces.download import (
     DownloadService,
     QueueResult,
-    RetryResult,
     Transfer,
 )
 
@@ -88,14 +87,6 @@ class FakeDownloadService(DownloadService):
     def fetch_search_responses(self, search_id: str) -> list[dict]:
         return list(self.search_responses.get(search_id, []))
 
-    def retry(self, transfer_id: str) -> RetryResult:
-        if transfer_id not in self.transfers:
-            raise TransferNotFoundError(transfer_id)
-        self.transfers[transfer_id].state = "failed"
-        new = self._new_transfer("peer2", self.transfers[transfer_id].filename, 0)
-        return RetryResult(
-            success=True, message="Retrying from peer2", new_transfer_id=new.transfer_id
-        )
 
     def cancel(self, transfer_id: str) -> bool:
         if transfer_id not in self.transfers:
@@ -147,7 +138,6 @@ def _app_with_db(tmpdir):
     service = FakeDownloadService()
     app = create_app(download_service=service, database=db)
     return db, service, TestClient(app)
-
 
 
 def _mark_completed(db, transfer_id, username="peer1", filename="song.mp3"):

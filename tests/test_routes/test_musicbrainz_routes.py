@@ -94,8 +94,6 @@ class FakeDownloadService:
     def get_status(self):
         return []
 
-    def retry(self, transfer_id):
-        raise NotImplementedError
 
     def cancel(self, transfer_id):
         return True
