@@ -30,11 +30,17 @@ from app.dependencies import (
     get_download_service,
     get_event_hub,
 )
-from app.exceptions import InvalidDestinationError
+from app.exceptions import (
+    InvalidDestinationError,
+    MaxRetriesExceededError,
+    NoViablePeerError,
+    TransferNotFoundError,
+)
 from app.logging_config import get_logger
 from app.services.download_data import DownloadDataService
 from app.services.interfaces.download import DownloadService, QueueResult, Transfer
 from app.sse import EventHub
+from app.workers.download_monitor import DownloadRetrier
 
 logger = get_logger(__name__)
 
@@ -105,8 +111,9 @@ class QueueRequest(BaseModel):
 
     username: str = Field(..., min_length=1, description="Peer username")
     files: list[FileRequest] = Field(..., min_length=1, description="Files to download")
-    search_id: str | None = Field(
-        None, description="Search ID that originated these files"
+    search_id: str = Field(
+        ...,
+        description="Search ID that originated these files (every download is tracked against it)",
     )
     destination: str | None = Field(None, description="Destination directory override")
 
@@ -118,13 +125,21 @@ class QueueRequest(BaseModel):
             raise ValueError("username must not be empty")
         return value
 
+    @field_validator("search_id")
+    @classmethod
+    def _strip_search_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("search_id must not be empty")
+        return value
+
 
 class QueueResponse(BaseModel):
     """Response shape for POST /api/queue."""
 
     enqueued_count: int
     failures: list[dict]
-    search_id: str | None
+    search_id: str
 
 
 class TransferResponse(BaseModel):
@@ -258,11 +273,10 @@ def queue_downloads(
     )
 
     # Rows are written before slskd is asked to queue anything, so every
-    # transfer slskd could start has a row to be adopted into. Needs a real
-    # search_id (the row's FK); without one nothing is tracked.
+    # transfer slskd could start has a row to be adopted into.
     data_service = None
     rows: list[tuple[str, int]] = []
-    if db is not None and body.search_id:
+    if db is not None:
         is_rec = bool(body.destination and "discovery" in body.destination.lower())
         data_service = DownloadDataService(db)
         rows = data_service.queue_rows(
@@ -308,23 +322,45 @@ def queue_downloads(
 def retry_transfer(
     transfer_id: str,
     download_service: DownloadServiceDep,
+    db: DbDep,
     event_hub: EventHubDep,
+    config: ConfigDep,
 ) -> dict:
-    """Retry a failed download from stored search results."""
+    """Retry a failed download from an alternative peer.
+
+    `transfer_id` is slskd's transfer id, as listed by GET /api/transfers.
+    Runs the same DB-backed retry the monitor uses (DownloadRetrier), with
+    the manual-download gate bypassed: the button is an explicit request.
+    The new transfer id is not known until slskd reports it, so
+    `new_transfer_id` is null in the response.
+    """
     logger.info(f"POST /api/queue/retry/{transfer_id}")
-    result = download_service.retry(transfer_id)
+    row = DownloadStore(db).get_by_slskd_id(transfer_id) if db is not None else None
+    if row is None:
+        raise TransferNotFoundError(transfer_id)
+
+    outcome = DownloadRetrier(config, download_service, db).retry(
+        row["id"], transfer_id, bypass_manual_gate=True
+    )
+    if not outcome.queued:
+        if outcome.exhausted:
+            raise MaxRetriesExceededError(
+                transfer_id, config.download.max_retries_per_track
+            )
+        raise NoViablePeerError(row["filename"], outcome.reason)
+
     event_hub.publish(
         "transfer.retried",
         {
             "transfer_id": transfer_id,
-            "success": result.success,
-            "new_transfer_id": result.new_transfer_id,
+            "success": True,
+            "new_transfer_id": None,
         },
     )
     return {
-        "success": result.success,
-        "message": result.message,
-        "new_transfer_id": result.new_transfer_id,
+        "success": True,
+        "message": f"Retrying from {outcome.peer}",
+        "new_transfer_id": None,
     }
 
 

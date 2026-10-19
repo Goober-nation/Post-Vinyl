@@ -6,6 +6,7 @@ and drives the download lifecycle: tracking, retry, file-move, SSE events.
 import shutil
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.db.database import Database
@@ -27,6 +28,177 @@ from app.sse import EventHub
 _CONNECTIVITY_FAIL_REASONS = {"timedout", "aborted", "cancelled"}
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class RetryOutcome:
+    """Result of one DownloadRetrier.retry() call."""
+
+    queued: bool
+    peer: str | None = None
+    # Why nothing was queued; empty when queued.
+    reason: str = ""
+    # True when the retry budget (download.max_retries_per_track) is spent.
+    exhausted: bool = False
+
+
+class DownloadRetrier:
+    """The one retry implementation: DB-backed, shared by the monitor's
+    automatic failure/orphan path and the UI's Retry button.
+
+    A retry updates the download's own row (see DownloadStore.move_to_peer)
+    and picks an alternative peer from the search the row came from. Every
+    peer the row has ever been queued from is skipped, and the budget is
+    `max_retries_per_track` retries after the original attempt.
+    """
+
+    def __init__(self, config, download_service, database: Database) -> None:
+        self._config = config
+        self._download_service = download_service
+        self._store = DownloadStore(database)
+        self._peers = PeerStore(database)
+
+    def retry(
+        self,
+        download_id: int,
+        slskd_id: str,
+        *,
+        bypass_manual_gate: bool = False,
+    ) -> RetryOutcome:
+        """Re-queue a failed download from an alternative peer.
+
+        `download_id` is our row (kept through every retry); `slskd_id` is the
+        slskd transfer that just failed or went missing, removed from slskd
+        once the retry is queued. `bypass_manual_gate` lets the UI's Retry
+        button retry a manual download even when auto_retry_manual_soulseek
+        is off; the automatic path leaves it False.
+
+        Raises SlskdConnectionError when the search cannot be re-read from
+        slskd; every other failure is reported in the returned outcome.
+        """
+        original = self._store.get_with_request(download_id)
+        if original is None:
+            return RetryOutcome(False, reason="Download row no longer exists")
+        username = original["username"]
+        filename = original["filename"]
+        is_manual = original["source"] != "rec"
+        if (
+            is_manual
+            and not bypass_manual_gate
+            and not getattr(self._config.download, "auto_retry_manual_soulseek", False)
+        ):
+            # #57: a rec's auto-retry is unaffected — this only gates manual
+            # (user-searched) downloads on the automatic path. The UI's own
+            # Retry button bypasses this flag.
+            return RetryOutcome(False, reason="Auto-retry disabled for manual downloads")
+
+        retry_count = self._store.retry_count(download_id)
+        if retry_count >= self._config.download.max_retries_per_track:
+            return RetryOutcome(False, reason="Max retries exceeded", exhausted=True)
+
+        # Re-read the search this track came from. slskd retains completed
+        # searches, so this works after a restart without musica keeping a
+        # copy — and it re-reads an existing search rather than starting a
+        # new one, so retry still picks from the same candidate pool.
+        search_id = original["search_id"]
+        responses = self._download_service.fetch_search_responses(search_id)
+        if not responses:
+            return RetryOutcome(False, reason="No search responses available for retry")
+
+        # Every peer this download was ever queued from is skipped, not just
+        # the one that just failed: a chain must never go A -> B -> A.
+        peer, candidate = self._pick_alternative_peer(
+            responses, self._store.tried_peers(download_id)
+        )
+        if not (peer and candidate):
+            return RetryOutcome(False, reason="No viable alternative peer")
+
+        self._store.move_to_peer(
+            download_id, peer, candidate["filename"], candidate.get("size", 0)
+        )
+        try:
+            result = self._download_service.queue(
+                peer, [candidate], search_id=search_id
+            )
+        except Exception as e:  # noqa: BLE001 — queue() can raise various impl-specific errors
+            self._store.set_state(download_id, "failed")
+            return RetryOutcome(False, reason=str(e))
+
+        if result.enqueued_count <= 0:
+            self._store.set_state(download_id, "failed")
+            return RetryOutcome(False, reason="Queue returned 0 enqueued")
+
+        self._store.mark_attempt_accepted(download_id)
+        self._abandon_at_slskd(slskd_id, username, filename)
+        logger.info("Retry queued: %s from %s", filename, peer)
+        return RetryOutcome(True, peer=peer)
+
+    def _abandon_at_slskd(self, transfer_id: str, username: str, filename: str) -> None:
+        """Drop the superseded transfer from slskd once a retry is queued.
+
+        Without this musica gives up on a peer while slskd keeps working on
+        it: a 'failed' state is often transient (queued-then-retried by
+        slskd itself, or a peer that comes back), so the original transfer
+        can complete *after* musica has already re-queued the same track
+        elsewhere — and both copies land. Live-confirmed 2026-08-11: a
+        Comfort Zone pull of 5 tracks downloaded 2 of them twice, from the
+        exact peer pairs this method would have separated (whitelamp+N+3 and
+        M3H9X+bob-bob-bob-123).
+
+        Best-effort: a failure here only risks the duplicate we already
+        have today, so it must never break the retry that just succeeded.
+        """
+        try:
+            removed = self._download_service.delete_transfer(transfer_id)
+        except Exception:
+            logger.warning(
+                "Could not remove superseded transfer %s from slskd; a "
+                "duplicate download may land if the original completes",
+                transfer_id,
+                exc_info=True,
+            )
+            return
+        if removed:
+            logger.info(
+                "Removed superseded transfer from slskd: %s / %s", username, filename
+            )
+        else:
+            logger.warning(
+                "slskd refused to remove superseded transfer %s / %s; a "
+                "duplicate download may land if the original completes",
+                username,
+                filename,
+            )
+
+    def _pick_alternative_peer(
+        self,
+        responses: list[dict],
+        skip_usernames: set[str],
+    ) -> tuple[str | None, dict | None]:
+        """Pick an alternative peer from search responses.
+
+        `skip_usernames` is every peer already tried for this download.
+        """
+        ban_seconds = self._config.download.peer_ban_days * 86400
+        for response in responses:
+            peer = response.get("username", "")
+            if not peer or peer in skip_usernames:
+                continue
+            if self._peers.is_blocked(peer, ban_seconds):
+                continue
+            if self._peers.failure_count(peer) >= self._config.download.bad_peer_threshold:
+                continue
+            if not response.get("hasFreeUploadSlot"):
+                continue
+
+            # Find first audio file
+            for f in response.get("files", []):
+                fname = f.get("filename", "")
+                ext = Path(fname).suffix.lower()
+                if ext in ALLOWED_EXTENSIONS:
+                    return (peer, {"filename": fname, "size": f.get("size", 0)})
+
+        return (None, None)
 
 
 class DownloadMonitor:
@@ -52,6 +224,7 @@ class DownloadMonitor:
         self._store = DownloadStore(database)
         self._peers = PeerStore(database)
         self._files = FileStore(database)
+        self._retrier = DownloadRetrier(config, download_service, database)
         self._event_hub = event_hub
         self.interval = interval or config.download.check_interval
         self._stopped = threading.Event()
@@ -279,109 +452,18 @@ class DownloadMonitor:
     # ------------------------------------------------------------------
 
     def _attempt_retry(self, download_id: int, transfer_id: str) -> tuple[bool, str]:
-        """Re-queue a failed download from an alternative peer.
-
-        `download_id` is our row (kept through every retry); `transfer_id` is
-        the slskd transfer that just failed or went missing, used only to
-        remove it from slskd. Shared by the reported-failure path and orphan
-        reconciliation, which need identical retry semantics.
+        """Automatic retry (failure and orphan paths): delegates to the shared
+        DownloadRetrier, with the manual-download gate applied.
 
         Returns (will_retry, error_message).
         """
-        original = self._store.get_with_request(download_id)
-        if original is None:
-            return (False, "Download row no longer exists")
-        username = original["username"]
-        filename = original["filename"]
-        is_manual = original["source"] != "rec"
-        if is_manual and not getattr(
-            self._config.download, "auto_retry_manual_soulseek", False
-        ):
-            # #57: a rec's auto-retry is unaffected — this only gates manual
-            # (user-searched) downloads. The UI's own Retry button bypasses
-            # this flag; only the automatic on-failure path is gated here.
-            return (False, "Auto-retry disabled for manual downloads")
-
-        retry_count = self._store.retry_count(download_id)
-        if retry_count >= self._config.download.max_retries_per_track:
-            return (False, "Max retries exceeded")
-
-        # Re-read the search this track came from. slskd retains completed
-        # searches, so this works after a restart without musica keeping a
-        # copy — and it re-reads an existing search rather than starting a
-        # new one, so retry still picks from the same candidate pool.
-        search_id = original["search_id"]
         try:
-            responses = self._download_service.fetch_search_responses(search_id)
+            outcome = self._retrier.retry(download_id, transfer_id)
         except SlskdConnectionError as e:
             return (False, str(e))
-        if not responses:
-            return (False, "No search responses available for retry")
-
-        # Every peer this download was ever queued from is skipped, not just
-        # the one that just failed: a chain must never go A -> B -> A.
-        peer, candidate = self._pick_alternative_peer(
-            responses, self._store.tried_peers(download_id)
-        )
-        if not (peer and candidate):
-            return (False, "No viable alternative peer")
-
-        self._store.move_to_peer(
-            download_id, peer, candidate["filename"], candidate.get("size", 0)
-        )
-        try:
-            result = self._download_service.queue(
-                peer, [candidate], search_id=search_id
-            )
-        except Exception as e:  # noqa: BLE001 — queue() can raise various impl-specific errors
-            self._store.set_state(download_id, "failed")
-            return (False, str(e))
-
-        if result.enqueued_count <= 0:
-            self._store.set_state(download_id, "failed")
-            return (False, "Queue returned 0 enqueued")
-
-        self._store.mark_attempt_accepted(download_id)
-        self._abandon_at_slskd(transfer_id, username, filename)
-        logger.info("Retry queued: %s from %s", filename, peer)
-        return (True, "")
-
-    def _abandon_at_slskd(self, transfer_id: str, username: str, filename: str) -> None:
-        """Drop the superseded transfer from slskd once a retry is queued.
-
-        Without this musica gives up on a peer while slskd keeps working on
-        it: a 'failed' state is often transient (queued-then-retried by
-        slskd itself, or a peer that comes back), so the original transfer
-        can complete *after* musica has already re-queued the same track
-        elsewhere — and both copies land. Live-confirmed 2026-08-11: a
-        Comfort Zone pull of 5 tracks downloaded 2 of them twice, from the
-        exact peer pairs this method would have separated (whitelamp+N+3 and
-        M3H9X+bob-bob-bob-123).
-
-        Best-effort: a failure here only risks the duplicate we already
-        have today, so it must never break the retry that just succeeded.
-        """
-        try:
-            removed = self._download_service.delete_transfer(transfer_id)
-        except Exception:
-            logger.warning(
-                "Could not remove superseded transfer %s from slskd; a "
-                "duplicate download may land if the original completes",
-                transfer_id,
-                exc_info=True,
-            )
-            return
-        if removed:
-            logger.info(
-                "Removed superseded transfer from slskd: %s / %s", username, filename
-            )
-        else:
-            logger.warning(
-                "slskd refused to remove superseded transfer %s / %s; a "
-                "duplicate download may land if the original completes",
-                username,
-                filename,
-            )
+        if outcome.queued:
+            return (True, "")
+        return (False, outcome.reason)
 
     # ------------------------------------------------------------------
     # Housekeeping
@@ -501,36 +583,6 @@ class DownloadMonitor:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-
-    def _pick_alternative_peer(
-        self,
-        responses: list[dict],
-        skip_usernames: set[str],
-    ) -> tuple[str | None, dict | None]:
-        """Pick an alternative peer from search responses.
-
-        `skip_usernames` is every peer already tried for this download.
-        """
-        ban_seconds = self._config.download.peer_ban_days * 86400
-        for response in responses:
-            peer = response.get("username", "")
-            if not peer or peer in skip_usernames:
-                continue
-            if self._peers.is_blocked(peer, ban_seconds):
-                continue
-            if self._peers.failure_count(peer) >= self._config.download.bad_peer_threshold:
-                continue
-            if not response.get("hasFreeUploadSlot"):
-                continue
-
-            # Find first audio file
-            for f in response.get("files", []):
-                fname = f.get("filename", "")
-                ext = Path(fname).suffix.lower()
-                if ext in ALLOWED_EXTENSIONS:
-                    return (peer, {"filename": fname, "size": f.get("size", 0)})
-
-        return (None, None)
 
     def _import_via_move(self, transfer, file_id: int) -> Path | None:
         """

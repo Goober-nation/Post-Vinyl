@@ -7,6 +7,7 @@ Exercises the 4 endpoints plus the global error format:
 """
 
 import tempfile
+import time
 from datetime import datetime, timezone
 
 import pytest
@@ -38,6 +39,9 @@ class FakeDownloadService(DownloadService):
         self.next_id = 1
         self.fail_queue = False  # Simulate slskd connection failure
         self.partial_fail = False  # Simulate partial batch failure
+        self.queue_calls: list[dict] = []
+        # search_id -> peer responses, as slskd would serve them for retry
+        self.search_responses: dict[str, list[dict]] = {}
 
     def _new_transfer(self, username, filename, size):
         transfer_id = f"transfer-{self.next_id}"
@@ -57,6 +61,9 @@ class FakeDownloadService(DownloadService):
         return transfer
 
     def queue(self, username, files, search_id=None, destination=None) -> QueueResult:
+        self.queue_calls.append(
+            {"username": username, "files": files, "search_id": search_id}
+        )
         if self.fail_queue:
             raise SlskdConnectionError("http://slskd:5030", "Connection refused")
         if self.partial_fail and len(files) > 1:
@@ -77,6 +84,9 @@ class FakeDownloadService(DownloadService):
 
     def get_status(self) -> list[Transfer]:
         return list(self.transfers.values())
+
+    def fetch_search_responses(self, search_id: str) -> list[dict]:
+        return list(self.search_responses.get(search_id, []))
 
     def retry(self, transfer_id: str) -> RetryResult:
         if transfer_id not in self.transfers:
@@ -258,7 +268,7 @@ class TestListTransfers:
 
             client.post(
                 "/api/queue",
-                json={"username": "peer1", "files": [{"filename": "song.mp3"}]},
+                json={"username": "peer1", "search_id": "search-queue-test", "files": [{"filename": "song.mp3"}]},
             )
             transfer_id = client.get("/api/transfers").json()[0]["transfer_id"]
             service.transfers[transfer_id].state = "completed"
@@ -275,6 +285,7 @@ class TestListTransfers:
             "/api/queue",
             json={
                 "username": "peer1",
+                "search_id": "search-queue-test",
                 "files": [{"filename": "song.mp3", "size": 5242880}],
             },
         )
@@ -327,6 +338,7 @@ class TestQueue:
             "/api/queue",
             json={
                 "username": "peer1",
+                "search_id": "search-queue-test",
                 "files": [
                     {"filename": "ok.mp3", "size": 100},
                     {"filename": "bad.mp3", "size": 200},
@@ -346,6 +358,7 @@ class TestQueue:
             "/api/queue",
             json={
                 "username": "peer1",
+                "search_id": "search-queue-test",
                 "files": [{"filename": "song.mp3", "size": 100}],
                 "destination": "/music/Discovery/peer1",
             },
@@ -358,6 +371,7 @@ class TestQueue:
             "/api/queue",
             json={
                 "username": "peer1",
+                "search_id": "search-queue-test",
                 "files": [{"filename": "song.mp3", "size": 100}],
                 "destination": "/music/downloads/../../etc",
             },
@@ -372,12 +386,39 @@ class TestQueue:
         assert resp.status_code == 400
         assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
 
+    def test_queue_without_search_id_400(self, client, service):
+        """Every download is tracked against the search it came from, so a
+        queue request with no search_id is rejected and nothing is sent to
+        slskd."""
+        resp = client.post(
+            "/api/queue",
+            json={"username": "peer1", "files": [{"filename": "song.mp3"}]},
+        )
+
+        assert resp.status_code == 400
+        assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+        assert service.queue_calls == []
+
+    def test_queue_blank_search_id_400(self, client, service):
+        resp = client.post(
+            "/api/queue",
+            json={
+                "username": "peer1",
+                "files": [{"filename": "song.mp3"}],
+                "search_id": "   ",
+            },
+        )
+
+        assert resp.status_code == 400
+        assert service.queue_calls == []
+
     def test_queue_blank_username(self, client):
         """Whitespace-only username returns 400."""
         resp = client.post(
             "/api/queue",
             json={
                 "username": "   ",
+                "search_id": "search-queue-test",
                 "files": [{"filename": "song.mp3"}],
             },
         )
@@ -386,7 +427,7 @@ class TestQueue:
 
     def test_queue_empty_files(self, client):
         """Empty files list returns 400."""
-        resp = client.post("/api/queue", json={"username": "peer1", "files": []})
+        resp = client.post("/api/queue", json={"username": "peer1", "search_id": "search-queue-test", "files": []})
 
         assert resp.status_code == 400
 
@@ -396,6 +437,7 @@ class TestQueue:
             "/api/queue",
             json={
                 "username": "peer1",
+                "search_id": "search-queue-test",
                 "files": [{"size": 100}],
             },
         )
@@ -408,6 +450,7 @@ class TestQueue:
             "/api/queue",
             json={
                 "username": "peer1",
+                "search_id": "search-queue-test",
                 "files": [{"filename": "song.mp3", "size": -5}],
             },
         )
@@ -422,6 +465,7 @@ class TestQueue:
             "/api/queue",
             json={
                 "username": "peer1",
+                "search_id": "search-queue-test",
                 "files": [{"filename": "song.mp3"}],
             },
         )
@@ -477,24 +521,149 @@ class TestQueue:
 # ============================================================================
 
 
+PEER1_RESPONSE = {
+    "username": "peer1",
+    "hasFreeUploadSlot": True,
+    "files": [{"filename": "song.mp3", "size": 100}],
+}
+PEER2_RESPONSE = {
+    "username": "peer2",
+    "hasFreeUploadSlot": True,
+    "files": [{"filename": "song.mp3", "size": 100}],
+}
+
+
+def _failed_download(client, service, search_id="search-retry-1", responses=None):
+    """Queue song.mp3 from peer1 and make slskd report it failed.
+
+    Returns slskd's transfer id, which is what the Retry button sends.
+    """
+    client.post(
+        "/api/queue",
+        json={
+            "username": "peer1",
+            "files": [{"filename": "song.mp3", "size": 100}],
+            "search_id": search_id,
+        },
+    )
+    transfer_id = client.get("/api/transfers").json()[0]["transfer_id"]
+    # The monitor adopts slskd's transfer into the queued row before the UI
+    # can show it, so the Retry button only ever sees adopted rows.
+    DownloadStore(client.app.state.db).adopt("peer1", "song.mp3", transfer_id)
+    service.transfers[transfer_id].state = "failed"
+    service.search_responses[search_id] = (
+        [PEER1_RESPONSE, PEER2_RESPONSE] if responses is None else responses
+    )
+    return transfer_id
+
+
 class TestRetry:
-    def test_retry_success(self, client):
-        """Retry returns success with new transfer id."""
-        client.post(
-            "/api/queue",
-            json={
-                "username": "peer1",
-                "files": [{"filename": "song.mp3"}],
-            },
-        )
-        transfer_id = client.get("/api/transfers").json()[0]["transfer_id"]
+    def test_retry_requeues_the_same_row_from_another_peer(self):
+        """The Retry button runs the monitor's DB-backed retry: the download
+        keeps its one row, moves to a peer it hasn't tried, and the failed
+        slskd transfer is removed so it cannot land as a duplicate."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db, service, client = _app_with_db(tmpdir)
+            transfer_id = _failed_download(client, service)
 
-        resp = client.post(f"/api/queue/retry/{transfer_id}")
+            resp = client.post(f"/api/queue/retry/{transfer_id}")
 
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["success"] is True
-        assert body["new_transfer_id"]
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body["success"] is True
+            assert body["message"] == "Retrying from peer2"
+            assert body["new_transfer_id"] is None
+
+            rows = db.fetch_all("SELECT id, username, state FROM downloads")
+            assert len(rows) == 1
+            assert rows[0]["username"] == "peer2"
+            assert rows[0]["state"] == "queued"
+            assert DownloadStore(db).retry_count(rows[0]["id"]) == 1
+
+            assert service.queue_calls[-1]["username"] == "peer2"
+            assert service.queue_calls[-1]["search_id"] == "search-retry-1"
+            assert transfer_id not in service.transfers
+            db.close()
+
+    def test_retry_button_bypasses_the_auto_retry_manual_gate(self):
+        """auto_retry_manual_soulseek is off by default, which only stops
+        the automatic path. The button is an explicit request and still
+        retries a manual download."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db, service, client = _app_with_db(tmpdir)
+            assert client.app.state.config.download.auto_retry_manual_soulseek is False
+            transfer_id = _failed_download(client, service)
+
+            resp = client.post(f"/api/queue/retry/{transfer_id}")
+
+            assert resp.status_code == 200
+            assert service.queue_calls[-1]["username"] == "peer2"
+            db.close()
+
+    def test_retry_never_tries_a_peer_twice(self):
+        """Every peer the row has been queued from is skipped: once peer2
+        has failed too, the only peer left is peer1, already tried."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db, service, client = _app_with_db(tmpdir)
+            transfer_id = _failed_download(client, service)
+            assert client.post(f"/api/queue/retry/{transfer_id}").status_code == 200
+
+            peer2_transfer = next(
+                t for t in client.get("/api/transfers").json() if t["username"] == "peer2"
+            )
+            DownloadStore(db).adopt("peer2", "song.mp3", peer2_transfer["transfer_id"])
+            service.transfers[peer2_transfer["transfer_id"]].state = "failed"
+
+            resp = client.post(f"/api/queue/retry/{peer2_transfer['transfer_id']}")
+
+            assert resp.status_code == 500
+            assert resp.json()["error"]["code"] == "NO_VIABLE_PEER"
+            assert [c["username"] for c in service.queue_calls] == ["peer1", "peer2"]
+            db.close()
+
+    def test_retry_budget_exhausted_500(self):
+        """Once max_retries_per_track retries are used up (default 3), the
+        button refuses with MAX_RETRIES_EXCEEDED."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db, service, client = _app_with_db(tmpdir)
+            transfer_id = _failed_download(client, service)
+            row = DownloadStore(db).get_by_slskd_id(transfer_id)
+            for n in range(3):
+                db.execute(
+                    "INSERT INTO download_attempts (download_id, username, attempted_at) "
+                    "VALUES (?, ?, ?)",
+                    (row["id"], f"extra-peer-{n}", int(time.time())),
+                )
+
+            resp = client.post(f"/api/queue/retry/{transfer_id}")
+
+            assert resp.status_code == 500
+            assert resp.json()["error"]["code"] == "MAX_RETRIES_EXCEEDED"
+            assert len(service.queue_calls) == 1
+            db.close()
+
+    def test_retry_no_viable_peer_500(self):
+        """Only the peer that already failed is in the search: no alternative."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db, service, client = _app_with_db(tmpdir)
+            transfer_id = _failed_download(client, service, responses=[PEER1_RESPONSE])
+
+            resp = client.post(f"/api/queue/retry/{transfer_id}")
+
+            assert resp.status_code == 500
+            assert resp.json()["error"]["code"] == "NO_VIABLE_PEER"
+            db.close()
+
+    def test_retry_with_no_search_responses_500(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db, service, client = _app_with_db(tmpdir)
+            transfer_id = _failed_download(client, service, responses=[])
+
+            resp = client.post(f"/api/queue/retry/{transfer_id}")
+
+            assert resp.status_code == 500
+            assert resp.json()["error"]["code"] == "NO_VIABLE_PEER"
+            db.close()
 
     def test_retry_not_found(self, client):
         """Unknown transfer returns 404 TRANSFER_NOT_FOUND."""
@@ -503,43 +672,20 @@ class TestRetry:
         assert resp.status_code == 404
         assert resp.json()["error"]["code"] == "TRANSFER_NOT_FOUND"
 
-    def test_retry_no_viable_peer_500(self, client, service):
-        """NoViablePeerError maps to 500."""
-        service.retry = lambda transfer_id: (_ for _ in ()).throw(
-            NoViablePeerError("song.mp3", "No alternative peer with free upload slot")
-        )
-        client.post(
-            "/api/queue",
-            json={
-                "username": "peer1",
-                "files": [{"filename": "song.mp3"}],
-            },
-        )
-        transfer_id = client.get("/api/transfers").json()[0]["transfer_id"]
+    def test_retry_not_found_when_slskd_id_has_no_row(self):
+        """A transfer slskd reports but this app never started has no row,
+        so there is nothing to retry."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db, service, client = _app_with_db(tmpdir)
+            service._new_transfer("peer9", "other.mp3", 100)
+            transfer_id = next(iter(service.transfers))
+            service.transfers[transfer_id].state = "failed"
 
-        resp = client.post(f"/api/queue/retry/{transfer_id}")
+            resp = client.post(f"/api/queue/retry/{transfer_id}")
 
-        assert resp.status_code == 500
-        assert resp.json()["error"]["code"] == "NO_VIABLE_PEER"
-
-    def test_retry_max_retries_500(self, client, service):
-        """MaxRetriesExceededError maps to 500."""
-        service.retry = lambda transfer_id: (_ for _ in ()).throw(
-            MaxRetriesExceededError(transfer_id, 3)
-        )
-        client.post(
-            "/api/queue",
-            json={
-                "username": "peer1",
-                "files": [{"filename": "song.mp3"}],
-            },
-        )
-        transfer_id = client.get("/api/transfers").json()[0]["transfer_id"]
-
-        resp = client.post(f"/api/queue/retry/{transfer_id}")
-
-        assert resp.status_code == 500
-        assert resp.json()["error"]["code"] == "MAX_RETRIES_EXCEEDED"
+            assert resp.status_code == 404
+            assert resp.json()["error"]["code"] == "TRANSFER_NOT_FOUND"
+            db.close()
 
 
 # ============================================================================
@@ -554,6 +700,7 @@ class TestCancel:
             "/api/queue",
             json={
                 "username": "peer1",
+                "search_id": "search-queue-test",
                 "files": [{"filename": "song.mp3"}],
             },
         )
@@ -584,6 +731,7 @@ class TestDeleteFinished:
             "/api/queue",
             json={
                 "username": "peer1",
+                "search_id": "search-queue-test",
                 "files": [
                     {"filename": "a.mp3"},
                     {"filename": "b.mp3"},
@@ -676,7 +824,7 @@ class TestDeleteFinished:
             ) as client:
                 resp = await client.post(
                     "/api/queue",
-                    json={"username": "peer1", "files": [{"filename": "song.mp3"}]},
+                    json={"username": "peer1", "search_id": "search-queue-test", "files": [{"filename": "song.mp3"}]},
                 )
                 assert resp.status_code == 201
 
@@ -692,33 +840,28 @@ class TestDeleteFinished:
 
         import httpx
 
-        async def _run():
-            service = FakeDownloadService()
-            app = create_app(download_service=service)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db, service, sync_client = _app_with_db(tmpdir)
+            app = sync_client.app
             hub = app.state.event_hub
+            transfer_id = _failed_download(sync_client, service)
 
-            transport = httpx.ASGITransport(app=app)
-            async with httpx.AsyncClient(
-                transport=transport, base_url="http://test"
-            ) as client:
-                await client.post(
-                    "/api/queue",
-                    json={"username": "peer1", "files": [{"filename": "song.mp3"}]},
-                )
-                transfer_id = (await client.get("/api/transfers")).json()[0][
-                    "transfer_id"
-                ]
+            async def _run():
+                transport = httpx.ASGITransport(app=app)
+                async with httpx.AsyncClient(
+                    transport=transport, base_url="http://test"
+                ) as client:
+                    sub = hub.subscribe({"transfer"})
+                    resp = await client.post(f"/api/queue/retry/{transfer_id}")
+                    assert resp.status_code == 200
 
-                sub = hub.subscribe({"transfer"})
-                resp = await client.post(f"/api/queue/retry/{transfer_id}")
-                assert resp.status_code == 200
+                event = await asyncio.wait_for(sub.queue.get(), 2.0)
+                assert event.event_type == "transfer.retried"
+                assert event.data["success"] is True
+                hub.unsubscribe(sub)
 
-            event = await asyncio.wait_for(sub.queue.get(), 2.0)
-            assert event.event_type == "transfer.retried"
-            assert event.data["success"] is True
-            hub.unsubscribe(sub)
-
-        asyncio.run(_run())
+            asyncio.run(_run())
+            db.close()
 
     def test_cancel_emits_transfer_cancelled(self):
         import asyncio
@@ -736,7 +879,7 @@ class TestDeleteFinished:
             ) as client:
                 await client.post(
                     "/api/queue",
-                    json={"username": "peer1", "files": [{"filename": "song.mp3"}]},
+                    json={"username": "peer1", "search_id": "search-queue-test", "files": [{"filename": "song.mp3"}]},
                 )
                 transfer_id = (await client.get("/api/transfers")).json()[0][
                     "transfer_id"
@@ -769,7 +912,7 @@ class TestDeleteFinished:
             ) as client:
                 await client.post(
                     "/api/queue",
-                    json={"username": "peer1", "files": [{"filename": "song.mp3"}]},
+                    json={"username": "peer1", "search_id": "search-queue-test", "files": [{"filename": "song.mp3"}]},
                 )
                 transfer_id = (await client.get("/api/transfers")).json()[0][
                     "transfer_id"
