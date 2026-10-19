@@ -41,9 +41,23 @@ class FileStore:
             "SELECT * FROM file_management WHERE stage = 'pending' ORDER BY id"
         )
 
+    def pending_for(self, username: str, filename: str) -> dict | None:
+        """The newest file row for this peer file that is still 'pending'.
+
+        None means there is nothing left for the monitor to place: the file
+        was already moved or given up on, or no download completed for it.
+        """
+        return self._db.fetch_one(
+            "SELECT * FROM file_management WHERE username = ? AND filename = ? "
+            "AND stage = 'pending' ORDER BY id DESC LIMIT 1",
+            (username, filename),
+        )
+
     def mark_moved(self, file_id: int, placed_path: str) -> None:
         """Record a successful move. `placed_path` is relative to the
         library root and includes the final filename."""
+        if not placed_path:
+            raise ValueError("placed_path must be set when a file is marked moved")
         self._db.execute(
             "UPDATE file_management SET stage = 'moved', placed_path = ? WHERE id = ?",
             (placed_path, file_id),

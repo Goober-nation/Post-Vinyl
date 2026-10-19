@@ -77,12 +77,14 @@ class DownloadStore:
         size: int | None = None,
         is_rec: bool = False,
         mb_recording_id: str | None = None,
+        source: str | None = None,
     ) -> int:
         """Create the request, search and download rows for one queued file.
 
         Writes, in one transaction:
-          - a `requests` row (source 'rec' or 'slskd', with the MusicBrainz
-            recording id when given);
+          - a `requests` row (source 'rec' or 'slskd' unless `source` says
+            otherwise, e.g. 'catalog', with the MusicBrainz recording id when
+            given);
           - a `slskd_searches` row for `search_id`, only if it does not exist
             yet. An existing row keeps its request_id: a search may serve
             several requests, and the first one owns it;
@@ -98,7 +100,7 @@ class DownloadStore:
             request_id = conn.execute(
                 "INSERT INTO requests (source, mbid, created_at, last_used_at) "
                 "VALUES (?, ?, ?, ?)",
-                ("rec" if is_rec else "slskd", mb_recording_id, now, now),
+                (source or ("rec" if is_rec else "slskd"), mb_recording_id, now, now),
             ).lastrowid
             exists = conn.execute(
                 "SELECT 1 FROM slskd_searches WHERE id = ?", (search_id,)
@@ -234,6 +236,25 @@ class DownloadStore:
         return self._db.fetch_one(
             "SELECT * FROM downloads WHERE slskd_id = ?", (slskd_id,)
         )
+
+    def get_transfers_by_state(self, state: str) -> list[dict]:
+        return self._db.fetch_all(
+            "SELECT * FROM downloads WHERE state = ? ORDER BY id", (state,)
+        )
+
+    def get_pending_search_id(self, username: str, filename: str) -> str | None:
+        """The search a file was queued from, for the newest row that has it.
+
+        Replaces the old pending-row lookup. Retry re-reads that search's
+        responses from slskd rather than starting a new one. None when no row
+        exists for this peer file.
+        """
+        row = self._db.fetch_one(
+            "SELECT search_id FROM downloads WHERE username = ? AND filename = ? "
+            "ORDER BY id DESC LIMIT 1",
+            (username, filename),
+        )
+        return row["search_id"] if row else None
 
     def get_with_request(self, download_id: int) -> dict | None:
         """A download plus its request's source and mbid."""
