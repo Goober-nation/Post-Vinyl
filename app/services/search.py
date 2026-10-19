@@ -372,9 +372,21 @@ class SlskdSearch(SearchService):
         """
         List all search jobs, newest first (ties broken by search_id).
 
+        Jobs still marked "searching" are refreshed from slskd first, the same
+        way the detail endpoint does, so the list does not report a finished
+        search as in progress. A job that cannot be refreshed keeps its cached
+        status and is logged.
+
         Returns:
             List of SearchJob objects
         """
+        for job in list(self._searches.values()):
+            if job.status != "searching":
+                continue
+            try:
+                self.get_status(job.search_id)
+            except (SlskdConnectionError, SearchNotFoundError) as exc:
+                logger.warning(f"Could not refresh search {job.search_id} for list: {exc}")
         return sorted(
             self._searches.values(),
             key=lambda job: (job.created_at, job.search_id),
