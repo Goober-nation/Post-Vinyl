@@ -10,16 +10,15 @@ and once at startup when enabled:
 2. Best-effort the same for upload history when the download service
    exposes it — the endpoint exists on slskd 0.26.0 (live-verified), but a
    missing or failing upload surface must never block download cleanup.
-
-Discovered live 2026-08-14: slskd's accumulated transfer history congested
-the stack — searches and queue attempts degraded, and clearing the history
-restored normal operation. This worker does that on a timer.
-
 3. Delete handed-off downloads locally (design "Delivery", 2026-10-03). A
    completed download whose file is no longer pending placement is done:
    its download row (and its attempts, by cascade) is deleted too. The row
    goes only once its slskd record is removed or slskd no longer lists it,
    so a refused removal is retried with the row still in place.
+
+Discovered live 2026-08-14: slskd's accumulated transfer history congested
+the stack — searches and queue attempts degraded, and clearing the history
+restored normal operation. This worker does that on a timer.
 
 Deliberate semantics (user decisions 2026-08-14, amended by the design):
 
