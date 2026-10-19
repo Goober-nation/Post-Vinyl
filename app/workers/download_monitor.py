@@ -742,16 +742,13 @@ class DownloadMonitor:
 
     def _resolve_source_path(self, transfer) -> Path | None:
         """
-        Locate a completed transfer's file on disk under slskd's download
-        directory. Tries the exact reported path first (matches slskd's own
-        directory structure when it's preserved locally); falls back to a
-        basename search only when that fails, since two downloads from
-        different peers sharing a basename can otherwise match the wrong
-        file — the defect the old `_move_file()` had unconditionally.
+        Locate a completed transfer's file on disk under the peer's own
+        download folder, by filename. The peer's folder layout is not
+        reproduced locally, so the reported path is not used. Searching only
+        under this peer's folder keeps two peers' identical filenames apart.
         """
         username = transfer.username
-        filename = transfer.filename.replace("\\", "/")
-        basename = filename.rsplit("/", 1)[-1]
+        filename = transfer.filename.replace("\\", "/").rsplit("/", 1)[-1]
 
         source_dir = (
             self._config.paths.download_path / "complete" / "soulseek" / username
@@ -760,22 +757,11 @@ class DownloadMonitor:
             logger.warning("Source dir not found: %s", source_dir)
             return None
 
-        direct = source_dir / filename
-        if direct.is_file():
-            return direct
-
         for candidate in source_dir.glob("**/*"):
-            if candidate.is_file() and candidate.name == basename:
-                logger.warning(
-                    "Exact path not found under %s; matched by basename %s "
-                    "instead — verify no other in-flight download shares "
-                    "this filename",
-                    source_dir,
-                    basename,
-                )
+            if candidate.is_file() and candidate.name == filename:
                 return candidate
 
         logger.warning(
-            "File not found in source dir: %s (basename: %s)", source_dir, basename
+            "File not found in source dir: %s (filename: %s)", source_dir, filename
         )
         return None
