@@ -97,7 +97,6 @@ class SearchDetailResponse(BaseModel):
 
     search: SearchResponse
     results: list[SearchResultResponse]
-    expired: bool = False
 
 
 class SearchProgressResponse(BaseModel):
@@ -224,7 +223,6 @@ def get_search(
     return {
         "search": _job_to_dict(job),
         "results": [_result_to_dict(result) for result in results],
-        "expired": False,
     }
 
 
