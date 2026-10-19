@@ -9,6 +9,7 @@ import pytest
 
 from app.db.database import Database
 from app.db.download_store import DownloadStore
+from app.db.file_store import FileStore
 from app.services.interfaces.download import Transfer
 from app.workers.history_cleaner import HistoryCleaner
 
@@ -175,6 +176,78 @@ class TestDownloadCleanup:
 
         assert result["deleted_downloads"] == 0
         assert result["failed_downloads"] == 0
+
+
+class TestHandedOffRows:
+    """Design "Delivery": a completed download whose file has left pending
+    placement is done. Its row (and its attempts, by cascade) is deleted
+    locally once its slskd record is removed, or once slskd no longer lists it.
+    """
+
+    def _completed_download(self, db, tid, filename="song.mp3", *, placed=True):
+        store = DownloadStore(db)
+        store.insert_pending("search-h", "peer1", filename, 1000, False)
+        row = store.adopt("peer1", filename, tid)
+        store.set_state(row["id"], "completed")
+        if placed:
+            pending = FileStore(db).pending_for("peer1", filename)
+            FileStore(db).mark_moved(pending["id"], f"new-system-tests/{filename}")
+        return row["id"]
+
+    def test_handed_off_download_is_removed_at_slskd_and_locally(self, db):
+        row_id = self._completed_download(db, "t-done")
+        service = FakeDownloadService(
+            transfers=[_transfer("t-done", "peer1", "song.mp3", "completed")]
+        )
+        cleaner = _make_cleaner(_make_config(), service, database=db)
+
+        result = cleaner.clean_once()
+
+        assert service.deleted == ["t-done"]
+        assert result["deleted_rows"] == 1
+        assert DownloadStore(db).get(row_id) is None
+        assert db.fetch_one("SELECT COUNT(*) AS n FROM download_attempts")["n"] == 0
+        # The file's own record is what outlives the download row.
+        files = db.fetch_all("SELECT stage FROM file_management")
+        assert [f["stage"] for f in files] == ["moved"]
+
+    def test_row_is_kept_when_slskd_refuses_the_removal(self, db):
+        row_id = self._completed_download(db, "t-stuck")
+        service = FakeDownloadService(
+            transfers=[_transfer("t-stuck", "peer1", "song.mp3", "completed")],
+            delete_result=False,
+        )
+        cleaner = _make_cleaner(_make_config(), service, database=db)
+
+        result = cleaner.clean_once()
+
+        assert result["failed_downloads"] == 1
+        assert result["deleted_rows"] == 0
+        assert DownloadStore(db).get(row_id)["state"] == "completed"
+
+    def test_row_is_deleted_once_slskd_no_longer_lists_it(self, db):
+        row_id = self._completed_download(db, "t-forgotten")
+        service = FakeDownloadService(transfers=[])
+        cleaner = _make_cleaner(_make_config(), service, database=db)
+
+        result = cleaner.clean_once()
+
+        assert result["deleted_rows"] == 1
+        assert DownloadStore(db).get(row_id) is None
+
+    def test_download_still_awaiting_placement_keeps_its_row(self, db):
+        row_id = self._completed_download(db, "t-pending", placed=False)
+        service = FakeDownloadService(
+            transfers=[_transfer("t-pending", "peer1", "song.mp3", "completed")]
+        )
+        cleaner = _make_cleaner(_make_config(), service, database=db)
+
+        result = cleaner.clean_once()
+
+        assert result["skipped"] == 1
+        assert service.deleted == []
+        assert result["deleted_rows"] == 0
+        assert DownloadStore(db).get(row_id) is not None
 
 
 class TestUploadCleanup:

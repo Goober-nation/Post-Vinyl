@@ -325,9 +325,21 @@ class DownloadStore:
     # ------------------------------------------------------------------
 
     def handed_off(self) -> list[dict]:
-        """Completed downloads. Their file is already tracked in
-        file_management, so the row and slskd's record can both go."""
-        return self._db.fetch_all("SELECT * FROM downloads WHERE state = 'completed'")
+        """Completed downloads whose file is no longer pending placement.
+
+        The file_management row for a completed download is created by the
+        handoff trigger and stays 'pending' until the file is moved, found
+        missing, or unindexed. Once it has left 'pending' the download row
+        and slskd's record can both go. While it is still pending the
+        monitor still needs slskd to report the transfer so it can move the
+        file, so those rows are not returned.
+        """
+        return self._db.fetch_all(
+            "SELECT d.* FROM downloads d WHERE d.state = 'completed' AND NOT EXISTS ("
+            "  SELECT 1 FROM file_management f "
+            "  WHERE f.username = d.username AND f.filename = d.filename "
+            "  AND f.stage = 'pending')"
+        )
 
     def delete(self, download_ids: list[int]) -> int:
         """Delete download rows (their attempts cascade). Returns rowcount."""

@@ -90,8 +90,9 @@ missing_source_timeout_minutes = 5 # How long to keep retrying to find a complet
 history_clear_interval_minutes = 15 # How often (minutes) slskd's terminal transfer history is
                            # cleared automatically. 0 disables. Found live 2026-08-14: accumulated
                            # slskd download history congested the stack; clearing it restored
-                           # normal operation. Only slskd-side records are removed; musica's own
-                           # rows are kept, and failed removals are retried next cycle.
+                           # normal operation. slskd records are removed; a completed download whose
+                           # file is handed off is also deleted locally. Failed and cancelled rows
+                           # are kept, and failed removals are retried next cycle.
 start_timeout_secs = 600   # Stalled-transfer rule: a queued transfer not started within this many
                            # seconds of its latest attempt is failed and retried from another peer.
                            # A downloading transfer whose speed stays under min_speed_kbps for this

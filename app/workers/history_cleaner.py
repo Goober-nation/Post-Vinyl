@@ -15,12 +15,18 @@ Discovered live 2026-08-14: slskd's accumulated transfer history congested
 the stack — searches and queue attempts degraded, and clearing the history
 restored normal operation. This worker does that on a timer.
 
-Deliberate semantics (user decisions 2026-08-14):
+3. Delete handed-off downloads locally (design "Delivery", 2026-10-03). A
+   completed download whose file is no longer pending placement is done:
+   its download row (and its attempts, by cascade) is deleted too. The row
+   goes only once its slskd record is removed or slskd no longer lists it,
+   so a refused removal is retried with the row still in place.
 
-- **Local rows are kept.** Only slskd-side records are removed; musica's
-  own bookkeeping (import tracking, retry state, the transfers UI's DB
-  views) is untouched. Failed retry candidates in the UI remain visible
-  even though slskd forgot the underlying record.
+Deliberate semantics (user decisions 2026-08-14, amended by the design):
+
+- **Failed and cancelled rows are kept.** Only slskd-side records are
+  removed for them, so failed retry candidates stay visible in the UI even
+  though slskd forgot the underlying record. Handed-off completed rows are
+  the exception above; the file's record lives on in file_management.
 - **Failed removals are retried.** A refused or timed-out deletion leaves
   the slskd record in place and the pass just counts it as failed; the next
   cycle tries again.
@@ -117,6 +123,7 @@ class HistoryCleaner:
             "deleted_uploads": 0,
             "failed_uploads": 0,
             "skipped": 0,
+            "deleted_rows": 0,
         }
 
         try:
@@ -125,6 +132,8 @@ class HistoryCleaner:
             logger.warning("HistoryCleaner: cannot reach slskd: %s", e)
             return result
 
+        listed = {transfer.transfer_id for transfer in transfers}
+        removed: set[str] = set()
         for transfer in transfers:
             if transfer.state not in FINISHED_STATES:
                 continue
@@ -147,23 +156,44 @@ class HistoryCleaner:
                 ok = False
             if ok:
                 result["deleted_downloads"] += 1
+                removed.add(transfer.transfer_id)
             else:
                 result["failed_downloads"] += 1
 
         self._clean_uploads(result)
+        result["deleted_rows"] = self._delete_handed_off_rows(listed, removed)
 
         logger.info(
             "HistoryCleaner: %d download(s) cleared, %d failed, %d skipped; "
-            "%d upload(s) cleared, %d failed",
+            "%d local row(s) deleted; %d upload(s) cleared, %d failed",
             result["deleted_downloads"],
             result["failed_downloads"],
             result["skipped"],
+            result["deleted_rows"],
             result["deleted_uploads"],
             result["failed_uploads"],
         )
         if self._event_hub is not None:
             self._event_hub.publish("system.history_cleaned", result)
         return result
+
+    def _delete_handed_off_rows(self, listed: set[str], removed: set[str]) -> int:
+        """Delete local rows of handed-off completed downloads.
+
+        A row goes once its slskd record is gone: removed just now, or no
+        longer listed by slskd. A row whose slskd removal was refused stays,
+        so the next cycle retries it with the row still in place.
+        """
+        if self._store is None:
+            return 0
+        row_ids = [
+            row["id"]
+            for row in self._store.handed_off()
+            if row["slskd_id"] is None
+            or row["slskd_id"] in removed
+            or row["slskd_id"] not in listed
+        ]
+        return self._store.delete(row_ids)
 
     def _clean_uploads(self, result: dict) -> None:
         """Best-effort pass over slskd's upload history, if supported.

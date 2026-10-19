@@ -1031,9 +1031,10 @@ class DownloadConfig:
         # How often (minutes) slskd's terminal transfer history (completed /
         # failed / cancelled) is cleared automatically (P6.9-7). 0 disables.
         # Found live 2026-08-14: slskd's accumulated download history
-        # congested the stack; clearing it restored normal operation. Local
-        # musica bookkeeping rows are deliberately kept — only slskd-side
-        # records are removed, and failed removals are retried next cycle.
+        # congested the stack; clearing it restored normal operation. slskd
+        # records are removed; a completed download whose file is handed off
+        # is also deleted locally. Failed and cancelled rows are kept, and
+        # failed removals are retried next cycle.
         self.history_clear_interval_minutes: int = 15
         # Stalled-transfer rule (DownloadMonitor). A queued transfer with no
         # start within start_timeout_secs of its latest attempt is failed, and
