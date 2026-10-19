@@ -134,7 +134,7 @@ class HistoryCleaner:
             if (
                 transfer.state == "completed"
                 and self._store is not None
-                and self._store.import_pending(transfer.transfer_id)
+                and self._store.import_pending(transfer.username, transfer.filename)
             ):
                 result["skipped"] += 1
                 continue

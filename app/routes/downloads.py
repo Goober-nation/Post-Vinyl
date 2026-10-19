@@ -189,7 +189,7 @@ def _transfer_to_dict(transfer: Transfer, store: DownloadStore | None) -> dict:
     if (
         state == "completed"
         and store is not None
-        and store.import_pending(transfer.transfer_id)
+        and store.import_pending(transfer.username, transfer.filename)
     ):
         state = "importing"
     return {
@@ -256,28 +256,38 @@ def queue_downloads(
         f"POST /api/queue: username='{body.username}', files={len(files)}, "
         f"search_id={body.search_id}"
     )
-    result = download_service.queue(
-        body.username,
-        files,
-        search_id=body.search_id,
-        destination=body.destination,
-    )
 
-    # Persist pending download rows for enqueued files
-    if db is not None and result.enqueued_count > 0 and body.search_id:
+    # Rows are written before slskd is asked to queue anything, so every
+    # transfer slskd could start has a row to be adopted into. Needs a real
+    # search_id (the row's FK); without one nothing is tracked.
+    data_service = None
+    rows: list[tuple[str, int]] = []
+    if db is not None and body.search_id:
         is_rec = bool(body.destination and "discovery" in body.destination.lower())
         data_service = DownloadDataService(db)
-        persisted = data_service.record_queued_files(
-            body.search_id,
-            body.username,
-            body.files,
-            result.failures,
-            is_rec,
+        rows = data_service.queue_rows(
+            body.search_id, body.username, body.files, is_rec
         )
+
+    try:
+        result = download_service.queue(
+            body.username,
+            files,
+            search_id=body.search_id,
+            destination=body.destination,
+        )
+    except Exception:
+        if data_service is not None:
+            data_service.abandon_queued(rows)
+        raise
+
+    if data_service is not None:
+        accepted = data_service.settle_queued(rows, result.failures)
         logger.info(
-            "Persisted %d pending download rows (search_id=%s)",
-            persisted,
+            "Recorded %d queued download rows (search_id=%s, accepted=%d)",
+            len(rows),
             body.search_id,
+            accepted,
         )
 
     event_hub.publish(
@@ -364,7 +374,7 @@ def delete_finished_transfers(
         and (
             t.state != "completed"
             or store is None
-            or not store.import_pending(t.transfer_id)
+            or not store.import_pending(t.username, t.filename)
         )
     ]
 

@@ -18,6 +18,7 @@ import time
 import uuid
 
 from app.db.download_store import DownloadStore
+from app.db.peer_store import PeerStore
 from app.exceptions import ServiceConnectionError
 from app.logging_config import get_logger
 from app.services import track_requester
@@ -122,7 +123,8 @@ def _resolve_one(
         )
         return False
 
-    peer_store = DownloadStore(db) if db is not None else None
+    download_store = DownloadStore(db) if db is not None else None
+    peer_store = PeerStore(db) if db is not None else None
     candidates = [result for result in best_filtered if result.has_free_slot]
     if peer_store is not None:
         ban_seconds = (
@@ -132,8 +134,8 @@ def _resolve_one(
         candidates = [
             result
             for result in candidates
-            if not peer_store.is_peer_blocked(result.username, ban_seconds)
-            and peer_store.get_peer_failure_count(result.username) < threshold
+            if not peer_store.is_blocked(result.username, ban_seconds)
+            and peer_store.failure_count(result.username) < threshold
         ]
 
     unused = [result for result in candidates if result.username not in used_peers]
@@ -145,6 +147,20 @@ def _resolve_one(
         int(getattr(getattr(config, "download", None), "max_retries_per_track", 5)),
     )
     for result in ordered[:max_attempts]:
+        # The row is written before slskd is asked, as every queue call does.
+        # A candidate slskd refuses keeps its row as 'failed' (its attempt is
+        # recorded with success = 0).
+        row_id = None
+        if download_store is not None:
+            row_id = download_store.insert_pending(
+                search_id=best_job.search_id,
+                username=result.username,
+                filename=result.filename,
+                size=result.size,
+                is_rec=False,
+                mb_recording_id=recording.mbid,
+                source="catalog",
+            )
         try:
             queue_result = download_service.queue(
                 result.username,
@@ -152,6 +168,8 @@ def _resolve_one(
                 search_id=best_job.search_id,
             )
         except Exception as e:  # noqa: BLE001 — queue() can raise impl-specific errors
+            if row_id is not None:
+                download_store.set_state(row_id, "failed")
             logger.warning(
                 "mb resolver: queue failed for %s - %s via %s: %s",
                 artist,
@@ -160,28 +178,23 @@ def _resolve_one(
                 e,
             )
             continue
-        if queue_result.enqueued_count > 0:
-            if peer_store is not None:
-                peer_store.insert_pending(
-                    search_id=best_job.search_id,
-                    username=result.username,
-                    filename=result.filename,
-                    size=result.size,
-                    is_rec_download=False,
-                    is_library_download=True,
-                    mb_recording_id=recording.mbid,
-                )
-            used_peers.add(result.username)
-            event_hub.publish(
-                "mb.track_queued",
-                {
-                    "job_id": job_id,
-                    "mbid": recording.mbid,
-                    "title": title,
-                    "artist": artist,
-                },
-            )
-            return True
+        if queue_result.enqueued_count <= 0:
+            if row_id is not None:
+                download_store.set_state(row_id, "failed")
+            continue
+        if row_id is not None:
+            download_store.mark_attempt_accepted(row_id)
+        used_peers.add(result.username)
+        event_hub.publish(
+            "mb.track_queued",
+            {
+                "job_id": job_id,
+                "mbid": recording.mbid,
+                "title": title,
+                "artist": artist,
+            },
+        )
+        return True
 
     event_hub.publish(
         "mb.track_failed",

@@ -28,7 +28,7 @@ from pydantic import BaseModel
 from app import APP_VERSION
 from app.config import Config
 from app.db.database import Database
-from app.db.download_store import DownloadStore
+from app.db.peer_store import PeerStore
 from app.dependencies import (
     get_config,
     get_db_or_none,
@@ -204,7 +204,7 @@ def unblock_all_peers(db: Annotated[Database | None, Depends(get_db_or_none)]) -
     logger.info("POST /api/system/peers/unblock")
     if db is None:
         return {"unblocked": 0}
-    return {"unblocked": DownloadStore(db).unblock_all_peers()}
+    return {"unblocked": PeerStore(db).unblock_all()}
 
 
 @router.post("/system/listenbrainz/check", response_model=ServiceHealthResponse)
