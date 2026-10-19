@@ -39,6 +39,8 @@ const SECTIONS = [
       { key: "orphan_grace_polls", label: "Orphan grace (polls)", type: "number" },
       { key: "manual_gate_minutes", label: "Manual gate (minutes)", type: "number" },
       { key: "history_clear_interval_minutes", label: "History clear interval (minutes)", type: "number", min: "0" },
+      { key: "start_timeout_secs", label: "Start timeout (seconds)", type: "number", min: "1" },
+      { key: "min_speed_kbps", label: "Min speed (kbps)", type: "number", min: "0" },
     ],
   },
   {

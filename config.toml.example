@@ -92,6 +92,12 @@ history_clear_interval_minutes = 15 # How often (minutes) slskd's terminal trans
                            # slskd download history congested the stack; clearing it restored
                            # normal operation. Only slskd-side records are removed; musica's own
                            # rows are kept, and failed removals are retried next cycle.
+start_timeout_secs = 600   # Stalled-transfer rule: a queued transfer not started within this many
+                           # seconds of its latest attempt is failed and retried from another peer.
+                           # A downloading transfer whose speed stays under min_speed_kbps for this
+                           # long is failed the same way. Forgiving default; tune from real data.
+min_speed_kbps = 1         # Slow-transfer floor in kilobits per second (1 kbps = 125 bytes/s).
+                           # 0 disables the speed part of the stall rule.
 
 [recs]
 # Each category has its own enabled flag — there are 3 independent

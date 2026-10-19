@@ -330,6 +330,10 @@ class Config:
         self.download.history_clear_interval_minutes = self._get_int(
             data, "history_clear_interval_minutes", 15
         )
+        self.download.start_timeout_secs = self._get_int(
+            data, "start_timeout_secs", 600
+        )
+        self.download.min_speed_kbps = self._get_int(data, "min_speed_kbps", 1)
         self.download.auto_retry_manual_soulseek = self._get_bool(
             data, "auto_retry_manual_soulseek", False
         )
@@ -598,6 +602,18 @@ class Config:
                 self.download.history_clear_interval_minutes,
                 "Must be >= 0 (0 disables automatic history cleanup)",
             )
+        if self.download.start_timeout_secs < 1:
+            raise ConfigValidationError(
+                "download.start_timeout_secs",
+                self.download.start_timeout_secs,
+                "Must be >= 1",
+            )
+        if self.download.min_speed_kbps < 0:
+            raise ConfigValidationError(
+                "download.min_speed_kbps",
+                self.download.min_speed_kbps,
+                "Must be >= 0 (0 disables the slow-transfer rule)",
+            )
 
         # Recs
         if self.recs.comfort_zone_interval_days < 1:
@@ -770,6 +786,8 @@ class Config:
                 "peer_ban_days": self.download.peer_ban_days,
                 "missing_source_timeout_minutes": self.download.missing_source_timeout_minutes,
                 "history_clear_interval_minutes": self.download.history_clear_interval_minutes,
+                "start_timeout_secs": self.download.start_timeout_secs,
+                "min_speed_kbps": self.download.min_speed_kbps,
                 "auto_retry_manual_soulseek": self.download.auto_retry_manual_soulseek,
             },
             "recs": {
@@ -1017,6 +1035,14 @@ class DownloadConfig:
         # musica bookkeeping rows are deliberately kept — only slskd-side
         # records are removed, and failed removals are retried next cycle.
         self.history_clear_interval_minutes: int = 15
+        # Stalled-transfer rule (DownloadMonitor). A queued transfer with no
+        # start within start_timeout_secs of its latest attempt is failed, and
+        # so is a downloading transfer whose speed stays under min_speed_kbps
+        # (kilobits per second) for start_timeout_secs. Both then retry from
+        # the next peer through the normal retry path. The defaults are
+        # deliberately forgiving; tune them once real stall data exists.
+        self.start_timeout_secs: int = 600
+        self.min_speed_kbps: int = 1
         # #57: whether a failed manual (non-rec) Soulseek download is
         # automatically re-queued to an alternative peer. Default False —
         # unlike a rec, a manual download is something the user explicitly

@@ -49,6 +49,9 @@ def _make_config(tmpdir, bad_peer_threshold=1):
         check_interval = 15
         max_retries_per_track = 3
         peer_ban_days = 2
+        # Stalled-transfer rule (forgiving real defaults).
+        start_timeout_secs = 600
+        min_speed_kbps = 1
         # #57 defaults to False in real config, but most tests here are
         # about retry *mechanics* (peer failover, budget, orphan handling),
         # not the toggle itself — keep it enabled here so those aren't all
@@ -1026,6 +1029,140 @@ class TestPeerBlocking:
         assert failed_ev[1]["will_retry"] is False
         assert "blocked" in failed_ev[1]["error"].lower()
         assert "no search context" in failed_ev[1]["error"].lower()
+
+
+class TestStalledTransfers:
+    """Stalled-transfer rule: a queued transfer not started within
+    download.start_timeout_secs, or a downloading one whose speed stays under
+    download.min_speed_kbps for that long, is failed and moved to the next
+    peer through the normal retry path."""
+
+    FIXTURE = Path(__file__).parent.parent / "fixtures" / "slskd_search_responses.json"
+    FILE = "music\\Clipse\\03 - P.O.V.mp3"
+
+    def _monitor(self, tmp_path, db, state, speed=None, *, responses=None):
+        hub = EventHub()
+        cfg = _make_config(str(tmp_path), bad_peer_threshold=3)
+        download_svc = FakeDownloadService(
+            [_transfer("t-stall", "absolutelyjaked2", self.FILE, 10455731, state, speed=speed)]
+        )
+        if responses is None:
+            responses = json.loads(self.FIXTURE.read_text())
+        download_svc.set_search_responses("search-stall-1", responses)
+        DownloadStore(db).insert_pending(
+            "search-stall-1", "absolutelyjaked2", self.FILE, 10455731, False
+        )
+        monitor = DownloadMonitor(cfg, download_svc, FakeLibraryService(), db, hub, interval=15)
+        return monitor, download_svc, hub, cfg
+
+    def _set_speed(self, download_svc, state, speed):
+        download_svc.set_transfers(
+            [_transfer("t-stall", "absolutelyjaked2", self.FILE, 10455731, state, speed=speed)]
+        )
+
+    def test_queued_past_start_timeout_fails_and_retries_next_peer(self, tmp_path, db):
+        monitor, svc, hub, _cfg = self._monitor(tmp_path, db, "queued")
+        # First poll adopts the transfer; the attempt is fresh, so no stall.
+        _run_poll_and_capture(monitor, hub)
+        assert DownloadStore(db).get_by_slskd_id("t-stall")["state"] == "queued"
+        assert svc.queue_calls == []
+
+        # The latest attempt is now older than start_timeout_secs (600).
+        db.execute("UPDATE download_attempts SET attempted_at = attempted_at - 700")
+        _result, events = _run_poll_and_capture(monitor, hub)
+
+        assert svc.queue_calls, "expected the stalled download to be retried"
+        assert svc.queue_calls[0]["username"] != "absolutelyjaked2"
+        failed = [d for name, d in events if name == "transfer.failed"]
+        assert len(failed) == 1
+        assert failed[0]["will_retry"] is True
+        assert failed[0]["error"] == "Not started within 600s"
+        # The stalled transfer is superseded by the retry, so slskd drops it.
+        assert svc.deleted_transfers == ["t-stall"]
+
+    def test_queued_within_start_timeout_is_left_alone(self, tmp_path, db):
+        monitor, svc, hub, _cfg = self._monitor(tmp_path, db, "queued")
+        _run_poll_and_capture(monitor, hub)
+        db.execute("UPDATE download_attempts SET attempted_at = attempted_at - 300")
+
+        _result, events = _run_poll_and_capture(monitor, hub)
+
+        assert svc.queue_calls == []
+        assert [n for n, _ in events if n == "transfer.failed"] == []
+        assert DownloadStore(db).get_by_slskd_id("t-stall")["state"] == "queued"
+
+    def test_downloading_slow_past_window_fails_and_retries(self, tmp_path, db):
+        monitor, svc, hub, _cfg = self._monitor(tmp_path, db, "downloading", speed=0)
+        _run_poll_and_capture(monitor, hub)
+        assert "t-stall" in monitor._slow_since
+
+        monitor._slow_since["t-stall"] -= 700  # slow for longer than the window
+        _result, events = _run_poll_and_capture(monitor, hub)
+
+        assert svc.queue_calls and svc.queue_calls[0]["username"] != "absolutelyjaked2"
+        failed = [d for n, d in events if n == "transfer.failed"]
+        assert len(failed) == 1
+        assert failed[0]["will_retry"] is True
+
+    def test_downloading_slow_within_window_is_left_alone(self, tmp_path, db):
+        monitor, svc, hub, _cfg = self._monitor(tmp_path, db, "downloading", speed=0)
+        _run_poll_and_capture(monitor, hub)
+        monitor._slow_since["t-stall"] -= 60
+
+        _result, events = _run_poll_and_capture(monitor, hub)
+
+        assert svc.queue_calls == []
+        assert [n for n, _ in events if n == "transfer.failed"] == []
+        assert DownloadStore(db).get_by_slskd_id("t-stall")["state"] == "downloading"
+
+    def test_speed_recovery_resets_the_slow_clock(self, tmp_path, db):
+        monitor, svc, hub, _cfg = self._monitor(tmp_path, db, "downloading", speed=0)
+        _run_poll_and_capture(monitor, hub)
+        monitor._slow_since["t-stall"] -= 700
+
+        # Back above the floor (1 kbps = 125 B/s): no stall, clock forgotten.
+        self._set_speed(svc, "downloading", 50_000)
+        _result, events = _run_poll_and_capture(monitor, hub)
+
+        assert svc.queue_calls == []
+        assert [n for n, _ in events if n == "transfer.failed"] == []
+        assert "t-stall" not in monitor._slow_since
+
+    def test_min_speed_zero_disables_the_speed_rule(self, tmp_path, db):
+        monitor, svc, hub, cfg = self._monitor(tmp_path, db, "downloading", speed=0)
+        cfg.download.min_speed_kbps = 0
+        _run_poll_and_capture(monitor, hub)
+        monitor._slow_since.clear()
+
+        _result, _events = _run_poll_and_capture(monitor, hub)
+
+        assert svc.queue_calls == []
+        assert monitor._slow_since == {}
+
+    def test_stalled_transfer_with_no_alternative_is_removed_from_slskd(self, tmp_path, db):
+        """No other peer to try: the row fails, and the still-live slskd
+        transfer is removed so it cannot finish behind a failed row."""
+        own_peer_only = [
+            {
+                "username": "absolutelyjaked2",
+                "hasFreeUploadSlot": True,
+                "files": [{"filename": self.FILE, "size": 10455731}],
+            }
+        ]
+        monitor, svc, hub, _cfg = self._monitor(
+            tmp_path, db, "queued", responses=own_peer_only
+        )
+        _run_poll_and_capture(monitor, hub)
+        db.execute("UPDATE download_attempts SET attempted_at = attempted_at - 700")
+
+        _result, events = _run_poll_and_capture(monitor, hub)
+
+        assert svc.queue_calls == []
+        assert svc.deleted_transfers == ["t-stall"]
+        failed = [d for n, d in events if n == "transfer.failed"]
+        assert failed[0]["will_retry"] is False
+        assert "Not started within 600s" in failed[0]["error"]
+        assert DownloadStore(db).get_by_slskd_id("t-stall")["state"] == "failed"
 
 
 class TestStartStop:

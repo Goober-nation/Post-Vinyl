@@ -174,6 +174,14 @@ class DownloadStore:
         )
         return {row["username"] for row in rows}
 
+    def latest_attempt_at(self, download_id: int) -> int | None:
+        """When this download was last queued to a peer (its current attempt)."""
+        row = self._db.fetch_one(
+            "SELECT MAX(attempted_at) AS at FROM download_attempts WHERE download_id = ?",
+            (download_id,),
+        )
+        return row["at"] if row and row["at"] is not None else None
+
     def retry_count(self, download_id: int) -> int:
         """Retries so far: attempts minus the original request."""
         row = self._db.fetch_one(

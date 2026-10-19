@@ -129,12 +129,16 @@ class DownloadRetrier:
             return RetryOutcome(False, reason="Queue returned 0 enqueued")
 
         self._store.mark_attempt_accepted(download_id)
-        self._abandon_at_slskd(slskd_id, username, filename)
+        self.abandon_at_slskd(slskd_id, username, filename)
         logger.info("Retry queued: %s from %s", filename, peer)
         return RetryOutcome(True, peer=peer)
 
-    def _abandon_at_slskd(self, transfer_id: str, username: str, filename: str) -> None:
-        """Drop the superseded transfer from slskd once a retry is queued.
+    def abandon_at_slskd(self, transfer_id: str, username: str, filename: str) -> None:
+        """Drop a transfer musica has moved on from (superseded by a retry, or
+        stalled with no retry queued) so slskd stops working on it.
+
+        Used once a retry is queued: the superseded transfer is dropped.
+        Also used for a stalled transfer whose retry did not go through.
 
         Without this musica gives up on a peer while slskd keeps working on
         it: a 'failed' state is often transient (queued-then-retried by
@@ -152,20 +156,18 @@ class DownloadRetrier:
             removed = self._download_service.delete_transfer(transfer_id)
         except Exception:
             logger.warning(
-                "Could not remove superseded transfer %s from slskd; a "
-                "duplicate download may land if the original completes",
+                "Could not remove abandoned transfer %s from slskd; it may keep "
+                "running or complete as a duplicate",
                 transfer_id,
                 exc_info=True,
             )
             return
         if removed:
-            logger.info(
-                "Removed superseded transfer from slskd: %s / %s", username, filename
-            )
+            logger.info("Removed abandoned transfer from slskd: %s / %s", username, filename)
         else:
             logger.warning(
-                "slskd refused to remove superseded transfer %s / %s; a "
-                "duplicate download may land if the original completes",
+                "slskd refused to remove abandoned transfer %s / %s; it may keep "
+                "running or complete as a duplicate",
                 username,
                 filename,
             )
@@ -226,6 +228,11 @@ class DownloadMonitor:
         self._files = FileStore(database)
         self._retrier = DownloadRetrier(config, download_service, database)
         self._event_hub = event_hub
+        # slskd transfer_id -> wall-clock time its speed first dropped below
+        # download.min_speed_kbps (cleared when it recovers). Drives the
+        # slow-transfer half of the stall rule. In-memory, like the other
+        # poll-timers: a restart gives slskd a fresh window.
+        self._slow_since: dict[str, float] = {}
         self.interval = interval or config.download.check_interval
         self._stopped = threading.Event()
         self._thread: threading.Thread | None = None
@@ -305,6 +312,7 @@ class DownloadMonitor:
             return {"error": str(e)}
 
         transfers_seen = len(transfers)
+        now = time.time()
 
         for t in transfers:
             # Only transfers this app started are tracked. A transfer with no
@@ -319,11 +327,22 @@ class DownloadMonitor:
                 is_new = True
             download_id = row["id"]
             prev_state = row["state"]
-            if prev_state != t.state:
-                self._store.set_state(download_id, t.state)
+            # Stalled-transfer rule: a queued transfer that never starts, or a
+            # downloading one that crawls below min speed for too long, is
+            # failed here and goes through the same retry path as a reported
+            # failure. slskd still lists it as live, so it is removed from
+            # slskd below if no retry supersedes it.
+            stall_msg = self._stall_reason(row, t, now)
+            state = t.state
+            fail_reason = t.fail_reason
+            if stall_msg is not None:
+                state = "failed"
+                fail_reason = "stalled"
+            if prev_state != state:
+                self._store.set_state(download_id, state)
 
             # --- SSE: transfer.started (new OR pending-adopted OR queued→downloading) ---
-            if t.state in ("queued", "downloading") and (
+            if state in ("queued", "downloading") and (
                 is_new or prev_state in (None, "queued")
             ):
                 self._event_hub.publish(
@@ -337,7 +356,7 @@ class DownloadMonitor:
                 )
 
             # --- SSE: transfer.progress (on transition into downloading) ---
-            if t.state == "downloading" and (is_new or prev_state != "downloading"):
+            if state == "downloading" and (is_new or prev_state != "downloading"):
                 self._event_hub.publish(
                     "transfer.progress",
                     {
@@ -348,7 +367,7 @@ class DownloadMonitor:
                 )
 
             # --- Failure handling (on transition into failed) ---
-            if t.state == "failed" and prev_state != "failed":
+            if state == "failed" and prev_state != "failed":
                 will_retry = False
                 error_msg = ""
 
@@ -361,7 +380,7 @@ class DownloadMonitor:
                 # aborted/cancelled) — those reflect our own connection
                 # dropping, not the peer doing anything wrong.
                 blocked_msg = ""
-                if t.fail_reason not in _CONNECTIVITY_FAIL_REASONS:
+                if fail_reason not in _CONNECTIVITY_FAIL_REASONS:
                     threshold = self._config.download.bad_peer_threshold
                     count, newly_blocked = self._peers.record_failure(
                         t.username, threshold
@@ -376,6 +395,12 @@ class DownloadMonitor:
                         blocked_msg = f"Peer blocked after {count} failures"
 
                 will_retry, error_msg = self._attempt_retry(download_id, t.transfer_id)
+                if stall_msg is not None:
+                    if not will_retry:
+                        # No retry superseded the stalled transfer; remove it so
+                        # slskd does not keep it running behind a failed row.
+                        self._retrier.abandon_at_slskd(t.transfer_id, t.username, t.filename)
+                    error_msg = f"{stall_msg}; {error_msg}" if error_msg else stall_msg
                 if will_retry:
                     retried.append(t.transfer_id)
 
@@ -423,6 +448,12 @@ class DownloadMonitor:
                         },
                     )
 
+        # Forget slow-speed clocks for transfers no longer downloading.
+        downloading_ids = {t.transfer_id for t in transfers if t.state == "downloading"}
+        self._slow_since = {
+            tid: since for tid, since in self._slow_since.items() if tid in downloading_ids
+        }
+
         # 3b. Reconcile rows slskd has stopped reporting. Runs after the
         # loop above so anything adopted during *this* cycle already counts
         # as reported.
@@ -446,6 +477,40 @@ class DownloadMonitor:
             "scan_triggered": scan_triggered,
             "retried": retried,
         }
+
+    # ------------------------------------------------------------------
+    # Stalled transfers
+    # ------------------------------------------------------------------
+
+    def _stall_reason(self, row, transfer, now: float) -> str | None:
+        """Why this live slskd transfer counts as stalled, or None.
+
+        A queued transfer is stalled when its latest attempt is older than
+        download.start_timeout_secs. A downloading transfer is stalled when
+        its speed has stayed under download.min_speed_kbps (kilobits per
+        second) for start_timeout_secs. min_speed_kbps = 0 disables the speed
+        half. Other states are never stalled.
+        """
+        timeout = self._config.download.start_timeout_secs
+        if transfer.state == "queued":
+            attempted = self._store.latest_attempt_at(row["id"])
+            if attempted is not None and now - attempted >= timeout:
+                return f"Not started within {timeout}s"
+            return None
+
+        if transfer.state != "downloading":
+            return None
+        min_kbps = self._config.download.min_speed_kbps
+        if min_kbps <= 0:
+            return None
+        floor_bytes_per_sec = min_kbps * 125  # 1 kbps = 125 bytes/s
+        if (transfer.speed or 0) >= floor_bytes_per_sec:
+            self._slow_since.pop(transfer.transfer_id, None)
+            return None
+        since = self._slow_since.setdefault(transfer.transfer_id, now)
+        if now - since >= timeout:
+            return f"Speed stayed under {min_kbps} kbps for {timeout}s"
+        return None
 
     # ------------------------------------------------------------------
     # Retry

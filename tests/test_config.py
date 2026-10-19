@@ -853,6 +853,49 @@ class TestAutoRetryManualSoulseek:
         assert exported["download"]["auto_retry_manual_soulseek"] is False
 
 
+class TestStalledTransferSettings:
+    """download.start_timeout_secs / download.min_speed_kbps wiring (stalled-
+    transfer rule). start_timeout_secs must be >= 1; min_speed_kbps >= 0,
+    where 0 disables the speed half of the rule."""
+
+    def _load(self, tmpdir, section_body=""):
+        from pathlib import Path
+
+        config_path = Path(tmpdir) / "config.toml"
+        config_path.write_text(f"[download]\n{section_body}")
+        config = Config(config_path=str(config_path))
+        config.load()
+        return config
+
+    def test_defaults(self, tmpdir):
+        download = self._load(str(tmpdir)).download
+        assert download.start_timeout_secs == 600
+        assert download.min_speed_kbps == 1
+
+    def test_reads_configured_values(self, tmpdir):
+        download = self._load(
+            str(tmpdir), "start_timeout_secs = 90\nmin_speed_kbps = 25\n"
+        ).download
+        assert download.start_timeout_secs == 90
+        assert download.min_speed_kbps == 25
+
+    def test_min_speed_zero_is_allowed(self, tmpdir):
+        assert self._load(str(tmpdir), "min_speed_kbps = 0\n").download.min_speed_kbps == 0
+
+    def test_rejects_start_timeout_below_one(self, tmpdir):
+        with pytest.raises(ConfigValidationError, match="start_timeout_secs"):
+            self._load(str(tmpdir), "start_timeout_secs = 0\n")
+
+    def test_rejects_negative_min_speed(self, tmpdir):
+        with pytest.raises(ConfigValidationError, match="min_speed_kbps"):
+            self._load(str(tmpdir), "min_speed_kbps = -1\n")
+
+    def test_exposed_via_to_dict(self, tmpdir):
+        exported = self._load(str(tmpdir)).to_dict()["download"]
+        assert exported["start_timeout_secs"] == 600
+        assert exported["min_speed_kbps"] == 1
+
+
 class TestMusicBrainzSearchOfficialOnly:
     """musicbrainz.search_official_only wiring — default on, overridable."""
 

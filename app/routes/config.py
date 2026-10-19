@@ -138,6 +138,8 @@ class DownloadSettings(BaseModel):
     manual_gate_minutes: int | None = Field(None, ge=1)
     missing_source_timeout_minutes: int | None = Field(None, ge=1)
     history_clear_interval_minutes: int | None = Field(None, ge=0)
+    start_timeout_secs: int | None = Field(None, ge=1)
+    min_speed_kbps: int | None = Field(None, ge=0)
     auto_retry_manual_soulseek: bool | None = None
 
 
