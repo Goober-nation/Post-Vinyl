@@ -189,9 +189,13 @@ class HistoryCleaner:
         row_ids = [
             row["id"]
             for row in self._store.handed_off()
-            if row["slskd_id"] is None
-            or row["slskd_id"] in removed
-            or row["slskd_id"] not in listed
+            # Still awaiting placement: the monitor needs slskd's record to move it.
+            if not self._store.import_pending(row["username"], row["filename"])
+            and (
+                row["slskd_id"] is None
+                or row["slskd_id"] in removed
+                or row["slskd_id"] not in listed
+            )
         ]
         return self._store.delete(row_ids)
 
