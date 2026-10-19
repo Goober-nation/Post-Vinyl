@@ -17,6 +17,7 @@ import pytest
 
 from app.db.database import Database
 from app.db.download_store import DownloadStore
+from app.db.peer_store import PeerStore
 from app.exceptions import SlskdConnectionError
 from app.services.interfaces.download import QueueResult, Transfer
 from app.services.library import PlaylistDetail, PlaylistInfo, Song
@@ -315,7 +316,7 @@ class TestPollOnceBasic:
         started = [e for e in events if e[0] == "transfer.started"]
         assert len(started) == 1
         assert started[0][1]["transfer_id"] == "uuid-123"
-        row = store.get_transfer("uuid-123")
+        row = store.get_by_slskd_id("uuid-123")
         assert row is not None
         assert row["search_id"] == "search-1"
 
@@ -589,8 +590,8 @@ class TestAutoRetryManualToggle:
             "music\\Clipse\\03 - P.O.V.mp3",
             10455731,
             False,
-            is_library_download,
             "recording-1" if is_library_download else None,
+            source="catalog" if is_library_download else None,
         )
 
     def _make_monitor_with_responses(self, cfg, db, hub):
@@ -706,8 +707,8 @@ class TestRetry:
             "music\\Clipse\\03 - P.O.V.mp3",
             10455731,
             False,
-            True,
             "recording-1",
+            source="catalog",
         )
 
         monitor = DownloadMonitor(cfg, download_svc, lib_svc, db, hub, interval=15)
@@ -721,16 +722,19 @@ class TestRetry:
         failed_ev = next(e for e in events if e[0] == "transfer.failed")
         assert failed_ev[1]["will_retry"] is True
 
+        # The retry reuses the original row: same search, same request, new
+        # peer, and one retry recorded against it.
         retry_row = db.fetch_one(
-            "SELECT search_id, is_library_download, mb_recording_id, retry_count "
-            "FROM downloads WHERE username = ? AND state = 'queued'",
+            "SELECT d.id, d.search_id, r.source, r.mbid "
+            "FROM downloads d JOIN requests r ON r.id = d.request_id "
+            "WHERE d.username = ? AND d.state = 'queued'",
             (retry_peer,),
         )
         assert retry_row is not None
         assert retry_row["search_id"] == "search-retry-1"
-        assert retry_row["is_library_download"] == 1
-        assert retry_row["mb_recording_id"] == "recording-1"
-        assert retry_row["retry_count"] == 1
+        assert retry_row["source"] == "catalog"
+        assert retry_row["mbid"] == "recording-1"
+        assert DownloadStore(db).retry_count(retry_row["id"]) == 1
 
     def test_superseded_transfer_is_removed_from_slskd(self, tmp_path, db):
         """A 'failed' state is often transient — slskd (or the peer) can
@@ -900,8 +904,7 @@ class TestPeerBlocking:
         download_svc.set_transfers(transfers2)
         _result, events = _run_poll_and_capture(monitor, hub)
 
-        store = DownloadStore(db)
-        assert store.is_peer_blocked("badpeer")
+        assert PeerStore(db).is_blocked("badpeer")
 
         failed_ev = next(e for e in events if e[0] == "transfer.failed")
         assert "blocked" in failed_ev[1]["error"].lower()
@@ -945,8 +948,7 @@ class TestPeerBlocking:
         # first ("fivepointsquare" — first candidate with a free slot and
         # an actual matching file), but backdate it past the 2-day window
         # so it must be treated as eligible again rather than skipped.
-        store.increment_peer_failure("fivepointsquare")
-        store.set_peer_blocked("fivepointsquare")
+        PeerStore(db).record_failure("fivepointsquare", 1)
         store._db.execute(
             "UPDATE peers SET blocked_at = ? WHERE username = ?",
             (int(time.time()) - 3 * 86400, "fivepointsquare"),
@@ -955,8 +957,8 @@ class TestPeerBlocking:
         monitor = DownloadMonitor(cfg, download_svc, lib_svc, db, hub, interval=15)
         _run_poll_and_capture(monitor, hub)
 
-        assert not store.is_peer_blocked("fivepointsquare", 2 * 86400)
-        assert store.get_peer_failure_count("fivepointsquare") == 0
+        assert not PeerStore(db).is_blocked("fivepointsquare", 2 * 86400)
+        assert PeerStore(db).failure_count("fivepointsquare") == 0
         assert download_svc.queue_calls[0]["username"] == "fivepointsquare"
 
     def test_blocked_peer_still_retries_with_alternative(self, tmp_path, db):
@@ -995,7 +997,7 @@ class TestPeerBlocking:
 
         _result, events = _run_poll_and_capture(monitor, hub)
 
-        assert store.is_peer_blocked("absolutelyjaked2")
+        assert PeerStore(db).is_blocked("absolutelyjaked2")
         assert len(download_svc.queue_calls) >= 1
         retry_peer = download_svc.queue_calls[0]["username"]
         assert retry_peer != "absolutelyjaked2"
@@ -1018,8 +1020,7 @@ class TestPeerBlocking:
 
         _result, events = _run_poll_and_capture(monitor, hub)
 
-        store = DownloadStore(db)
-        assert store.is_peer_blocked("lonelypeer")
+        assert PeerStore(db).is_blocked("lonelypeer")
 
         failed_ev = next(e for e in events if e[0] == "transfer.failed")
         assert failed_ev[1]["will_retry"] is False
@@ -1052,7 +1053,7 @@ class TestHousekeeping:
         hub = EventHub()
         store = DownloadStore(db)
         store.insert_pending("s1", "peer1", "stuck.mp3", 100, False)
-        db.execute("UPDATE downloads SET created_at = created_at - 600")
+        db.execute("UPDATE download_attempts SET attempted_at = attempted_at - 600")
         assert store.has_active_manual_downloads() is True
 
         monitor = DownloadMonitor(
@@ -1089,7 +1090,7 @@ class TestHousekeeping:
         hub = EventHub()
         store = DownloadStore(db)
         store.insert_pending("s1", "peer1", "stuck.mp3", 100, False)
-        db.execute("UPDATE downloads SET created_at = created_at - 600")
+        db.execute("UPDATE download_attempts SET attempted_at = attempted_at - 600")
 
         class UnreachableService(FakeDownloadService):
             def get_status(self):
@@ -1117,7 +1118,7 @@ class TestOrphanReconciliation:
             _transfer("uuid-1", "peer1", "song.mp3", 100, "downloading")
         ]
         _run_poll_and_capture(monitor, hub)
-        assert store.get_transfer("uuid-1")["state"] == "downloading"
+        assert store.get_by_slskd_id("uuid-1")["state"] == "downloading"
         return store
 
     def _monitor(self, cfg, db, hub, responses=None):
@@ -1136,7 +1137,7 @@ class TestOrphanReconciliation:
         for _ in range(5):
             _run_poll_and_capture(monitor, hub)
 
-        assert store.get_transfer("uuid-1")["state"] == "downloading"
+        assert store.get_by_slskd_id("uuid-1")["state"] == "downloading"
 
     def test_orphan_is_failed_after_the_grace_period(self, tmp_config, db):
         hub = EventHub()
@@ -1148,10 +1149,10 @@ class TestOrphanReconciliation:
 
         # One miss is within grace (default 2) — still live.
         _run_poll_and_capture(monitor, hub)
-        assert store.get_transfer("uuid-1")["state"] == "downloading"
+        assert store.get_by_slskd_id("uuid-1")["state"] == "downloading"
 
         _result, events = _run_poll_and_capture(monitor, hub)
-        assert store.get_transfer("uuid-1")["state"] == "failed"
+        assert store.get_by_slskd_id("uuid-1")["state"] == "failed"
         failed = [d for name, d in events if name == "transfer.failed"]
         assert len(failed) == 1
         assert "stopped reporting" in failed[0]["error"]
@@ -1170,7 +1171,7 @@ class TestOrphanReconciliation:
             monitor._download_service._transfers = transfers
             _run_poll_and_capture(monitor, hub)
 
-        assert store.get_transfer("uuid-1")["state"] == "downloading"
+        assert store.get_by_slskd_id("uuid-1")["state"] == "downloading"
 
     def test_orphan_releases_the_rec_queue_gate(self, tmp_config, db):
         hub = EventHub()
@@ -1232,7 +1233,13 @@ class TestOrphanReconciliation:
                 }
             ],
         )
-        db.execute("UPDATE downloads SET retry_count = 99 WHERE id = 'uuid-1'")
+        row = store.get_by_slskd_id("uuid-1")
+        for n in range(3):
+            db.execute(
+                "INSERT INTO download_attempts (download_id, username, attempted_at) "
+                "VALUES (?, ?, ?)",
+                (row["id"], f"extra-peer-{n}", int(time.time())),
+            )
 
         monitor._download_service._transfers = []
         _run_poll_and_capture(monitor, hub)

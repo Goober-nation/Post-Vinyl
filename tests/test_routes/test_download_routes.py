@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from app.db.database import Database
 from app.db.download_store import DownloadStore
+from app.db.file_store import FileStore
 from app.exceptions import (
     MaxRetriesExceededError,
     NoViablePeerError,
@@ -116,6 +117,37 @@ def service(client):
     return client.app.state.services["download"]
 
 
+def _app_with_db(tmpdir):
+    """A test app backed by a real, initialised database in tmpdir."""
+
+    class MockPaths:
+        pass
+
+    paths = MockPaths()
+    paths.data_dir = tmpdir
+
+    class MockConfig:
+        pass
+
+    cfg = MockConfig()
+    cfg.paths = paths
+
+    db = Database(cfg)
+    db.initialize_schema()
+    service = FakeDownloadService()
+    app = create_app(download_service=service, database=db)
+    return db, service, TestClient(app)
+
+
+
+def _mark_completed(db, transfer_id, username="peer1", filename="song.mp3"):
+    """What the monitor does when slskd reports a row's transfer completed:
+    adopt it, then set it 'completed', which creates its file row as pending."""
+    store = DownloadStore(db)
+    row = store.adopt(username, filename, transfer_id)
+    store.set_state(row["id"], "completed")
+
+
 # ============================================================================
 # GET /api/transfers
 # ============================================================================
@@ -149,46 +181,22 @@ class TestListTransfers:
         assert resp.json()[0]["speed"] == 941839
 
     def test_completed_without_import_reports_importing(self):
-        """slskd "completed" means the network transfer is done, not that
-        beets has finished tagging/renaming/moving the file — which can take
-        5-20s. Reporting "completed" verbatim for that whole window told the
-        UI (and anyone polling this endpoint) the file was already in the
-        library when it existed at neither the old nor the new path yet."""
+        """slskd "completed" means the network transfer is done, not that the
+        file is in the library yet. While the file is still pending placement
+        the UI must say "importing"."""
         with tempfile.TemporaryDirectory() as tmpdir:
-
-            class MockPaths:
-                pass
-
-            paths = MockPaths()
-            paths.data_dir = tmpdir
-
-            class MockConfig:
-                pass
-
-            cfg = MockConfig()
-            cfg.paths = paths
-
-            db = Database(cfg)
-            db.initialize_schema()
-
-            service = FakeDownloadService()
-            app = create_app(download_service=service, database=db)
-            client = TestClient(app)
-
+            db, service, client = _app_with_db(tmpdir)
             client.post(
                 "/api/queue",
-                json={"username": "peer1", "files": [{"filename": "song.mp3"}]},
+                json={
+                    "username": "peer1",
+                    "files": [{"filename": "song.mp3"}],
+                    "search_id": "search-completed-1",
+                },
             )
             transfer_id = client.get("/api/transfers").json()[0]["transfer_id"]
             service.transfers[transfer_id].state = "completed"
-
-            db.execute(
-                "INSERT INTO downloads (id, search_id, username, filename, size, "
-                "state, retry_count, is_rec_download, created_at, target_dir, "
-                "slskd_id, progress, speed, file_moved) "
-                "VALUES (?, NULL, ?, ?, ?, 'completed', 0, 0, ?, NULL, ?, 100, 0, 0)",
-                (transfer_id, "peer1", "song.mp3", 100, 0, transfer_id),
-            )
+            _mark_completed(db, transfer_id)
 
             resp = client.get("/api/transfers")
 
@@ -196,43 +204,23 @@ class TestListTransfers:
             assert resp.json()[0]["state"] == "importing"
 
     def test_completed_with_import_handled_reports_completed(self):
-        """Once beets has actually moved the file (or explicitly declined
-        it), the real "completed" state is restored."""
+        """Once the file has actually been placed, the real "completed" state
+        is restored."""
         with tempfile.TemporaryDirectory() as tmpdir:
-
-            class MockPaths:
-                pass
-
-            paths = MockPaths()
-            paths.data_dir = tmpdir
-
-            class MockConfig:
-                pass
-
-            cfg = MockConfig()
-            cfg.paths = paths
-
-            db = Database(cfg)
-            db.initialize_schema()
-
-            service = FakeDownloadService()
-            app = create_app(download_service=service, database=db)
-            client = TestClient(app)
-
+            db, service, client = _app_with_db(tmpdir)
             client.post(
                 "/api/queue",
-                json={"username": "peer1", "files": [{"filename": "song.mp3"}]},
+                json={
+                    "username": "peer1",
+                    "files": [{"filename": "song.mp3"}],
+                    "search_id": "search-completed-2",
+                },
             )
             transfer_id = client.get("/api/transfers").json()[0]["transfer_id"]
             service.transfers[transfer_id].state = "completed"
-
-            db.execute(
-                "INSERT INTO downloads (id, search_id, username, filename, size, "
-                "state, retry_count, is_rec_download, created_at, target_dir, "
-                "slskd_id, progress, speed, file_moved) "
-                "VALUES (?, NULL, ?, ?, ?, 'completed', 0, 0, ?, '/music/peer1', ?, 100, 0, 1)",
-                (transfer_id, "peer1", "song.mp3", 100, 0, transfer_id),
-            )
+            _mark_completed(db, transfer_id)
+            pending = FileStore(db).pending_for("peer1", "song.mp3")
+            FileStore(db).mark_moved(pending["id"], "new-system-tests/song.mp3")
 
             resp = client.get("/api/transfers")
 
@@ -637,47 +625,23 @@ class TestDeleteFinished:
     def test_local_db_row_removed_regardless_of_slskd_outcome(self, tmp_path):
         """Local DB row is deleted even if the fake slskd-side delete fails."""
         with tempfile.TemporaryDirectory() as tmpdir:
-
-            class MockPaths:
-                pass
-
-            paths = MockPaths()
-            paths.data_dir = tmpdir
-
-            class MockConfig:
-                pass
-
-            cfg = MockConfig()
-            cfg.paths = paths
-
-            db = Database(cfg)
-            db.initialize_schema()
-
-            service = FakeDownloadService()
-            app = create_app(download_service=service, database=db)
-            client = TestClient(app)
-
+            db, service, client = _app_with_db(tmpdir)
             client.post(
                 "/api/queue",
-                json={"username": "peer1", "files": [{"filename": "song.mp3"}]},
+                json={
+                    "username": "peer1",
+                    "files": [{"filename": "song.mp3"}],
+                    "search_id": "search-delete-1",
+                },
             )
             transfer_id = client.get("/api/transfers").json()[0]["transfer_id"]
             service.transfers[transfer_id].state = "completed"
-
-            # Insert a matching DB row directly (as the DownloadMonitor worker
-            # would upsert it from a real slskd poll), with file_moved=1 —
-            # beets has already handled this one. A "completed" transfer
-            # whose import is still pending is deliberately not eligible for
-            # deletion (see the import_handled guard in
-            # delete_finished_transfers); that is not what this test is
-            # about, so it isn't exercised here.
-            db.execute(
-                "INSERT INTO downloads (id, search_id, username, filename, size, "
-                "state, retry_count, is_rec_download, created_at, target_dir, "
-                "slskd_id, progress, speed, file_moved) "
-                "VALUES (?, NULL, ?, ?, ?, 'completed', 0, 0, ?, '/music/peer1', ?, 100, 0, 1)",
-                (transfer_id, "peer1", "song.mp3", 100, 0, transfer_id),
-            )
+            # A completed download whose file has been placed is eligible for
+            # deletion. (A still-pending import is deliberately kept; that is
+            # covered by the import guard, not by this test.)
+            _mark_completed(db, transfer_id)
+            pending = FileStore(db).pending_for("peer1", "song.mp3")
+            FileStore(db).mark_moved(pending["id"], "new-system-tests/song.mp3")
 
             # Force the fake service's delete_transfer to fail (simulates a
             # slskd-side error) — local row must still be removed.
@@ -690,20 +654,10 @@ class TestDeleteFinished:
             assert resp.json() == {"deleted_count": 1}
 
             store = DownloadStore(db)
-            assert store.get_transfer(transfer_id) is None
+            assert store.get_by_slskd_id(transfer_id) is None
 
             service.delete_transfer = original_delete
             db.close()
-
-
-# ============================================================================
-# SSE emission on write paths (Phase 6.4d SSE hardening)
-# ============================================================================
-
-
-class TestSSEEmission:
-    """Queue/retry/cancel/delete must publish SSE events immediately, not
-    wait for DownloadMonitor's next poll cycle."""
 
     def test_queue_emits_transfer_queued(self):
         import asyncio

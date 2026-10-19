@@ -121,9 +121,8 @@ class TestDownloadCleanup:
     def test_skips_completed_still_awaiting_import(self, db):
         store = DownloadStore(db)
         store.insert_pending("search-1", "peer1", "song.mp3", 1000, False)
-        store.upsert_transfer(
-            _transfer("t-importing", "peer1", "song.mp3", "completed", size=1000)
-        )
+        row = store.adopt("peer1", "song.mp3", "t-importing")
+        store.set_state(row["id"], "completed")
         service = FakeDownloadService(
             transfers=[_transfer("t-importing", "peer1", "song.mp3", "completed")]
         )
@@ -138,9 +137,8 @@ class TestDownloadCleanup:
     def test_keeps_local_rows(self, db):
         store = DownloadStore(db)
         store.insert_pending("search-2", "peer2", "gone.mp3", 1000, False)
-        store.upsert_transfer(
-            _transfer("t-gone", "peer2", "gone.mp3", "failed", size=1000)
-        )
+        row = store.adopt("peer2", "gone.mp3", "t-gone")
+        store.set_state(row["id"], "failed")
         service = FakeDownloadService(
             transfers=[_transfer("t-gone", "peer2", "gone.mp3", "failed")]
         )
