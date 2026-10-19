@@ -362,7 +362,6 @@ class SlskdDownload(DownloadService):
             fail_reason=fail_reason,
         )
 
-
     @staticmethod
     def _extract_download_id(transfer_id: str) -> str:
         """Parse the slskd download GUID out of a transfer_id.
