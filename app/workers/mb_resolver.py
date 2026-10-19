@@ -168,7 +168,7 @@ def _resolve_one(
                 search_id=best_job.search_id,
             )
         except Exception as e:  # noqa: BLE001 — queue() can raise impl-specific errors
-            if row_id is not None:
+            if download_store is not None and row_id is not None:
                 download_store.set_state(row_id, "failed")
             logger.warning(
                 "mb resolver: queue failed for %s - %s via %s: %s",
@@ -179,10 +179,10 @@ def _resolve_one(
             )
             continue
         if queue_result.enqueued_count <= 0:
-            if row_id is not None:
+            if download_store is not None and row_id is not None:
                 download_store.set_state(row_id, "failed")
             continue
-        if row_id is not None:
+        if download_store is not None and row_id is not None:
             download_store.mark_attempt_accepted(row_id)
         used_peers.add(result.username)
         event_hub.publish(
