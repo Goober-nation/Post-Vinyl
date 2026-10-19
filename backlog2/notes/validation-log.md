@@ -34,3 +34,24 @@ postvinyl-proxy-test. Only the test stack was touched; the real `.env` and real 
 - Downloads end to end (blocked by bug 2).
 - Navidrome indexing and `navidrome_id` linking.
 - Tagging through beets (not exercised).
+
+## 2026-10-19: live download on the isolated test stack (HEAD after phase 4)
+
+Test library: `MUSIC_HOST_DIR=/Users/fih/Music/post-vinyl-test-library` in `.env.test` only
+(scratch dir, not the real library). Containers recreated with `--force-recreate`; mounts verified.
+
+- `POST /api/search` "radiohead creep": completed, 60 results.
+- `POST /api/queue` (peer danielbasta, one mp3): 201, `enqueued_count: 1`.
+- Transfer reached 100% in about 4 minutes, average ~310 KB/s.
+- DB (`app_data_test/musica.db`): `downloads` row 1 `completed`; `download_attempts` 1 row;
+  `file_management` row `source=slskd, stage=moved` created by the handoff trigger.
+- File on disk: `downloads/complete/soulseek/danielbasta/CD3/18 Radiohead - Creep (Radio Edit).mp3`.
+- Monitor logs: no errors or tracebacks.
+
+Findings:
+1. The monitor warns "Exact path not found ... matched by basename". The peer path has a
+   `CD3\` folder and backslashes; the path mapping misses it, and the basename fallback saves the
+   move. Fix the path mapping in phase 4 or phase 5.
+2. The file is marked `moved` but stays under the downloads tree. beets is disabled, so there is no
+   library placement yet. Expected for now; phase 5 owns placement.
+3. Not checked: whether slskd removed the finished transfer (history cleaner, design item D2).
