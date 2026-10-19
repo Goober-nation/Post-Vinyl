@@ -46,6 +46,8 @@ class _Download:
     auto_retry_manual_soulseek = True
     bad_peer_threshold = 3
     missing_source_timeout_minutes = 5
+    start_timeout_secs = 600
+    min_speed_kbps = 1
 
 
 def _config(tmpdir, **download):
