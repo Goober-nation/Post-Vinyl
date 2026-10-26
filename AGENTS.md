@@ -38,6 +38,20 @@ ruff format --check app/
 mypy app/
 ```
 
+### Where and what to test (recommendation, 2026-10-27)
+
+- **Recommended setup:** run unit and DB tests in a throwaway `python:3.12-slim` container with the
+  repo mounted read-only, and live tests on the isolated test stack (`docker-compose.test.yml`,
+  `.env.test`, with separate test Navidrome and slskd users). Never point compose, setup flows or
+  tests at the real `.env`.
+- **Test where it pays off, not everywhere.** Write tests for code that is easy to get subtly
+  wrong and expensive when it is: the file matcher, query strategy, name normalization, state
+  transitions, the stall rule, DB triggers and cascades, auth and session handling. Skip tests that
+  only restate the code (plain getters, route pass-through, config plumbing). Integration changes
+  still need a real-service run, per Rule Zero.
+- Long-running tests run detached; check them periodically, and replace a test that runs too long
+  with a shorter one rather than waiting.
+
 ---
 
 ## Definition of Done

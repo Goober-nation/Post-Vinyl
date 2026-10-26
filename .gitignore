@@ -1,5 +1,6 @@
 # Docker deployment secrets and runtime state — never commit
 .env
+.venv/
 app_data/
 navidrome_data/
 slskd_config/
@@ -13,6 +14,7 @@ app_data_test/
 navidrome_data_test/
 slskd_config_test/
 config_test/
+docker-compose.test.yml
 
 # Live-test run artifacts (tests/live/ --artifacts) — timelines from a
 # specific run against a specific stack, never useful to anyone else
@@ -37,3 +39,5 @@ app/static/fonts/*
 !app/static/fonts/README.md
 !app/static/fonts/logo.ttf
 !app/static/fonts/logo-LICENSE.txt
+
+old_files/
