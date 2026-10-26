@@ -1,4 +1,1 @@
-# Musica — Music Management Dashboard
-
-APP_NAME = "Musica"
-APP_VERSION = "0.1.0"
+"""Post-Vinyl app, rebuilt from scratch. Layer rules: agents_memory/rebuild/architecture.md."""

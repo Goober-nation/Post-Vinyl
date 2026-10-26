@@ -35,9 +35,9 @@ agents_memory/
 
 # Logo font dir — Forta (OFL 1.1, bundled) is tracked; anything else dropped
 # here (e.g. a personally-licensed font) is not — see app/static/fonts/README.md
-app/static/fonts/*
-!app/static/fonts/README.md
-!app/static/fonts/logo.ttf
-!app/static/fonts/logo-LICENSE.txt
+legacy/app/static/fonts/*
+!legacy/app/static/fonts/README.md
+!legacy/app/static/fonts/logo.ttf
+!legacy/app/static/fonts/logo-LICENSE.txt
 
 old_files/
