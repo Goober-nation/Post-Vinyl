@@ -1,18 +1,22 @@
-"""Normalization stage 1 report (#70): how often sources agree after each rule.
+"""Normalization stage 1 report (#70): would each source give the same query?
 
-Offline: reads the snapshot from ``fetch_names.py`` (#69), normalizes every
-song's names per source and compares them per source pair and per field.
+Offline: reads the snapshot from ``fetch_names.py`` (#69), builds each
+source's slskd query names (``normalize.query_names``) and compares them per
+source pair and per field. Two names count as the same query when they are
+equal the way Soulseek compares words: case and punctuation ignored. Accents
+and scripts are compared as written.
 
 - **Rule configs**: no rules, all rules, all-but-one (what each rule is
-  needed for) and only-one (what each rule fixes on its own).
-- **Fields**: track, artists (sorted set of main artists), album. MusicBrainz
-  has many releases per recording; its album counts as equal when any
-  release title matches. A missing ListenBrainz release is not compared.
+  needed for) and only-one (what each rule changes on its own).
+- **Fields**: track, artist (main artist), album. MusicBrainz has many
+  releases per recording; its album counts as equal when any release title
+  matches. A missing ListenBrainz release is not compared.
 - **Catalogue**: how often each raw pattern (feat., version suffix, "&",
   leading "The", accents) appears per source.
 - **Mismatches**: every field that still differs with all rules on.
 
-No pass target: the user judges (#71).
+No pass target: slskd decides which form wins (#71); this shows where the
+sources differ.
 
     python -m scripts.corpus.normalization_report
 """
@@ -36,7 +40,7 @@ PAIRS = (
     ("deezer", "listenbrainz"),
     ("musicbrainz", "listenbrainz"),
 )
-FIELDS = ("track", "artists", "album")
+FIELDS = ("track", "artist", "album")
 
 CATALOGUE = {
     "feat. in title": re.compile(
@@ -95,11 +99,20 @@ def raw_names(song: Raw) -> dict[str, Raw | None]:
     return out
 
 
+_NON_WORD_RE = re.compile(r"[\W_]+")
+
+
+def slskd_key(text: str) -> str:
+    """Soulseek-style word compare: case and punctuation ignored."""
+    return " ".join(_NON_WORD_RE.sub(" ", text.casefold()).split())
+
+
 def norm_fields(raw: Raw, rules: frozenset[str]) -> dict[str, Any]:
+    credits = raw["credits"]
     return {
-        "track": n.norm_title(raw["track"], rules),
-        "artists": n.norm_artists(raw["credits"], rules),
-        "album": {n.norm_title(a, rules) for a in raw["albums"]},
+        "track": slskd_key(n.query_title(raw["track"], credits, rules)),
+        "artist": slskd_key(n.main_artist(credits, rules)),
+        "album": {slskd_key(n.squash(a)) for a in raw["albums"]},
     }
 
 
@@ -174,9 +187,9 @@ def main() -> None:
         ),
         "",
         (
-            "Equality rate per source pair and field (equal / comparable). Artists = "
-            "sorted set of main artists. MB album = any release title. Songs without LB "
-            "metadata or an LB release are not compared there."
+            "Same-query rate per source pair and field (equal / comparable), case and "
+            "punctuation ignored. Artist = main artist. MB album = any release title. "
+            "Songs without LB metadata or an LB release are not compared there."
         ),
         "",
         header,
@@ -234,7 +247,7 @@ def main() -> None:
                 if equal(field, n1, n2) is False:
                     shown = {
                         "track": lambda r: r["track"],
-                        "artists": lambda r: r["artist_str"],
+                        "artist": lambda r: r["artist_str"],
                         "album": lambda r: (
                             " / ".join(r["albums"][:4])
                             + (" …" if len(r["albums"]) > 4 else "")

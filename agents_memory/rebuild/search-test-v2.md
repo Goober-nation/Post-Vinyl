@@ -66,6 +66,31 @@ Goal: the same song from any source normalizes to identical `[track, artist, alb
 - **No pass target**: the report gives equality rates per field and per rule, plus the mismatch
   list; the user judges.
 
+## Stage 1 decisions (user, 2026-10-27, #71)
+
+- **Rules dropped**: `version`, `amp`, `punct`, `case`. **Kept**: `feat`, `the`.
+  `accents` (strip diacritics from Latin letters, é → e): **queries keep the original
+  spelling; the matcher folds accents on both sides** when comparing files (user, 2026-10-27).
+  slskd check: peers match accents loosely (a "Sigur Ros" query returned 9,574 "Rós" files), and
+  where counts differ the original wins (Café Tacvba 127 vs Cafe Tacvba 79 helpful peers;
+  Motörhead and Sigur Rós pairs hit the response/file caps, so no difference shows). "Beyoncé"
+  and "Beyonce halo" both got 0 responses (likely a server-filtered word).
+- **Sources**: Deezer (behind a client interface) is the main catalogue search the user picks
+  songs from. Every song on the final list is then matched to MusicBrainz/ListenBrainz (ISRC
+  first, every other way after) to get the original-script names used for slskd queries.
+- **Artist**: the query uses the **main artist only**; the full credit goes to the matcher
+  (user, 2026-10-27, after this check; replaces "full credit for now"). slskd check 2026-10-27 (title + artist queries, helpful peers): main artist only wins every
+  time — Jaded: feat. credit 4 / all names 11 / main 24; Dracula: "with JENNIE" 18 / names 136 /
+  main 565; Flores de abraços: 1 / 1 / 6; Dead on the Dance Floor: 2 / 2 / 2. Join words
+  ("feat.", "with", "&") in a query cut results hardest.
+- **Where each rule lives**: `normalize.py` only builds query names (feat. and title-credit
+  stripping, the "The" rule, main artist; everything else as written). Folding accents, case
+  and punctuation happens in the **matcher**, on both sides, only to decide whether a returned
+  file is the song: Soulseek matches loosely, so returned files are spelled differently from
+  the query.
+- **Album**: the main album (ListenBrainz's release), not Deezer's single.
+- **Credits written into titles** ("+ Zara Larsson", "x stromae"): stripped, not kept.
+
 ## slskd decides (user, 2026-10-27)
 
 - **The normalizer's choices are judged by slskd**: which name finds the most helpful peers, not

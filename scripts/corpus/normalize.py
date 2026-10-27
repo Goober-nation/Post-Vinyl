@@ -1,135 +1,100 @@
-"""Name normalization prototype for the normalization test (#70).
+"""Query names for slskd from catalogue names (#70, rules decided in #71).
 
-Turns any source's track, artist and album names into the same compare-key
-``Song(track, artists, album)``, so the same song from Deezer, MusicBrainz,
-ListenBrainz (or later a file path) comes out identical. ``artists`` is a
-sorted tuple of single artist names, because sources split credits
-differently ("A & B" in one credit string vs. two contributors).
+Turns a song's MusicBrainz/ListenBrainz names into the names a slskd query is
+built from. slskd results decide every choice (user, 2026-10-27); the numbers
+are in ``agents_memory/rebuild/search-test-v2.md``.
 
-Every rule can be switched off (``rules=``) so the report (#70) can measure
-what each one contributes. Rules (decided with the user 2026-10-26):
+Kept (each switchable, so the report can show what it changes):
 
-- ``feat``     drop featured credits: "(feat. X)" in titles, featured artists
-- ``version``  drop same-song suffixes: Remastered, Deluxe, years, Album Version
-- ``amp``      "&" → "and"
-- ``the``      drop a leading "The" from artist names
-- ``punct``    brackets and punctuation → spaces (words inside kept),
-               apostrophes removed ("Don't" → "dont")
-- ``accents``  strip accents from Latin letters only (Cyrillic й stays й)
-- ``case``     case-fold
+- ``feat``           drop "(feat. X)", "[ft. X]", "(with X)" and a "feat. X" tail
+                     from titles
+- ``title_credits``  drop a credited artist written into the title with
+                     "+", "x", "×", "&" or "," ("Stateside + Zara Larsson")
+- ``the``            drop a leading "The" from the query artist
 
-No transliteration: Кино and Kino stay different. Pure and stdlib-only; it
-moves to ``app/core/normalize.py`` once the rules are settled (#71).
+The query artist is the **main artist only** (first credit that isn't
+featured): join words like "feat.", "with", "&" cut slskd results hardest.
+The full credit is kept alongside for the matcher.
+
+Everything else stays as the source writes it: original script (Высоцкий,
+이은미), accents (Café), case, punctuation, "&", version suffixes. Soulseek
+ignores case and punctuation and matches accents loosely; folding them for
+comparing files is the matcher's job, not this module's.
+
+Pure and stdlib-only; moves to ``app/core/normalize.py`` once settled.
 """
 
 from __future__ import annotations
 
 import re
-import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-ALL_RULES = frozenset({"feat", "version", "amp", "the", "punct", "accents", "case"})
+ALL_RULES = frozenset({"feat", "title_credits", "the"})
 
 _FEAT_WORD = r"(?:feat\.?|ft\.?|featuring|with)"
-# "(feat. X)" / "[ft. X]" anywhere, or an unbracketed "feat. X" tail. "with"
-# only counts inside brackets: unbracketed it's too often part of the title.
+# "(feat. X)" / "[ft. X]" / "(with X)" anywhere, or an unbracketed "feat. X"
+# tail. Unbracketed "with" is too often part of the title to count.
 _FEAT_BRACKET_RE = re.compile(rf"\s*[(\[]\s*{_FEAT_WORD}\s[^)\]]*[)\]]", re.IGNORECASE)
 _FEAT_TAIL_RE = re.compile(r"\s+(?:feat\.?|ft\.?|featuring)\s.*$", re.IGNORECASE)
 _FEAT_JOIN_RE = re.compile(rf"^\s*[(\[]?\s*{_FEAT_WORD}\s*$", re.IGNORECASE)
-
-# One trailing "(…)", "[…]" or " - …" segment that marks the same song.
-_VERSION_WORDS = (
-    r"(?:\d{4}\s*)?(?:-\s*)?(?:digital(?:ly)?\s+)?"
-    r"(?:re-?master(?:ed)?(?:\s+version)?|deluxe(?:\s+(?:edition|version))?|"
-    r"expanded(?:\s+edition)?|bonus\s+track|album\s+version|single\s+version)"
-    r"(?:\s*\d{4})?|\d{4}"
-)
-_VERSION_RE = re.compile(
-    rf"\s*(?:[(\[]\s*(?:{_VERSION_WORDS})\s*[)\]]|\s-\s*(?:{_VERSION_WORDS}))\s*$",
-    re.IGNORECASE,
-)
-_APOSTROPHES_RE = re.compile(r"['’ʼ`´]")
-_NON_WORD_RE = re.compile(r"[\W_]+")
-
-
-@dataclass(frozen=True)
-class Song:
-    track: str
-    artists: tuple[str, ...]
-    album: str
+_TITLE_CREDIT_SEP = r"\s*(?:\+|×|,|&|\s[xX])\s+"
+_THE_RE = re.compile(r"^the\s+(?=\S)", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
 class Credit:
-    """One artist in a credit, with the phrase that came before it."""
+    """One artist in a credit; ``featured`` when a feat. phrase came before it."""
 
     name: str
     featured: bool = False
+
+
+@dataclass(frozen=True)
+class QueryNames:
+    track: str
+    artist: str  # main artist, for the query
+    album: str
+    credit: str  # full credit as the source writes it, for the matcher
+
+
+def squash(text: str | None) -> str:
+    return " ".join((text or "").split())
 
 
 def strip_feat(title: str) -> str:
     return _FEAT_TAIL_RE.sub("", _FEAT_BRACKET_RE.sub("", title))
 
 
-def strip_version(text: str) -> str:
+def strip_title_credits(title: str, names: Iterable[str]) -> str:
+    """Drop "+ X" / "x X" / "& X" / ", X" tails where X is a credited artist."""
     prev = None
-    while prev != text:
-        prev, text = text, _VERSION_RE.sub("", text)
-    return text
+    while prev != title:
+        prev = title
+        for name in names:
+            rx = rf"{_TITLE_CREDIT_SEP}{re.escape(name)}\s*$"
+            title = re.sub(rx, "", title, flags=re.IGNORECASE)
+    return title
 
 
-def strip_latin_accents(text: str) -> str:
-    out = []
-    for ch in text:
-        base = unicodedata.normalize("NFD", ch)
-        if len(base) > 1 and unicodedata.name(base[0], "").startswith("LATIN"):
-            out.append("".join(c for c in base if not unicodedata.combining(c)))
-        else:
-            out.append(ch)
-    return "".join(out)
-
-
-def norm_text(text: str | None, rules: frozenset[str] = ALL_RULES) -> str:
-    """Rules that apply to every field (punctuation, accents, case)."""
-    text = unicodedata.normalize("NFC", text or "")
-    if "amp" in rules:
-        text = text.replace("&", " and ")
-    if "punct" in rules:
-        text = _NON_WORD_RE.sub(" ", _APOSTROPHES_RE.sub("", text))
-    if "accents" in rules:
-        text = strip_latin_accents(text)
-    if "case" in rules:
-        text = text.casefold()
-    return " ".join(text.split())
-
-
-def norm_title(text: str | None, rules: frozenset[str] = ALL_RULES) -> str:
-    """Track or album title."""
-    text = text or ""
+def query_title(
+    title: str | None, credits: Iterable[Credit] = (), rules: frozenset[str] = ALL_RULES
+) -> str:
+    out = squash(title)
     if "feat" in rules:
-        text = strip_feat(text)
-    if "version" in rules:
-        text = strip_version(text)
-    return norm_text(text, rules)
+        out = strip_feat(out)
+    if "title_credits" in rules:
+        out = strip_title_credits(out, [c.name for c in credits])
+    return squash(out)
 
 
-def norm_artist(name: str, rules: frozenset[str] = ALL_RULES) -> str:
-    out = norm_text(name, rules)
-    if "the" in rules and out[:4].casefold() == "the " and len(out) > 4:
-        out = out[4:]
+def main_artist(credits: Iterable[Credit], rules: frozenset[str] = ALL_RULES) -> str:
+    credits = list(credits)
+    main = next((c for c in credits if not c.featured), credits[0] if credits else None)
+    out = squash(main.name if main else "")
+    if "the" in rules:
+        out = _THE_RE.sub("", out)
     return out
-
-
-def norm_artists(
-    credits: Iterable[Credit], rules: frozenset[str] = ALL_RULES
-) -> tuple[str, ...]:
-    names = {
-        norm_artist(c.name, rules)
-        for c in credits
-        if not (c.featured and "feat" in rules)
-    }
-    return tuple(sorted(n for n in names if n))
 
 
 def credits_from_joined(parts: Iterable[tuple[str, str]]) -> list[Credit]:
@@ -145,12 +110,17 @@ def credits_from_joined(parts: Iterable[tuple[str, str]]) -> list[Credit]:
     return out
 
 
-def normalize(
+def query_names(
     track: str | None,
     credits: Iterable[Credit],
     album: str | None,
+    credit: str | None = None,
     rules: frozenset[str] = ALL_RULES,
-) -> Song:
-    return Song(
-        norm_title(track, rules), norm_artists(credits, rules), norm_title(album, rules)
+) -> QueryNames:
+    credits = list(credits)
+    return QueryNames(
+        track=query_title(track, credits, rules),
+        artist=main_artist(credits, rules),
+        album=squash(album),
+        credit=squash(credit) or ", ".join(c.name for c in credits),
     )
