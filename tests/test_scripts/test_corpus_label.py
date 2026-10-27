@@ -57,10 +57,18 @@ def test_duration_off_by_more_than_3s():
     assert lb.label_track_file(f, KP).label == "duration"
 
 
-def test_duration_within_tolerance_or_missing():
-    for length in (261, 267, None):
+def test_duration_within_tolerance():
+    for length in (261, 267):
         f = _f("Radiohead\\OK Computer\\Karma Police.flac", length)
         assert lb.label_track_file(f, KP).label == "correct"
+
+
+def test_missing_length_is_unverified_not_correct():
+    # Decided 2026-10-27: every v2 trap false positive had no length.
+    f = _f("Radiohead\\OK Computer\\Karma Police.flac", None)
+    assert lb.label_track_file(f, KP).label == "no_length"
+    peer = lb.label_peer({"username": "p", "files": [f]}, KP)
+    assert not peer.helpful and peer.unverified
 
 
 def test_excluded_word_allowed_when_seed_has_it():

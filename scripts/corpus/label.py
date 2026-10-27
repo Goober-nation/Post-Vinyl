@@ -18,7 +18,9 @@ A file is **correct** for a track seed when (decided 2026-10-04, #34):
 3. the title is an in-order phrase in the **filename** (remaster/deluxe
    suffixes ignored, they're the same song) and the main artist is somewhere
    in the path,
-4. its length is within ±3 s of the MusicBrainz length, when both exist.
+4. its length is within ±3 s of the MusicBrainz length. A file with no
+   reported length is ``no_length``, not correct: its peer counts as
+   *unverified* in its own column (user, 2026-10-27).
 
 Both sides are folded the same way before comparing: case, accents on Latin
 letters only (Cyrillic й and kana voicing marks stay), punctuation, "&" as
@@ -256,6 +258,10 @@ def label_track_file(f: dict, seed: dict) -> FileLabel:
     if not artist_matches(folders, stem, seed["artist"]):
         return FileLabel("no_artist", name)
     want, got = seed_length(seed), f.get("length")
+    if want and got is None:
+        # Can't be length-checked: every v2 trap false positive was such a
+        # file (2026-10-27). Counted apart, never as correct (user decision).
+        return FileLabel("no_length", name)
     if want and got and abs(int(got) - int(want)) > DURATION_TOLERANCE_S:
         return FileLabel("duration", name, f"{got}s vs {want}s")
     return FileLabel("correct", name)
@@ -295,6 +301,8 @@ class PeerLabel:
     files: int
     locked: int
     free_slot: bool = False
+    # Only no-length matches: the right name, length unknown.
+    unverified: bool = False
     correct: list[str] = field(default_factory=list)
     best: dict | None = None
     reasons: dict[str, int] = field(default_factory=dict)
@@ -322,6 +330,7 @@ def label_peer(peer: dict, seed: dict) -> PeerLabel:
                     out.best = q
         out.reasons = dict(reasons)
         out.helpful = bool(out.correct)
+        out.unverified = not out.helpful and reasons.get("no_length", 0) > 0
     elif kind == "album":
         by_folder: dict[str, list[dict]] = defaultdict(list)
         for f in files:
@@ -388,6 +397,7 @@ def score_record(record: dict, seeds: dict[str, dict]) -> list[dict]:
                 "peers": len(peers),
                 "helpful_peers": len(helpful),
                 "helpful_free_slot": sum(p.free_slot for p in helpful),
+                "unverified_peers": sum(p.unverified for p in peers),
                 "formats": dict(Counter(format_band(p.best) for p in helpful)),
                 "files": sum(p.files for p in peers),
                 "correct_files": sum(len(p.correct) for p in helpful),
@@ -435,6 +445,9 @@ def _stats(rs: list[dict]) -> dict:
     return {
         "n": len(rs),
         "found_pct": 100 * sum(r["helpful_peers"] > 0 for r in rs) / len(rs),
+        "found_incl_unverified_pct": 100
+        * sum(r["helpful_peers"] + r.get("unverified_peers", 0) > 0 for r in rs)
+        / len(rs),
         "median_helpful_peers": statistics.median(r["helpful_peers"] for r in rs),
         "mean_helpful_peers": statistics.mean(r["helpful_peers"] for r in rs),
         "median_free_slot": statistics.median(
@@ -479,7 +492,9 @@ def render(summary: dict, rows: list[dict]) -> str:
         "least one correct, downloadable file (rules in `scripts/corpus/label.py`).",
         "*Found* = the query returned ≥1 helpful peer. *Peer precision* = helpful",
         "peers / all peers that answered. *Free slot* = helpful peers with a free",
-        "upload slot. Negative seeds (traps): any helpful peer is a false positive.",
+        "upload slot. *Unverified length*: peers whose only match reports no length",
+        "(counted apart, not helpful). Negative seeds (traps): any helpful peer is a",
+        "false positive.",
         "",
     ]
     for kind in ("track", "album", "artist", "negative"):
@@ -489,14 +504,16 @@ def render(summary: dict, rows: list[dict]) -> str:
             f"## {kind}",
             "",
             (
-                "| Shape | n | Found | Helpful peers (median) | (mean) "
+                "| Shape | n | Found | Found incl. unverified length "
+                "| Helpful peers (median) | (mean) "
                 "| Free slot (median) | Peers (median) | Peer precision |"
             ),
-            "|---|---|---|---|---|---|---|---|",
+            "|---|---|---|---|---|---|---|---|---|",
         ]
         for fam, st in summary[kind].items():
             lines.append(
                 f"| {fam} | {st['n']} | {st['found_pct']:.0f}% "
+                f"| {st['found_incl_unverified_pct']:.0f}% "
                 f"| {st['median_helpful_peers']:.0f} | {st['mean_helpful_peers']:.0f} "
                 f"| {st['median_free_slot']:.0f} | {st['median_peers']:.0f} "
                 f"| {st['median_peer_precision_pct']:.1f}% |"
