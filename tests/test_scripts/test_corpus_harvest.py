@@ -203,11 +203,13 @@ def test_main_records_everything_and_resumes(tmp_path, monkeypatch):
         str(out),
         "--per-minute",
         "6000",
+        "--canary-min",
+        "0",
     ]
     assert harvest.main(argv, slskd=fake) == 0
 
-    # warm-up first, then q1; q2 already on disk → skipped
-    assert fake.started == [("love", 600), ("Air", 600)]
+    # canary first, then q1; q2 already on disk → skipped
+    assert fake.started == [("2020", 600), ("Air", 600)]
     with gzip.open(out / "raw" / "q1.json.gz", "rt") as fh:
         rec = json.load(fh)
     assert rec["query"] == "Air" and rec["uses"] == [{"seed": "s1", "shape": "A"}]
@@ -248,7 +250,11 @@ def test_result_discarded_when_connection_drops_during_search(tmp_path, monkeypa
         str(tmp_path / "o"),
         "--per-minute",
         "6000",
+        "--canary-min",
+        "0",
         "--retries",
+        "0",
+        "--canary-min",
         "0",
     ]
     harvest.main(argv, slskd=fake)
@@ -272,7 +278,14 @@ def test_throttled_search_backs_off_and_retries(tmp_path, monkeypatch):
             return super().start(query, response_limit, timeout_ms)
 
     fake = Busy([1], [{"username": "a"}], complete_at=0)
-    argv = ["--plan", str(tmp_path / "plan.json"), "--out", str(tmp_path / "o")]
+    argv = [
+        "--plan",
+        str(tmp_path / "plan.json"),
+        "--out",
+        str(tmp_path / "o"),
+        "--canary-min",
+        "0",
+    ]
     harvest.main(argv, slskd=fake)
     assert 30 in waits
     assert (tmp_path / "o" / "raw" / "q1.json.gz").exists()
@@ -282,7 +295,14 @@ def test_crash_mid_run_keeps_finished_queries(tmp_path, monkeypatch):
     monkeypatch.setattr(harvest.time, "sleep", lambda s: None)
     queries = [{"qid": f"q{i}", "query": f"x{i}", "uses": []} for i in range(3)]
     (tmp_path / "plan.json").write_text(json.dumps({"seeds": [], "queries": queries}))
-    argv = ["--plan", str(tmp_path / "plan.json"), "--out", str(tmp_path / "o")]
+    argv = [
+        "--plan",
+        str(tmp_path / "plan.json"),
+        "--out",
+        str(tmp_path / "o"),
+        "--canary-min",
+        "0",
+    ]
 
     class Crashes(FakeSlskd):
         def start(self, query, response_limit, timeout_ms):
@@ -297,34 +317,113 @@ def test_crash_mid_run_keeps_finished_queries(tmp_path, monkeypatch):
 
     fake = FakeSlskd([1], [{"username": "a"}], complete_at=0)
     harvest.main(argv, slskd=fake)
-    # resumes where it stopped (after its own warm-up search)
-    assert [q for q, _ in fake.started] == ["love", "x1", "x2"]
+    # resumes where it stopped (after its own canary)
+    assert [q for q, _ in fake.started] == ["2020", "x1", "x2"]
 
 
-def test_warm_up_retries_until_a_search_answers():
-    class Cold(FakeSlskd):
-        searches = 0
+def test_result_discarded_when_network_parent_is_lost(tmp_path, monkeypatch):
+    monkeypatch.setattr(harvest.time, "sleep", lambda s: None)
+    plan = {"seeds": [], "queries": [{"qid": "q1", "query": "Animal", "uses": []}]}
+    (tmp_path / "plan.json").write_text(json.dumps(plan))
+
+    class LosesParent(FakeSlskd):
+        """Parent there before every search, gone right after the plan's one."""
+
+        lost = False
 
         def start(self, query, response_limit, timeout_ms):
-            self.searches += 1
-            self.polls = 0
-            self.counts = [0] if self.searches == 1 else [3]
-            self.resp = [] if self.searches == 1 else [{"username": "a"}] * 3
-            return "sid"
+            self.lost = query == "Animal"
+            return super().start(query, response_limit, timeout_ms)
+
+        def version(self):
+            gone, self.lost = self.lost, False
+            return {"distributedNetwork": {"hasParent": not gone}}
+
+    fake = LosesParent([1], [{"username": "a"}], complete_at=0)
+    argv = [
+        "--plan",
+        str(tmp_path / "plan.json"),
+        "--out",
+        str(tmp_path / "o"),
+        "--retries",
+        "0",
+        "--canary-min",
+        "0",
+    ]
+    harvest.main(argv, slskd=fake)
+    assert not (tmp_path / "o" / "raw" / "q1.json.gz").exists()
+
+
+def test_wait_ready_waits_for_a_parent():
+    class Later(FakeSlskd):
+        checks = 0
+
+        def version(self):
+            self.checks += 1
+            return {"distributedNetwork": {"hasParent": self.checks >= 3}}
 
     clock = FakeClock()
-    fake = Cold([0], [], complete_at=0)
-    w = harvest.warm_up(fake, clock=clock, sleep=clock.sleep)
-    assert w["attempts"] == 2 and w["responses"] == 3
+    harvest.wait_ready(Later([0], []), max_wait=60, sleep=clock.sleep)
+    assert clock.t == 10
 
-
-def test_warm_up_waits_for_a_parent_and_gives_up_when_nothing_answers():
-    class NoParent(FakeSlskd):
+    class Never(FakeSlskd):
         def version(self):
             return {"distributedNetwork": {"hasParent": False}}
 
+    with pytest.raises(RuntimeError, match="no distributed-network parent"):
+        harvest.wait_ready(Never([0], []), max_wait=20, sleep=FakeClock().sleep)
+
+
+def test_canary_passes_and_fails_on_response_count(tmp_path):
     clock = FakeClock()
-    with pytest.raises(RuntimeError, match="no responses"):
-        harvest.warm_up(
-            NoParent([0], [], complete_at=0), max_wait=10, sleep=clock.sleep
-        )
+    log = tmp_path / "c.jsonl"
+    many = FakeSlskd([600], [{"username": "a"}] * 600, complete_at=0)
+    few = FakeSlskd([36], [{"username": "a"}] * 36, complete_at=0)
+    assert harvest.canary(many, log, clock=clock, sleep=clock.sleep)
+    assert not harvest.canary(few, log, clock=clock, sleep=clock.sleep)
+    entries = [json.loads(line) for line in log.read_text().splitlines()]
+    assert [(e["query"], e["responses"], e["ok"]) for e in entries] == [
+        ("2020", 600, True),
+        ("2020", 36, False),
+    ]
+
+
+def test_failed_canary_moves_results_aside_and_redoes_them(tmp_path, monkeypatch):
+    monkeypatch.setattr(harvest.time, "sleep", lambda s: None)
+    queries = [{"qid": f"q{i}", "query": f"x{i}", "uses": []} for i in range(4)]
+    (tmp_path / "plan.json").write_text(json.dumps({"seeds": [], "queries": queries}))
+
+    class Throttles(FakeSlskd):
+        """Canaries: pass (start), fail (after x0,x1), then pass forever."""
+
+        canaries = 0
+
+        def start(self, query, response_limit, timeout_ms):
+            self.polls = 0
+            if query == "2020":
+                self.canaries += 1
+                n = 36 if self.canaries == 2 else 600
+            else:
+                n = 5
+            self.counts, self.resp = [n], [{"username": "a"}] * n
+            return super().start(query, response_limit, timeout_ms)
+
+    fake = Throttles([1], [], complete_at=0)
+    out = tmp_path / "o"
+    argv = [
+        "--plan", str(tmp_path / "plan.json"), "--out", str(out),
+        "--canary-every", "2",
+    ]  # fmt: skip
+    harvest.main(argv, slskd=fake)
+    searched = [q for q, _ in fake.started]
+    assert searched == [
+        "2020", "x0", "x1", "2020",  # canary fails → x0, x1 suspect
+        "2020",  # cooldown, then passes
+        "x0", "x1", "2020",  # redone, in plan order
+        "x2", "x3", "2020",
+    ]  # fmt: skip
+    assert sorted(p.name for p in (out / "raw").iterdir()) == [
+        f"q{i}.json.gz" for i in range(4)
+    ]
+    (suspect,) = (out / "suspect").iterdir()
+    assert sorted(p.name for p in suspect.iterdir()) == ["q0.json.gz", "q1.json.gz"]
