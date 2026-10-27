@@ -27,7 +27,8 @@ backlog/
 .claude/
 .pytest_cache/
 .coverage
-agents_memory/
+agents_memory/*
+!agents_memory/rebuild/
 
 # macOS Finder metadata — never useful to anyone, drops into any dir a
 # macOS user browses to (repo root, app/, tests/)

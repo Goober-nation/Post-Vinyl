@@ -1,382 +1,205 @@
-# AGENTS.md — Post-Vinyl AI Guide
+# AGENTS.md: Post-Vinyl AI guide
 
-**Purpose**: Instant context for AI agents working on this project. Read this first.
-
----
-
-## Rule Zero: Prove It Works
-
-**Your job is to deliver code that is proven to work.**
-
-- Every PR must pass tests locally before opening
-- slskd/Navidrome integration changes must be tested with real services
-- If you cannot test on real services, say so explicitly: "unverified on real services, waiting for user testing"
-- Do not imply coverage you did not actually achieve
+Read this first. Post-Vinyl is being **rebuilt from scratch** (since 2026-10-27). The design lives in
+`agents_memory/rebuild/`; where anything else (old issues, old notes, `legacy/` code) disagrees with
+it, the rebuild notes win.
 
 ---
 
-## Build & Test Commands
+## Session startup
+
+1. Read this file.
+2. Read `agents_memory/MEMORY.md` (local only, may be missing on another machine).
+3. Read `agents_memory/rebuild/architecture.md`, then `rebuild/work-plan.md`. Read the other rebuild
+   notes only when the task touches them:
+   - `core-db-redesign.md`: schema (built + planned)
+   - `users-auth.md`: login, sessions, default deny
+   - `design-notes-compilation.md`: search & matching decisions
+   - `search-test-v2.md`: normalization test + search benchmark rerun
+   - `live-runs-log.md`: past runs on the test stack
+4. Check the current GitHub milestone and its issues (`gh issue list --milestone "<title>"`).
+5. Check the branch (`git branch --show-current`); see Branches below.
+6. If the user gives a free-form idea mid-session, say which milestone/issue it belongs to (or that it
+   needs a new one) before acting.
+
+If anything is unclear or missing, ask before proceeding.
+
+---
+
+## Current state
+
+- **`app/`**: the new app, an empty layered skeleton (`clients/`, `stores/`, `core/`, `services/`,
+  `workers/`, `routes/`). Layer rules in `rebuild/architecture.md`.
+- **`legacy/`**: the old app and its tests. Reference only: never run, never imported, deleted when
+  the rebuild is done. Port pieces from it deliberately (the "stays" rows in `architecture.md` §5).
+- **`scripts/corpus/`** + **`tests/test_scripts/`** + **`tests/fixtures/corpus/`**: the search
+  benchmark tooling. `plan.py` and `resolve_seeds.py` still import modules that now only exist in
+  `legacy/`, so they're broken until those are ported.
+- No frontend until the backend is done; test through FastAPI's `/docs` (development only).
+- The server still runs the old app from `main`.
+
+---
+
+## Branches
+
+- Rebuild work goes on **`rebuild/<topic>`** branches, branched from and merged into
+  **`rebuild/base`**. `rebuild/base` → `main` only when the rebuild is done.
+- `main` and `dev` keep the old app; don't commit there.
+- Never commit or push without an explicit "commit" / "push" from the user.
+
+---
+
+## Tracking: milestones + issues
+
+- GitHub milestones 1–10 on `Goober-nation/Post-Vinyl` are the roadmap (normalization research,
+  search test v2, service clients, data layer + login, core logic, core loop, wiring + validation,
+  approval inbox + Postradio, Yandex playlists, custom playlists).
+- **Issues are created when a milestone starts**, not before. Propose them (description,
+  dependencies, how it'll be verified) with `AskUserQuestion` first.
+- Reference dependencies by issue number ("Depends on #12").
+- **Finishing an issue: close it with one summary comment**: date, what shipped, how it was
+  verified, anything left unverified.
+- **The repo is public**: no secrets, server addresses, account names or personal paths in issues,
+  commits or committed notes.
+- The old project board and `phase:*` labels are retired; don't use them.
+
+---
+
+## Architecture rules (full version: `rebuild/architecture.md`)
+
+- Layers: `routes`/`workers` → `services` → `core` + `stores` + `clients`. Import only downward;
+  routes and workers never touch a client or store directly.
+- `core/` is pure: no I/O, no imports from the rest of the app.
+- **No SQL outside `stores/`.** One client per outside system, behind an ABC with a fake.
+- Every `track_state` / `file_state` value has exactly one owning service; transitions go through
+  `core/states.py`.
+- Threads + sync code; ABCs on clients and on services that routes/workers call.
+- **Never duplicate state another system owns**: slskd owns search results and transfers, Navidrome
+  owns the library, paths and its playlists' contents, ListenBrainz/Postradio own recommendations.
+  Post-Vinyl owns its own bookkeeping (songs it was asked for, requests, attempts, file states,
+  playlist definitions).
+- **Re-read, don't re-search**: slskd keeps searches indefinitely; a retry re-reads the same search
+  by id and re-picks from its peers.
+
+---
+
+## Ponytail ladder (every design and code decision)
+
+Stop at the first rung that holds: 1. Does this need to exist? 2. Is it already in this codebase
+(or `legacy/`)? 3. Standard library? 4. Native platform feature? 5. Installed dependency? 6. One
+line? 7. Only then: the minimum that works. Never trim trust-boundary validation, data-loss
+handling, security or accessibility.
+
+---
+
+## Prove it works
+
+- Deliver code that is proven to work. Integration changes (slskd, Navidrome, MusicBrainz,
+  ListenBrainz, Deezer, Yandex, Postradio) need a real-service run; if you can't do one, say
+  "unverified on real services".
+- Don't imply coverage you didn't achieve.
+- **Done** = relevant tests pass, `ruff check` and `mypy` clean for touched files, and a
+  real-service run recorded for integration changes. Unverified items are marked as such.
+
+### Where and what to test
+
+- **Recommended setup:** unit and DB tests in a throwaway `python:3.12-slim` container with the repo
+  mounted read-only; live tests on the isolated test stack (`docker-compose.test.yml`, local only,
+  gitignored, with `.env.test` and separate test Navidrome and slskd users). Never point compose,
+  setup flows or tests at the real `.env`.
+- **Test where it pays off, not everywhere**: the file matcher, query strategy, name
+  normalization, state transitions, the stall rule, DB triggers and cascades, auth and sessions.
+  Skip tests that only restate the code (getters, route pass-through, config plumbing).
+- Long-running tests and harvests run detached; check them periodically, and replace a test that
+  runs too long with a shorter one rather than waiting.
+
+### Commands
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Run app
-python -m app.main
-
-# Run tests
 pytest tests/ -v
-
-# Run with coverage
-pytest tests/ --cov=app --cov-report=term-missing
-
-# Lint
-ruff check app/
-ruff format --check app/
-
-# Type check
+ruff check app/ scripts/
+ruff format --check app/ scripts/
 mypy app/
 ```
 
-### Where and what to test (recommendation, 2026-10-27)
-
-- **Recommended setup:** run unit and DB tests in a throwaway `python:3.12-slim` container with the
-  repo mounted read-only, and live tests on the isolated test stack (`docker-compose.test.yml`,
-  `.env.test`, with separate test Navidrome and slskd users). Never point compose, setup flows or
-  tests at the real `.env`.
-- **Test where it pays off, not everywhere.** Write tests for code that is easy to get subtly
-  wrong and expensive when it is: the file matcher, query strategy, name normalization, state
-  transitions, the stall rule, DB triggers and cascades, auth and session handling. Skip tests that
-  only restate the code (plain getters, route pass-through, config plumbing). Integration changes
-  still need a real-service run, per Rule Zero.
-- Long-running tests run detached; check them periodically, and replace a test that runs too long
-  with a shorter one rather than waiting.
+After any implementation work, give the user the exact commands to run and exercise it (tests,
+`/docs` URL, curl examples, real-service prerequisites).
 
 ---
 
-## Definition of Done
+## Agent memory
 
-Before marking any item as `[x]` (AI-tested):
-
-- [ ] All tests pass (`pytest` exit code 0)
-- [ ] Linting passes (`ruff check` exit code 0)
-- [ ] No type errors (`mypy` exit code 0)
-- [ ] Documentation updated if public API changed
-- [ ] Tested with real slskd/Navidrome if integration changed
-
----
-
-## Multi-Phase Testing
-
-This project uses a 3-phase completion model, tracked via GitHub Issues + the project board's Status
-field (Todo/In Progress/Done) rather than bracket codes in a markdown file (that system was retired
-2026-09-15 — see "GitHub Backlog & Project Board" below):
-
-1. **AI-tested**: You implemented, ran tests, verified functionality — leave an issue comment
-   summarizing what was verified (date + what, in ~1 sentence), and set board Status to reflect it.
-2. **User-tested**: User deployed in Docker, confirmed real-world functionality — a follow-up comment.
-3. **Complete**: User-tested + no issues + approved — close the issue.
-
-**Your workflow:**
-- Start work: move the board item's Status to "In Progress" (or just start — Status is a courtesy for
-  visibility, not a hard gate)
-- Finish work: leave an issue comment "AI-tested: YYYY-MM-DD — [what was verified, ~1 sentence]"; do
-  not restate the whole implementation — that belongs in the code and, if it's a lasting design
-  decision, in `agents_memory/topics/*.md`
-- User approves: close the issue with a closing comment "User-tested: YYYY-MM-DD — [feedback]"
+- `agents_memory/rebuild/`: **committed**, the rebuild design. Edit in place as decisions change;
+  record each user decision with its date. Keep it free of secrets and personal details (public repo).
+- `agents_memory/MEMORY.md` + `agents_memory/topics/`: **local only** (gitignored). `MEMORY.md` holds
+  short durable facts and preferences; `topics/` holds API notes (slskd, Navidrome, ListenBrainz…),
+  read on demand.
+- No session logs or scratchpads: progress goes into issue comments, decisions into the rebuild
+  notes.
 
 ---
 
-## GitHub Backlog & Project Board
+## Music rules (apply in every module)
 
-**Location**: GitHub Issues on this repo + the [Post-Vinyl Backlog](https://github.com/users/Goober-nation/projects/1)
-project board (public). The board's **Phase** field groups issues into the roadmap order (numbered,
-lowest = next); its **Status** field (Todo/In Progress/Done) tracks in-flight work state independent
-of phase. Phase labels (`phase:stability-pass`, `phase:search-pipeline`, etc.) mirror the board field
-so phase membership is visible directly on the issue list too, not just on the board.
-
-The local `backlog/` directory's live-planning files (`BACKLOG.md`, `phase-*.md`, `parked.md`) were
-retired 2026-09-15 once every still-relevant item was ported to GitHub issues — do not recreate them.
-A `backlog/` directory may still exist locally on this machine with pre-migration historical archives
-in it (gitignored, never pushed, not part of this repo's history) — it is not part of any workflow,
-is never read at session start, and this file makes no assumption it exists. Do not rely on it or
-point anyone else at it; the GitHub issues/board above are the only shared source of truth.
-
-**Session startup:**
-1. Check the project board (group by Phase) or `gh issue list --label phase:<current-phase>` for the
-   active phase's open items.
-2. Read the issue(s) you're about to work — including comments, which carry prior test plans,
-   decisions, and cross-references to related issues (see e.g. #10↔#34, #6↔#35, #8↔#33 for the
-   pattern).
-3. If the user gives a free-form note/idea mid-session, propose which existing issue it belongs to
-   (or that it needs a new one) before acting — same spirit as the old "process user notes" step, just
-   via `AskUserQuestion` instead of a markdown notes section.
-
-**Adding new items:**
-- Propose the new item (description, dependencies, testing plan) via `AskUserQuestion` before creating
-  it, per "Interview the User During Planning" below
-- `gh issue create` with a real description; label it (`bug`/`enhancement` + the relevant `phase:*`
-  label); add it to the project board (`gh project item-add 1 --owner Goober-nation --url <issue-url>`)
-  and set its Phase field to match
-- Reference real dependencies by issue number in the body ("Depends on #39"), not a made-up ID scheme
-
-**Finishing a phase:**
-- Close each issue as it completes (see Multi-Phase Testing above) — GitHub tracks this natively, no
-  manual archiving step needed. A phase is "done" when every issue carrying its label is closed.
-
-**Never:**
-- Reorder phases (the board's Phase field) without user approval
-- Close an issue without a summary comment of what shipped/was verified
-- Recreate `backlog/BACKLOG.md` or a new local planning file — GitHub is the source of truth now
+- No beets, no Picard. Tag only what is known to be true (MusicBrainz/ListenBrainz lookups).
+- Never download excluded versions unless the requested song itself is one: cover, live,
+  acoustic, a cappella, mix/remix, extended, solo, reference, home session, soundtrack/OST,
+  ambient, edit/radio edit, karaoke, nightcore, sped up, slowed, 8d audio, mashup, bootleg,
+  tribute, "in the style of", instrumental, demo. Remaster/deluxe/year suffixes are the same song.
+- Config: only user-facing and advanced values become config, with self-explanatory names.
 
 ---
 
-## Agent Memory System
+## Benchmarks and research runs
 
-**Location**: `agents_memory/`
-
-**Purpose**: Store durable, cross-session facts that aren't already derivable from the code or from the GitHub issues/project board. AGENTS.md never changes; `agents_memory/` captures dynamic knowledge — and stays small on purpose.
-
-**Structure:**
-```
-agents_memory/
-├── README.md              # Explains the memory system
-├── MEMORY.md              # Long-term curated facts (~50 lines max, enforced)
-└── topics/
-    ├── slskd-api.md       # Topic-specific notes, read on-demand
-    └── navidrome-integration.md
-```
-
-**No `SCRATCHPAD.md` and no `daily/` log.** They were dropped 2026-08-09: both duplicated the backlog (which already tracks "what's next" and "what happened") and grew without bound — a single-day `daily/` file reached 791 lines and was mandatory reading every session. GitHub issues/comments are now the one place status lives (see "GitHub Backlog & Project Board" above); `MEMORY.md` is the one place durable facts live. Do not recreate either file — if you're tempted to write "here's what happened this session," that content belongs in an issue comment (if it's about task progress) or `MEMORY.md` (if it's a durable fact/gotcha), not a new log.
-
-**Decision guide — What to write where:**
-
-| What happened | Write to | Why |
-|---|---|---|
-| Finished/updated a backlog item | An issue comment | That's the log — one line, not a narrative |
-| Discovered an API quirk worth more than a line | `topics/<domain>.md` | Reusable knowledge, read on-demand |
-| User preference ("always do X") | `MEMORY.md` | Durable fact, needs to be in every session |
-| Critical gotcha that would bite almost any future session | `MEMORY.md` | High-signal, keep it under the line cap |
-| Narrow gotcha specific to one module/endpoint | `topics/<domain>.md` | Not worth the MEMORY.md line budget |
-
-**When to write to MEMORY.md:**
-- User states a lasting preference
-- A decision becomes permanent
-- A gotcha that isn't narrow to one file/endpoint
-
-**When NOT to write to MEMORY.md:**
-- Information already derivable from the code itself
-- Anything narrow enough for `topics/` instead
-- Session narration — there is no daily log anymore; don't recreate one inside MEMORY.md either
-
-**MEMORY.md format:**
-```markdown
-# Long-Term Memory
-
-## Architecture Decisions
-- slskd 0.26.0 requires cancel-to-flush pattern (2026-08-08)
-- State stored in SQLite, not JSON files (2026-08-08)
-
-## User Preferences
-- User prefers ABC interfaces over Protocol classes (2026-08-08)
-- User wants hot-reload for config, secrets require restart (2026-08-08)
-
-## Known Gotchas
-- slskd search responses return [] until search completes (2026-08-08)
-- Navidrome playlist API uses songIdToAdd, not songId (2026-08-08)
-
-## Project Status
-- One line per phase — current state only, not how it got there
-```
-
-**topics/ format:**
-```markdown
-# slskd API
-
-## Search
-- POST /api/v0/searches → search_id
-- GET /api/v0/searches/{id} → metadata (responseCount, isComplete)
-- PUT /api/v0/searches/{id} → cancel (forces response flush)
-- GET /api/v0/searches/{id}/responses → peer responses
-
-## Gotchas
-- Responses return [] until search completes or is cancelled
-- retention.search config controls how long searches persist (default: indefinite)
-- response_file_limit: 100 per peer
-
-## Examples
-- Cancel-to-flush pattern: see app/services/search.py:drive_search()
-```
+- Searches for research run on a **separate search-only slskd** with its own Soulseek test
+  account, never on the main one. The two share the Soulseek listen port, so the main slskd is
+  stopped during a run and **always restarted afterwards** (`run_suite.sh` does both and runs
+  detached; `watchdog.sh` restarts a frozen slskd). Discuss with the user before starting anything
+  on the server.
+- **No pass/fail booleans**: log counts (responses, files, poll trace, helpful peers, peers with a
+  free slot, format mix) and keep each slskd search id so a search can be re-read later; don't
+  store every response.
+- Separate stages of a test never get combined into one dataset.
+- Seed names come only from official Deezer/MusicBrainz/ListenBrainz data (normalized), never
+  hand-typed; search-test seeds are not taken from the user's library.
 
 ---
 
-## Session Startup Checklist
+## Working with the user
 
-**Every session, in order:**
-
-1. Read `AGENTS.md` (this file)
-2. Read `agents_memory/MEMORY.md` (long-term facts — should be a quick read)
-3. Check the project board / relevant `phase:*` label for open items; read the specific issue(s)
-   (including comments) for the task at hand — this checklist has no local-file step; everything
-   needed to pick up work lives on GitHub
-4. If the user gives a free-form note/idea, propose which issue it belongs to (or that it needs a new
-   one) before acting
-5. Identify next task from the board
-6. Begin work
-7. Read a specific `topics/*.md` file only if the task actually touches that area — not mandatory reading every session
-
-**If anything is unclear or missing, ask the user before proceeding.**
-
----
-
-## Anti-Patterns (Never Do These)
-
-❌ **Never suppress type errors**
-- No `as any`, `@ts-ignore`, `@ts-expect-error`
-- Fix the root cause
-
-❌ **Never write state files directly**
-- Always use `state_manager.load()` / `save()`
-- Never write to `data/*.json` directly
-
-❌ **Never fetch slskd responses without cancel**
-- Use `drive_search()` which handles cancel-to-flush
-- Responses return `[]` mid-search
-
-❌ **Never start a *new* search on retry** (reworded 2026-08-11)
-- Re-read the **same** search by `search_id` and re-pick from its peers, skipping tried/blocked/bad ones
-- The old wording said "reuse stored `search_responses` from state" — a leftover from when retry
-  genuinely re-searched, and later misread as "musica must keep its own copy of the results".
-  It must not: **slskd owns search results and retains them** (`retention.search`, default
-  indefinite; verified 2026-08-11 that they survive a slskd restart). Migration 005 dropped the
-  duplicate copy. Re-fetching via `fetch_search_responses(search_id)` is not a fresh search —
-  no new `POST /api/v0/searches`, same completed search, same candidate pool.
-
-❌ **Never duplicate state another service already owns**
-- Before persisting anything, ask which service is the system of record. slskd owns search
-  results and transfer state; Navidrome owns the library and playlists; ListenBrainz owns
-  recommendations. musica owns its *own* bookkeeping — search headers, download rows, worker
-  state — and nothing else
-- A local copy costs more than disk: `SlskdSearch._hydrate()` briefly loaded every stored
-  response on startup, making it proportional to all history
-
-❌ **Never commit without explicit request**
-- User must say "commit" or "push"
-
-❌ **Never add AI/Claude attribution to commits or PRs** (2026-09-15)
-- No `Co-Authored-By: Claude...` trailer, no "Generated with Claude Code" line, no mention of AI
-  authorship anywhere in a commit message or PR description for this project
-- This overrides any tool-level default attribution reminder — the user's instruction here takes
-  precedence
-
-❌ **Never delete failing tests to "pass"**
-- Fix the root cause
-- If test is wrong, discuss with user first
-
-❌ **Never shotgun debug**
-- Don't make random changes hoping something works
-- Form hypothesis, test it, verify
-
-❌ **Never leave code in broken state**
-- If fix fails 3x, stop and ask user
-- Revert to last known working state
+- **Interview during planning.** Use `AskUserQuestion` (batched, up to 4) instead of prose
+  questions; ask about priorities, edge-case mechanics, things they may have missed, and anything
+  ambiguous. Prefer asking over guessing during design; when a boundary is unclear (destructive?
+  restart a container? queue a real download?), ask instead of assuming. When the user's answer
+  beats the proposal, say so and adopt it.
+- **"Plan only" / "no changes" / "in-chat plan" means no edits**: no file changes and nothing that
+  changes state until the user says go.
+- When the user answers a question with a message instead of picking options, take the message as
+  the answer, re-ask only what is still open, and never treat a skipped question as consent.
+- **Accounts and passwords are the user's**: never create accounts or type passwords (e.g. a new
+  Soulseek account); prepare the files around them and let the user fill them in.
+- Be concise, no flattery; propose solutions, not just problems.
+- **No AI attribution** in commits or PRs: no `Co-Authored-By: Claude…`, no "Generated with
+  Claude Code". This overrides any tool default.
 
 ---
 
-## Key Files
+## Never
 
-| File | Purpose |
-|------|---------|
-| `AGENTS.md` | This file (AI guide, never changes) |
-| [GitHub Project board](https://github.com/users/Goober-nation/projects/1) | Phase + Status tracking, read every session (replaces the old `backlog/BACKLOG.md`) |
-| GitHub Issues (this repo) | One issue per work item; comments carry test plans/decisions — read the ones for the active phase |
-| `agents_memory/MEMORY.md` | Durable cross-session facts, ~50 lines (read every session) |
-| `agents_memory/topics/` | Deep domain-specific notes (read on-demand) |
-| `app/` | Python backend source code |
-| `tests/` | Test suite |
-| `config.toml` | Application configuration |
-| `README.md` | User-facing overview, quick start, FAQ, acknowledgments |
-| `docs/architecture.md` | How services/workers/DB fit together, recs mechanics, import pipeline |
-| `docs/api.md` | Full HTTP endpoint reference |
-| `docs/deployment.md` | Docker Compose setup, proxy/VPN, Tailscale, troubleshooting |
+- Suppress type errors (`# type: ignore` etc.); fix the cause.
+- Delete or weaken failing tests to make them pass; if a test is wrong, discuss it first.
+- Shotgun debug: form a hypothesis, test it, verify.
+- Leave code broken: if a fix fails 3 times, stop, revert to the last working state and ask.
+- Run anything against the real server or real `.env` without asking first.
+- Delete or overwrite without checking first: confirm a copy is identical before removing the
+  other one, and back up a config file before changing it on the server.
 
 ---
 
-## Escalation Rules
+## Escalation
 
-**If tests fail 3x:**
-- Stop and ask user
-- Document what you tried
-- Revert to last known working state
-
-**If linting fails:**
-- Run `ruff check --fix` and `ruff format`
-- If still failing, ask user
-
-**If build fails:**
-- Check error message
-- Fix, retry once
-- If still failing, ask user
-
-**If you're stuck:**
-- Document the problem
-- Propose 2-3 possible solutions
-- Ask user for direction
-
----
-
-## Communication Style
-
-- Be concise, no flattery
-- Start work immediately, no status updates
-- Ask clarifying questions when scope is ambiguous
-- Propose solutions, not just problems
-- Use todos for multi-step tasks
-
----
-
-## Interview the User During Planning (2026-08-10)
-
-**The user explicitly wants to be interviewed, not just presented with a plan.** During any
-design/planning/backlog session, actively ask questions rather than filling gaps with
-assumptions — the user has stated they "can't always think of these things" and wants the AI
-to surface the decisions they haven't considered.
-
-- **Use the native `AskUserQuestion` tool** for these, not prose questions buried in a wall of
-  text. The user asked for this specifically. Batch related questions (up to 4 per call).
-- Ask about: **priorities** (what goes in which phase, what's MVP vs. later), **mechanics**
-  (how exactly a feature should behave in edge cases), **things they may have missed**, and
-  **anything ambiguous** in their own notes.
-- When their answer reveals a better idea than what was proposed, say so and adopt it — the
-  user's domain instincts have repeatedly been right (e.g. pooling Deep Cuts instead of a
-  per-playlist count).
-- Prefer asking over guessing even when a reasonable default exists, *during planning*. This
-  overrides the general "make the reasonable call and keep going" bias — that still applies to
-  implementation work, not to design sessions.
-- **When in doubt, ask more, not fewer questions** (user, 2026-08-11): *"better safe than sorry
-  for sure… I am 100% for more questions before you start, to have 0 ambiguity remaining, I
-  prefer that."* Do not economize on clarifying questions to seem decisive, and do not narrow
-  your own permissions out of caution — if a boundary is unclear (is this action destructive?
-  am I allowed to restart a container? may I queue a real download?), **ask instead of
-  silently assuming the conservative reading**. An unasked question that leads to half-done
-  work is worse than one more round of `AskUserQuestion`.
-- Answers to these interviews are decisions: record them as a comment on the relevant GitHub issue
-  (and `agents_memory/topics/*.md` if they're lasting architectural choices) so they don't get
-  re-litigated next session.
-
----
-
-## Give the User Run Commands (2026-08-08)
-
-**The user runs the code themselves.** After any implementation work, always provide the exact commands they need to run it:
-
-- How to start the app (`python -m app.main` or `uvicorn app.main:app --port 8000`)
-- How to run tests / lint / type check (`pytest tests/ -v`, `ruff check app/`, `mypy app/`)
-- How to exercise what was just built (curl examples, URL to open in browser)
-- Note real-service prerequisites (e.g., "requires slskd reachable at the configured URL")
-
-Include these in the final answer of every work session, not just when asked. If the user runs the code and reports a problem, fix it and re-verify — do not assume their environment matches yours.
-
----
-
-**End of AGENTS.md**
+- Tests fail 2×: stop, document what you tried, revert, ask.
+- Lint fails: `ruff check --fix` + `ruff format`; still failing → ask.
+- Stuck: describe the problem, propose 2–3 options, ask for direction.
