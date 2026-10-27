@@ -66,6 +66,31 @@ Goal: the same song from any source normalizes to identical `[track, artist, alb
 - **No pass target**: the report gives equality rates per field and per rule, plus the mismatch
   list; the user judges.
 
+## slskd decides (user, 2026-10-27)
+
+- **The normalizer's choices are judged by slskd**: which name finds the most helpful peers, not
+  which catalogue looks cleanest. The API-equality report (#70) shows where sources differ;
+  slskd results settle which form wins.
+- **Non-Latin names stay in their original script** (Russian confirmed; Korean too, see below).
+  Spot check on the main slskd, 2026-10-27 (helpful peers = peers with ≥1 audio file of that
+  artist, and that title where one was searched):
+
+  | original script | peers | romanized | peers |
+  |---|---|---|---|
+  | стрыкало | 45 | strykalo | 12 |
+  | Высоцкий | 61 | Vysotsky | 19 |
+  | Би-2 | 74 | B-2 | noise (5% of files on target) |
+  | с тобой би-2 | 21 | with you b-2 | 0 |
+  | 이은미 | 10 | Lee Eun Mi | 3 |
+  | 악동뮤지션 | 12 | AKMU | 62 |
+
+  AKMU is the exception: the group's own Latin name beats the Hangul one, so where a source has
+  both, both forms are worth a query step (measure in search test v2).
+- Short artist names win when unambiguous ("Spagna" 217 peers vs "Ivana Spagna" 76); a version
+  label in the query can zero a search ("vai dar pt ao vivo" 0 vs "vai dar pt" 7 peers).
+- Some words are filtered by the Soulseek server: "octopus garden beatles" returned 0
+  responses with or without the apostrophe.
+
 ## Normalization stage 2 plan (user, 2026-10-27)
 
 Goal: a peer's file path normalizes to the same `[track, artist, album]` arrays as the stage 1
