@@ -123,6 +123,9 @@ ruff format --check app/ scripts/
 mypy app/
 ```
 
+always in venv, never global instalation
+dont mention eventless mypy and ruff checks
+
 After any implementation work, give the user the exact commands to run and exercise it (tests,
 `/docs` URL, curl examples, real-service prerequisites).
 
