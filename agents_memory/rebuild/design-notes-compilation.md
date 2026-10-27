@@ -72,6 +72,13 @@ one peer are worth one). Replaces the old pass ratio (viable files / all files �
 
 ## 4. Track search strategy (replaces the up-to-5-rung ladder)
 
+**Decided (user, 2026-10-28): L0 → TA → T** for every track request, from the search test
+v2 rerun (`docs/research/search-strategy.md`): L0 = longest title word + longest artist word
+(bracket qualifier in between), TA = full title + main artist, T = full title. The next query
+runs only when the previous one found no helpful peer. Found 79 of 100 seeds (ceiling 80).
+B, F:T, AT and LW are not in the ladder. **This replaces the provisional order below**, which
+is kept for history (from the first, flawed benchmark).
+
 **Provisional (user, 2026-10-25): the benchmark was flawed.** The rules get re-established and the
 test rerun before the final query order is assembled. The L0 → T / AT order below is the
 direction, not the final ladder.

@@ -91,6 +91,11 @@ Goal: the same song from any source normalizes to identical `[track, artist, alb
 - **Album**: the main album (ListenBrainz's release), not Deezer's single.
 - **Credits written into titles** ("+ Zara Larsson", "x stromae"): stripped, not kept.
 
+## Result (user, 2026-10-28, #77)
+
+**Track query order: L0 → TA → T** (next query only when the previous found no helpful peer).
+Numbers in `docs/research/search-strategy.md`; also recorded in `design-notes-compilation.md` §4.
+
 ## Search test v2 query plan (user, 2026-10-27, #75)
 
 - **Shapes per seed**: `L0` and `L1` (first two ladder rungs: longest title word × longest

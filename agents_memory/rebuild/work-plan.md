@@ -29,6 +29,25 @@ created when a milestone starts.
   (internal constants may stay in code); variable names must be self-explanatory. **The config
   layers themselves are up for redesign** (not yet planned).
 
+## Decided 2026-10-27 (from the search test v2 run, #74/#77)
+- **slskd readiness = logged in + distributed-network parent** (user, 2026-10-27). Logged in
+  without a parent, slskd answers searches with near-empty results that look real (live
+  2026-10-27: ~110 queries in a row saved 0–1 peers). The app's slskd client (milestone 3)
+  exposes this from `GET /api/v0/application` (`server.isLoggedIn`,
+  `distributedNetwork.hasParent`); the search service only searches when ready, and a search
+  whose parent was lost meanwhile is not trusted. A health/watchdog check (milestone 6/7)
+  restarts or flags slskd when it stays unready, so a downed slskd doesn't hold up the stack.
+  Prototype: `scripts/corpus/harvest.py` (`has_parent`, `wait_ready`) and the corpus
+  `watchdog.sh`.
+- **What the full run showed (2026-10-27, `docs/research/search-strategy.md`)**: parent
+  losses are frequent and short (10 in ~2 h, one lasted past 2 min), so wait for the parent
+  and restart only after a sustained loss. Searching too often gets the **account** throttled
+  by the Soulseek server: results go near-empty while slskd looks healthy (logged in, parent
+  present), and a restart doesn't help. 4 searches a minute held. For the app: cap the search
+  rate well below that, and detect throttling from results (e.g. a run of zero-result
+  searches triggers one popular check search before trusting more zeros) rather than a
+  fixed canary every N searches.
+
 ## Decided 2026-10-26 (from the backlog interview)
 - **Stall rule** (attempt outcomes): **`noStart`** = the transfer hasn't started 20 s after slskd
   first reports it as downloading (time spent queued doesn't count); **`tooSlow`** = average speed
