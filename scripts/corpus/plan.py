@@ -1,27 +1,28 @@
-"""Turn the seed list into the harvest's query plan (#34).
+"""Turn the search test v2 seeds into the harvest's query plan (#75).
 
-Runs locally (it imports the app's query builder for the L shape) and writes
-a self-contained ``plan.json`` that the standalone harvester consumes on the
-server. Shapes, decided 2026-10-03 (see #34):
+Writes a self-contained ``plan.json`` that the standalone harvester (#74)
+consumes on the server. Shapes, decided 2026-10-27 (#75):
 
-track / negative seeds
-  L   current longest-word rungs (`build_search_queries`), each its own query
-  W2  two longest title words; one title word + one album word when the
-      title has only one usable word
-  T   full title        A  full artist        B  full album
-  D   each delimiter-separated part of the title
-  F   symbol-mapped/accent-folded T, A, B (only where that changes the text)
-album seeds
-  B, A, D (of the album), LW (longest album word + longest artist word),
-  W2 (two longest album words, else album word + artist word), F of B/A
-artist seeds
-  A, F of A
+- ``L0``  longest title word + longest artist word; when the title has a
+          bracket qualifier ("(Remix)", "(Live)"), it goes in between
+- ``L1``  2nd-longest title word + longest artist word (the next rung)
+- ``T``   full title          ``TA``  full title + main artist
+- ``B``   full album (skewed for tracks, recorded for the data)
+- ``F:T`` the title accent-folded and symbol-mapped, only where that
+          changes it: tells us whether accents need more investigation
 
-Every query is run — there is no ladder and no early stop. Identical query
-strings are searched once and carry every (seed, shape) that produced them.
+Word picking keeps the original script and accents (milestone 1): words are
+split on non-word characters in any script, stop words and version
+qualifiers are dropped, and a word needs 3+ letters in Latin script, 2+ in
+others ("안녕"). Names are the seeds' query names (original script, main
+artist); there is no Deezer-name variant (the MusicBrainz name already did
+better on slskd).
 
-    python -m scripts.corpus.plan --out plan.json
-    python -m scripts.corpus.plan --out plan_test.json --sample 12
+Every query is run: no ladder, no early stop. Identical query strings are
+searched once and carry every (seed, shape) that produced them.
+
+    python -m scripts.corpus.plan
+    python -m scripts.corpus.plan --sample 12 --out .cache/plan_test.json
 """
 
 from __future__ import annotations
@@ -33,135 +34,265 @@ import re
 import unicodedata
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
-import tomllib
+SEEDS_PATH = Path("tests/fixtures/search_test_v2/seeds.json")
+OUT_PATH = Path("tests/fixtures/search_test_v2/plan.json")
 
-from app.services.query_builder import build_search_queries, select_words
+# Ported from legacy/app/services/query_builder.py.
+STOP_WORDS = frozenset(
+    [
+        "a",
+        "an",
+        "the",
+        "of",
+        "in",
+        "on",
+        "to",
+        "at",
+        "by",
+        "is",
+        "or",
+        "for",
+        "with",
+        "vs",
+        "and",
+        "feat",
+        "ft",
+        "featuring",
+        "presents",
+        "intro",
+        "produced",
+        "prod",
+        "mixed",
+        "w",
+        "remix",
+        "rmx",
+        "edit",
+        "edition",
+        "version",
+        "original",
+        "extended",
+        "mix",
+        "radio",
+        "instrumental",
+        "inst",
+        "acoustic",
+        "acoust",
+        "live",
+        "demo",
+        "explicit",
+        "clean",
+        "bonus",
+        "alternate",
+        "alt",
+        "cover",
+        "single",
+        "album",
+        "ep",
+        "lp",
+        "deluxe",
+        "special",
+        "limited",
+        "compilation",
+        "comp",
+        "collection",
+        "anthology",
+        "greatest",
+        "hits",
+        "best",
+        "release",
+        "reissue",
+        "remastered",
+        "remaster",
+        "anniversary",
+        "complete",
+        "ultimate",
+        "essential",
+        "definitive",
+        "part",
+        "pt",
+        "vol",
+        "volume",
+        "disc",
+        "disk",
+        "cd",
+        "vinyl",
+        "digital",
+        "side",
+        "chapter",
+        "act",
+        "scene",
+        "ost",
+        "soundtrack",
+        "score",
+        "theme",
+        "opening",
+        "ending",
+        "background",
+        "bgm",
+        "insert",
+        "character",
+        "image",
+        "track",
+        "unknown",
+        "various",
+        "artist",
+        "music",
+        "song",
+        "audio",
+        "file",
+        "type",
+        "beat",
+        "beats",
+        "bpm",
+        "kbps",
+        "hz",
+        "khz",
+        "mp3",
+        "flac",
+        "m4a",
+        "wav",
+        "ogg",
+        "aac",
+        "wma",
+        "lossless",
+        "hires",
+        "hd",
+        "master",
+        "stereo",
+        "mono",
+    ]
+)
+# Version qualifiers that can go into L0. Multi-word ones only match filenames
+# later (the labeller), so they're left out here.
+QUALIFIERS = [
+    "instrumental",
+    "acoustic",
+    "remastered",
+    "nightcore",
+    "extended",
+    "remaster",
+    "acapella",
+    "karaoke",
+    "bootleg",
+    "tribute",
+    "slowed",
+    "mashup",
+    "remix",
+    "radio",
+    "cover",
+    "demo",
+    "edit",
+    "live",
+    "inst",
+    "loop",
+    "flip",
+    "rmx",
+]
 
-SEEDS_PATH = Path("tests/fixtures/corpus/seeds.toml")
-
+_FEAT_RE = re.compile(r"\b(?:feat\.?|ft\.?|featuring)\b", re.IGNORECASE)
+_BRACKET_RE = re.compile(r"[(\[]([^)\]]*)[)\]]")
+_WORD_RE = re.compile(r"[^\W_]+(?:['’][^\W_]+)*")
 # Soulseek peers write "$uicideboy$" as "suicideboys": map symbols to the
 # letter they stand for rather than deleting them.
 _SYMBOL_MAP = str.maketrans({"$": "s", "@": "a", "€": "e", "£": "l"})
 
-_DELIM_RE = re.compile(
-    r"\s+[-–—]\s+|[()\[\]{}/:,&+]|\s(?:feat\.?|ft\.?|featuring|with|vs\.?|x)\s",
-    re.IGNORECASE,
-)
+
+def is_latin(word: str) -> bool:
+    return all(unicodedata.name(c, "").startswith("LATIN") or c.isdigit() for c in word)
 
 
-def seed_id(seed: dict) -> str:
-    key = "|".join(seed.get(k, "") for k in ("type", "artist", "title", "album"))
-    return hashlib.sha1(key.encode()).hexdigest()[:10]
+def select_words(text: str) -> list[str]:
+    """Query words of a field, longest first, in the field's own script.
+
+    The feat. clause and bracket contents are left out; stop words, version
+    qualifiers and digit-only words are dropped; a Latin word needs 3+
+    letters, a word in another script 2+.
+    """
+    text = _BRACKET_RE.sub(" ", _FEAT_RE.split(text or "", maxsplit=1)[0])
+    out: list[str] = []
+    for word in _WORD_RE.findall(unicodedata.normalize("NFC", text)):
+        low = word.casefold()
+        if low in STOP_WORDS or word.isdigit() or low in out:
+            continue
+        if len(word) < (3 if is_latin(word) else 2):
+            continue
+        out.append(low)
+    return sorted(out, key=len, reverse=True)
+
+
+def bracket_qualifier(title: str) -> str | None:
+    """First version qualifier inside the title's brackets ("remix")."""
+    for group in _BRACKET_RE.findall(title or ""):
+        words = {w.casefold() for w in _WORD_RE.findall(group)}
+        for q in QUALIFIERS:
+            if q in words:
+                return q
+    return None
+
+
+def ladder(title: str, artist: str) -> list[str]:
+    """L0 and L1: title word × artist word, plus the qualifier in L0."""
+    tw, aw = select_words(title), select_words(artist)
+    rungs: list[list[str]] = []
+    if tw:
+        qualifier = bracket_qualifier(title)
+        rungs.append([tw[0], *([qualifier] if qualifier else []), *aw[:1]])
+        if len(tw) > 1:
+            rungs.append([tw[1], *aw[:1]])
+    elif aw:
+        rungs.append(aw[:1])  # a title with no usable word: the artist word alone
+    return [" ".join(dict.fromkeys(r)) for r in rungs]
+
+
+def strip_punct(text: str) -> str:
+    return " ".join(re.sub(r"[^\w\s']+", " ", text).split())
 
 
 def fold_query(text: str) -> str:
     """Symbol-mapped, accent-folded form of a field (shape F)."""
-    text = text.translate(_SYMBOL_MAP)
-    text = unicodedata.normalize("NFKD", text)
-    # Strip a combining mark only from a Latin base letter. Elsewhere the
-    # mark is part of the letter: dropping it turned サディ into サティ and
-    # Рыжий into Рыжии (live 2026-10-04: both returned 0 peers).
+    text = unicodedata.normalize("NFKD", text.translate(_SYMBOL_MAP))
+    # Strip a combining mark only from a Latin base letter: elsewhere the
+    # mark is part of the letter (サディ ≠ サティ, Рыжий ≠ Рыжии; live
+    # 2026-10-04, both returned 0 peers).
     out: list[str] = []
     for c in text:
         if unicodedata.combining(c) and out and out[-1].isascii():
             continue
         out.append(c)
-    text = unicodedata.normalize("NFC", "".join(out))
-    text = re.sub(r"[^\w\s']+", " ", text)
-    return " ".join(text.split())
+    return strip_punct(unicodedata.normalize("NFC", "".join(out)))
 
 
-def delimiter_parts(text: str) -> list[str]:
-    """Delimiter-separated parts of a field (shape D); [] when there are none."""
-    parts = [" ".join(p.split()) for p in _DELIM_RE.split(f" {text} ")]
-    parts = [p for p in parts if len(p) > 2]
-    return parts if len(parts) > 1 else []
-
-
-def two_longest(primary: str, secondary: str) -> str:
-    """Shape W2: two longest words of `primary`; with only one usable word,
-    that word plus the longest word of `secondary`."""
-    words = select_words(primary)
-    if len(words) >= 2:
-        return " ".join(words[:2])
-    picked = words[:1] + [w for w in select_words(secondary)[:1] if w not in words]
-    return " ".join(picked)
-
-
-def seed_queries(seed: dict) -> list[tuple[str, str]]:
+def seed_queries(seed: dict[str, Any]) -> list[tuple[str, str]]:
     """All (shape, query) pairs for one seed, in a stable order."""
-    artist = seed.get("artist", "")
-    title = seed.get("title", "")
-    album = seed.get("album", "")
+    title, artist, album = seed["track"], seed["artist"], seed.get("album") or ""
     out: list[tuple[str, str]] = []
 
     def add(shape: str, query: str) -> None:
         query = " ".join(query.split())
-        if query:
+        if query and (shape, query) not in out:
             out.append((shape, query))
 
-    def add_folded(shape: str, query: str) -> None:
-        folded = fold_query(query)
-        if folded and folded != query:
-            add(f"F:{shape}", folded)
-
-    kind = seed["type"]
-    if kind == "track":
-        for i, q in enumerate(build_search_queries(title, artist)):
-            add(f"L{i}", q)
-        add("W2", two_longest(title, album))
-        # LW: album word + artist word, filtered by title afterwards. A
-        # single (or a track with no album) is its own album (user,
-        # 2026-10-04). AT drops the artist for artists whose name is on
-        # Soulseek's excluded-phrase list (Gorillaz, Beyoncé…).
-        album_or_title = album or title
-        lw = select_words(album_or_title)[:1] + select_words(artist)[:1]
-        add("LW", " ".join(dict.fromkeys(lw)))
-        at = (
-            select_words(album_or_title)[:1]
-            + [
-                w
-                for w in select_words(title)
-                if w not in select_words(album_or_title)[:1]
-            ][:1]
-        )
-        add("AT", " ".join(at))
-        add("T", title)
-        add("A", artist)
-        if album:
-            add("B", album)
-        for i, part in enumerate(delimiter_parts(title)):
-            add(f"D{i}", part)
-        add_folded("T", title)
-        add_folded("A", artist)
-        if album:
-            add_folded("B", album)
-    elif kind == "album":
+    for i, q in enumerate(ladder(title, artist)):
+        add(f"L{i}", q)
+    add("T", title)
+    folded = fold_query(title)
+    # Soulseek ignores case and punctuation, so only accents and symbols count.
+    if folded.casefold() != strip_punct(title).casefold():
+        add("F:T", folded)
+    add("TA", f"{title} {artist}")
+    if album:
         add("B", album)
-        add("A", artist)
-        for i, part in enumerate(delimiter_parts(album)):
-            add(f"D{i}", part)
-        lw = select_words(album)[:1] + select_words(artist)[:1]
-        add("LW", " ".join(dict.fromkeys(lw)))
-        add("W2", two_longest(album, artist))
-        add_folded("B", album)
-        add_folded("A", artist)
-    elif kind == "artist":
-        add("A", artist)
-        add_folded("A", artist)
-    else:
-        raise ValueError(f"unknown seed type {kind!r}")
     return out
 
 
-def sample_seeds(seeds: list[dict], n: int) -> list[dict]:
-    """Up to `n` track seeds, one per bucket first, deterministic."""
-    tracks = [s for s in seeds if s["type"] == "track"]
-    picked: list[dict] = []
-    by_bucket: dict[str, list[dict]] = defaultdict(list)
-    for s in tracks:
+def sample_seeds(seeds: list[dict[str, Any]], n: int) -> list[dict[str, Any]]:
+    """Up to ``n`` seeds, one per bucket in turn, deterministic."""
+    by_bucket: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for s in seeds:
         by_bucket[s["bucket"]].append(s)
+    picked: list[dict[str, Any]] = []
     while len(picked) < n and any(by_bucket.values()):
         for bucket in list(by_bucket):
             if by_bucket[bucket] and len(picked) < n:
@@ -169,12 +300,9 @@ def sample_seeds(seeds: list[dict], n: int) -> list[dict]:
     return picked
 
 
-def build_plan(seeds: list[dict]) -> dict:
-    queries: dict[str, dict] = {}
-    seed_rows = []
+def build_plan(seeds: list[dict[str, Any]]) -> dict[str, Any]:
+    queries: dict[str, dict[str, Any]] = {}
     for seed in seeds:
-        sid = seed_id(seed)
-        seed_rows.append({"id": sid, **seed})
         for shape, query in seed_queries(seed):
             entry = queries.setdefault(
                 query,
@@ -184,44 +312,29 @@ def build_plan(seeds: list[dict]) -> dict:
                     "uses": [],
                 },
             )
-            use = {"seed": sid, "shape": shape}
+            use = {"seed": seed["id"], "shape": shape}
             if use not in entry["uses"]:
                 entry["uses"].append(use)
-    return {"seeds": seed_rows, "queries": list(queries.values())}
+    return {"seeds": seeds, "queries": list(queries.values())}
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--seeds", type=Path, default=SEEDS_PATH)
-    ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--sample", type=int, default=None, help="only N track seeds")
-    ap.add_argument("--types", default=None, help="seed types to keep, e.g. track")
-    ap.add_argument(
-        "--shapes", default=None, help="comma-separated shapes to keep, e.g. LW,AT"
-    )
+    ap.add_argument("--out", type=Path, default=OUT_PATH)
+    ap.add_argument("--sample", type=int, default=None, help="only N seeds")
     args = ap.parse_args(argv)
 
-    seeds = tomllib.loads(args.seeds.read_text())["seed"]
-    if args.types:
-        seeds = [s for s in seeds if s["type"] in args.types.split(",")]
+    data = json.loads(args.seeds.read_text())
+    seeds = data["seeds"] + data["traps"]
     if args.sample:
         seeds = sample_seeds(seeds, args.sample)
     plan = build_plan(seeds)
-    if args.shapes:
-        keep = set(args.shapes.split(","))
-        # "L" keeps every ladder rung (L0, L1, …).
-        for q in plan["queries"]:
-            q["uses"] = [
-                u
-                for u in q["uses"]
-                if u["shape"] in keep
-                or ("L" in keep and u["shape"][0] == "L" and u["shape"][1:].isdigit())
-            ]
-        plan["queries"] = [q for q in plan["queries"] if q["uses"]]
-    args.out.write_text(json.dumps(plan, ensure_ascii=False, indent=1))
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(plan, ensure_ascii=False, indent=1) + "\n")
     uses = sum(len(q["uses"]) for q in plan["queries"])
     print(
-        f"{len(plan['seeds'])} seeds → {uses} (seed, shape) pairs → "
+        f"{len(seeds)} seeds → {uses} (seed, shape) pairs → "
         f"{len(plan['queries'])} unique queries → {args.out}"
     )
     return 0

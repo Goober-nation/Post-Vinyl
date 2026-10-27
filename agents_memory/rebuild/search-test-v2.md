@@ -91,6 +91,19 @@ Goal: the same song from any source normalizes to identical `[track, artist, alb
 - **Album**: the main album (ListenBrainz's release), not Deezer's single.
 - **Credits written into titles** ("+ Zara Larsson", "x stromae"): stripped, not kept.
 
+## Search test v2 query plan (user, 2026-10-27, #75)
+
+- **Shapes per seed**: `L0` and `L1` (first two ladder rungs: longest title word × longest
+  artist word, then 2nd title word; L0 carries a bracket qualifier like "remix" when the title
+  has one), `T` (full title), `TA` (full title + main artist, new), `B` (full album; skewed for
+  tracks but useful data). Dropped: L2–L4, A, W2, AT, D, LW.
+- **Variant**: `F:T` only, the accent-folded/symbol-mapped title where it differs from `T`, to
+  see whether accents need more investigation. No Deezer-name variant: the MusicBrainz name
+  already did better on slskd.
+- **Word picking is Unicode-aware**: the old `select_words` folded to ASCII and split on
+  anything outside `[a-z0-9']`, so Cyrillic, Hangul and kana titles produced no words. Words
+  now keep their script and accents; 2-letter words count in non-Latin scripts.
+
 ## slskd decides (user, 2026-10-27)
 
 - **The normalizer's choices are judged by slskd**: which name finds the most helpful peers, not

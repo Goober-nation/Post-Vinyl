@@ -1,0 +1,7209 @@
+{
+ "seeds": [
+  {
+   "track": "Месяц",
+   "artist": "Palina",
+   "album": "Месяц",
+   "credit": "Palina",
+   "names_from": "listenbrainz",
+   "length_s": 157,
+   "id": "RUA1H2242680",
+   "isrc": "RUA1H2242680",
+   "origin": "chart:JP",
+   "mbid": "409e47af-9881-4645-9dbb-8d2fe6ab8199",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "зараза",
+   "artist": "renie cares",
+   "album": "la princesse lointaine",
+   "credit": "renie cares",
+   "names_from": "listenbrainz",
+   "length_s": 268,
+   "id": "UAEO12400451",
+   "isrc": "UAEO12400451",
+   "origin": "mb_random",
+   "mbid": "32393731-4ab9-4448-8816-5cd83464a754",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "30 минут (Moscow Grooves Institute remix)",
+   "artist": "t.A.T.u.",
+   "album": "200 по встречной",
+   "credit": "t.A.T.u.",
+   "names_from": "listenbrainz",
+   "length_s": 357,
+   "deezer": {
+    "track": "30 Minutes (Moscow Grooves Institution Remix)",
+    "artist": "t.A.T.u.",
+    "album": "200 Po Vstrechnoy"
+   },
+   "id": "RUA110100014",
+   "isrc": "RUA110100014",
+   "origin": "mb_random:RU",
+   "mbid": "10d1e8d5-972c-4c6b-b841-65bf4aabfbfc",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Клинит",
+   "artist": "Александр Буйнов",
+   "album": "P.R.O. Любовь",
+   "credit": "Александр Буйнов",
+   "names_from": "listenbrainz",
+   "length_s": 260,
+   "id": "RUB731522372",
+   "isrc": "RUB731522372",
+   "origin": "mb_random:RU",
+   "mbid": "ffb0208b-859b-454d-bdcf-67e154902d77",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Маменька",
+   "artist": "Александр Буйнов",
+   "album": "P.R.O. Любовь",
+   "credit": "Александр Буйнов",
+   "names_from": "listenbrainz",
+   "length_s": 194,
+   "id": "RUB731522380",
+   "isrc": "RUB731522380",
+   "origin": "mb_random:RU",
+   "mbid": "2a4e418a-3c74-4433-86d9-4ec51b2a16e2",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Валенки, валенки",
+   "artist": "Александр Пушной",
+   "album": "александрпушной.ru",
+   "credit": "Александр Пушной",
+   "names_from": "listenbrainz",
+   "length_s": 180,
+   "deezer": {
+    "track": "Валенки, Валенки",
+    "artist": "Александр Пушной",
+    "album": "Пушной.ru"
+   },
+   "id": "RUB310800105",
+   "isrc": "RUB310800105",
+   "origin": "mb_random:RU",
+   "mbid": "3bd6e418-3b40-4553-ba77-95c925d600d2",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Серце",
+   "artist": "Артем Пивоваров",
+   "album": "Твої вірші, мої ноти II",
+   "credit": "Артем Пивоваров",
+   "names_from": "listenbrainz",
+   "length_s": 176,
+   "deezer": {
+    "track": "Серце",
+    "artist": "Artem Pivovarov",
+    "album": "Твої Вірші, Мої Ноти PT.2"
+   },
+   "id": "UABM12400811",
+   "isrc": "UABM12400811",
+   "origin": "mb_random",
+   "mbid": "048c912f-d249-4142-aaea-cc42eb4841cb",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Красивая",
+   "artist": "Артур",
+   "album": "Любимой женщине 2019",
+   "credit": "Артур",
+   "names_from": "listenbrainz",
+   "length_s": 215,
+   "deezer": {
+    "track": "Красивая",
+    "artist": "Артур Руденко",
+    "album": "Любимой женщине 2019"
+   },
+   "id": "RUB731577202",
+   "isrc": "RUB731577202",
+   "origin": "mb_random:RU",
+   "mbid": "eb5d5d63-18fa-4eba-b67a-181b0d463448",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "С тобой",
+   "artist": "Би-2",
+   "album": "Мяу кисс ми",
+   "credit": "Би-2",
+   "names_from": "listenbrainz",
+   "length_s": 238,
+   "deezer": {
+    "track": "With You (Album Version)",
+    "artist": "B-2",
+    "album": "Meow Kiss Me"
+   },
+   "id": "RUA120100007",
+   "isrc": "RUA120100007",
+   "origin": "mb_random:RU",
+   "mbid": "743e2a33-b687-424a-8c54-68922aeee416",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Песня о сумашедшем доме",
+   "artist": "Владимир Высоцкий",
+   "album": "Новый звук",
+   "credit": "Владимир Высоцкий",
+   "names_from": "listenbrainz",
+   "length_s": 126,
+   "deezer": {
+    "track": "Песня о сумашедшем доме",
+    "artist": "Vladimir Vysotsky",
+    "album": "Новый звук"
+   },
+   "id": "RUA0G1507360",
+   "isrc": "RUA0G1507360",
+   "origin": "mb_random:RU",
+   "mbid": "d48e3937-b8f5-4c1f-b650-c2cd52b6c240",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Честь шахматной короны-игра",
+   "artist": "Владимир Высоцкий",
+   "album": "Памятник",
+   "credit": "Владимир Высоцкий",
+   "names_from": "listenbrainz",
+   "length_s": 193,
+   "deezer": {
+    "track": "Честь шахматной короны-игра",
+    "artist": "Vladimir Vysotsky",
+    "album": "Новый звук"
+   },
+   "id": "RUA0G1507380",
+   "isrc": "RUA0G1507380",
+   "origin": "mb_random:RU",
+   "mbid": "f44de662-6c2c-4951-8407-8587fa487e7d",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Неземная",
+   "artist": "Владимир Пресняков",
+   "album": "Слушая тишину",
+   "credit": "Владимир Пресняков",
+   "names_from": "listenbrainz",
+   "length_s": 210,
+   "deezer": {
+    "track": "Неземная",
+    "artist": "Владимир Пресняков",
+    "album": "Неземная"
+   },
+   "id": "RUB421700973",
+   "isrc": "RUB421700973",
+   "origin": "mb_random:RU",
+   "mbid": "9156b886-69b8-4209-816f-c71884122bc6",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Грім",
+   "artist": "Гошуля",
+   "album": "",
+   "credit": "Гошуля",
+   "names_from": "listenbrainz",
+   "length_s": 139,
+   "deezer": {
+    "track": "Грім",
+    "artist": "Гошуля",
+    "album": "Грім"
+   },
+   "id": "UAEO12400376",
+   "isrc": "UAEO12400376",
+   "origin": "mb_random",
+   "mbid": "538681c1-20da-4604-86f5-abb4cd0baee3",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Перезаряджаю",
+   "artist": "Гошуля",
+   "album": "",
+   "credit": "Гошуля",
+   "names_from": "listenbrainz",
+   "length_s": 182,
+   "deezer": {
+    "track": "Перезаряджаю",
+    "artist": "Гошуля",
+    "album": "Перезаряджаю"
+   },
+   "id": "UAEO12400150",
+   "isrc": "UAEO12400150",
+   "origin": "mb_random",
+   "mbid": "4736e820-adb3-4524-b9ff-82456f2f92c5",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Где-то",
+   "artist": "Дима Билан",
+   "album": "Время-река",
+   "credit": "Дима Билан",
+   "names_from": "listenbrainz",
+   "length_s": 216,
+   "id": "RUB421500020",
+   "isrc": "RUB421500020",
+   "origin": "mb_random:RU",
+   "mbid": "28b9d40c-3b6e-4f34-b093-835d17d5b730",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Время-река",
+   "artist": "Дима Билан",
+   "album": "Время-река",
+   "credit": "Дима Билан",
+   "names_from": "listenbrainz",
+   "length_s": 234,
+   "id": "RUB421500018",
+   "isrc": "RUB421500018",
+   "origin": "mb_random:RU",
+   "mbid": "ad28dc96-d14f-400d-ab9a-9f662a7757cf",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "I Wish",
+   "artist": "Леонид Агутин",
+   "album": "Cover Version",
+   "credit": "Леонид Агутин",
+   "names_from": "listenbrainz",
+   "length_s": 217,
+   "id": "RUB731570519",
+   "isrc": "RUB731570519",
+   "origin": "mb_random:RU",
+   "mbid": "a084a3b3-bda0-4336-a9be-643ea02dc560",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "Герой не моего романа (ремикс)",
+   "artist": "Юлия Началова",
+   "album": "Давай поговорим о любви",
+   "credit": "Юлия Началова",
+   "names_from": "listenbrainz",
+   "length_s": 284,
+   "deezer": {
+    "track": "Герой не моего романа (Remix)",
+    "artist": "Юлия Началова",
+    "album": "Лучшие песни"
+   },
+   "id": "RUA1H1510414",
+   "isrc": "RUA1H1510414",
+   "origin": "mb_random:RU",
+   "mbid": "cd4c848b-239d-45aa-977b-889d7f9e2600",
+   "bucket": "cyrillic",
+   "expect": "match"
+  },
+  {
+   "track": "뛰어 (JUMP)",
+   "artist": "BLACKPINK",
+   "album": "JUMP",
+   "credit": "BLACKPINK",
+   "names_from": "listenbrainz",
+   "length_s": 165,
+   "deezer": {
+    "track": "JUMP",
+    "artist": "BLACKPINK",
+    "album": "JUMP"
+   },
+   "id": "KRA402400094",
+   "isrc": "KRA402400094",
+   "origin": "chart:IT",
+   "mbid": "752d837b-a4bc-40c5-ab85-b485de42df12",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "한 모금",
+   "artist": "BTOB",
+   "album": "The Winter's Tale",
+   "credit": "BTOB",
+   "names_from": "listenbrainz",
+   "length_s": 230,
+   "deezer": {
+    "track": "One Sip",
+    "artist": "BTOB",
+    "album": "The Winter's Tale"
+   },
+   "id": "KRA391400038",
+   "isrc": "KRA391400038",
+   "origin": "mb_random",
+   "mbid": "20c10f40-7736-4f16-9b38-5c851d61b5d9",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "가위바위보 (Eeny meeny miny moe)",
+   "artist": "FIFTY FIFTY",
+   "album": "Too Much Part 1",
+   "credit": "FIFTY FIFTY",
+   "names_from": "listenbrainz",
+   "length_s": 163,
+   "deezer": {
+    "track": "Eeny meeny miny moe",
+    "artist": "FIFTY FIFTY",
+    "album": "Too Much Part 1"
+   },
+   "id": "KRB462500465",
+   "isrc": "KRB462500465",
+   "origin": "mb_random",
+   "mbid": "b7eef963-d0cf-4dc9-bcdf-b1098887a3ef",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "השבת כבר נכנסת",
+   "artist": "Gerin Tebi",
+   "album": "בראשית",
+   "credit": "Gerin Tebi",
+   "names_from": "listenbrainz",
+   "length_s": 222,
+   "id": "ARA821764605",
+   "isrc": "ARA821764605",
+   "origin": "mb_random",
+   "mbid": "d35fde84-1f75-448e-99a6-c0dd8573a3e4",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "분다",
+   "artist": "INFINITE",
+   "album": "TOP SEED",
+   "credit": "INFINITE",
+   "names_from": "listenbrainz",
+   "length_s": 227,
+   "deezer": {
+    "track": "Wind",
+    "artist": "INFINITE",
+    "album": "TOP SEED"
+   },
+   "id": "KRA381702892",
+   "isrc": "KRA381702892",
+   "origin": "mb_random",
+   "mbid": "0dec3824-bc06-47c5-83f2-4147398ccb05",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "Mr.애매모호",
+   "artist": "MAMAMOO",
+   "album": "Hello",
+   "credit": "MAMAMOO",
+   "names_from": "listenbrainz",
+   "length_s": 221,
+   "deezer": {
+    "track": "Mr-Ambiguous",
+    "artist": "MAMAMOO",
+    "album": "HELLO"
+   },
+   "id": "KRA491400933",
+   "isrc": "KRA491400933",
+   "origin": "mb_random",
+   "mbid": "a7637308-8a25-4ded-81e5-e52746428b19",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "여름빛 (Mojito)",
+   "artist": "Red Velvet",
+   "album": "The Red Summer",
+   "credit": "Red Velvet",
+   "names_from": "listenbrainz",
+   "length_s": 185,
+   "deezer": {
+    "track": "여름빛 Mojito",
+    "artist": "Red Velvet",
+    "album": "The Red Summer - Summer Mini Album"
+   },
+   "id": "KRA301700281",
+   "isrc": "KRA301700281",
+   "origin": "mb_random",
+   "mbid": "203a01ef-6b1b-41b4-8651-345743a3e001",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "強盗と花束",
+   "artist": "ヨルシカ",
+   "album": "創作",
+   "credit": "ヨルシカ",
+   "names_from": "listenbrainz",
+   "length_s": 190,
+   "deezer": {
+    "track": "Robber And Bouquet",
+    "artist": "Yorushika",
+    "album": "Creation"
+   },
+   "id": "JPPO02004290",
+   "isrc": "JPPO02004290",
+   "origin": "chart:JP",
+   "mbid": "3e919ed3-691f-4302-b0e0-69c57c110bf9",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "Whenever You Call",
+   "artist": "嵐",
+   "album": "This is 嵐",
+   "credit": "嵐",
+   "names_from": "listenbrainz",
+   "length_s": 195,
+   "deezer": {
+    "track": "Whenever You Call",
+    "artist": "Arashi",
+    "album": "Whenever You Call"
+   },
+   "id": "JPQ402001230",
+   "isrc": "JPQ402001230",
+   "origin": "chart:JP",
+   "mbid": "4fc1e26e-45c7-4125-a506-7ea0b8df8356",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "サンジ～シケモク～",
+   "artist": "田中公平",
+   "album": "ONE PIECE オリジナルサウンドトラック\"WANOKUNI\"",
+   "credit": "田中公平",
+   "names_from": "listenbrainz",
+   "length_s": 113,
+   "id": "JPT552200295",
+   "isrc": "JPT552200295",
+   "origin": "chart:JP",
+   "mbid": "5d4b4fb7-368a-43ac-864e-b17e9cc75301",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "소재",
+   "artist": "악동뮤지션",
+   "album": "Akdong Musician Debut Album \"Play\"",
+   "credit": "악동뮤지션",
+   "names_from": "listenbrainz",
+   "length_s": 199,
+   "deezer": {
+    "track": "Idea",
+    "artist": "AKMU",
+    "album": "PLAY"
+   },
+   "id": "KRB471400422",
+   "isrc": "KRB471400422",
+   "origin": "mb_random",
+   "mbid": "def7ef18-aaa9-4b0c-9174-0a368877d34b",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "작은별",
+   "artist": "악동뮤지션",
+   "album": "Akdong Musician Debut Album \"Play\"",
+   "credit": "악동뮤지션",
+   "names_from": "listenbrainz",
+   "length_s": 227,
+   "deezer": {
+    "track": "Little Star",
+    "artist": "AKMU",
+    "album": "PLAY"
+   },
+   "id": "KRB471400420",
+   "isrc": "KRB471400420",
+   "origin": "mb_random",
+   "mbid": "f7a90376-204a-49be-8271-d56993a0616d",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "아카시아 (숨겨진 사랑)",
+   "artist": "이은미",
+   "album": "Ma Non Tanto",
+   "credit": "이은미",
+   "names_from": "listenbrainz",
+   "length_s": 269,
+   "deezer": {
+    "track": "아카시아(숨겨진 사랑)",
+    "artist": "Lee Eun Mi",
+    "album": "Ma Non Tanto"
+   },
+   "id": "KRA030402637",
+   "isrc": "KRA030402637",
+   "origin": "mb_random",
+   "mbid": "897ab601-617f-43ad-a0f3-276e820f1326",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "기억속으로",
+   "artist": "이은미",
+   "album": "히든싱어 컬렉션",
+   "credit": "이은미",
+   "names_from": "listenbrainz",
+   "length_s": 274,
+   "deezer": {
+    "track": "기억속으로",
+    "artist": "Lee Eun Mi",
+    "album": "Hidden Singer Collection"
+   },
+   "id": "KRA030402618",
+   "isrc": "KRA030402618",
+   "origin": "mb_random",
+   "mbid": "e9144cec-28b6-49f2-ac2d-357c9dc9173d",
+   "bucket": "other_script",
+   "expect": "match"
+  },
+  {
+   "track": "The Worship Patrice (Bäumel extended remix)",
+   "artist": "AVIRA",
+   "album": "The Worship",
+   "credit": "AVIRA & Diana Miro",
+   "names_from": "listenbrainz",
+   "length_s": 382,
+   "deezer": {
+    "track": "The Worship (Patrice Bäumel Extended Remix)",
+    "artist": "AVIRA",
+    "album": "The Worship (Patrice Bäumel Remix)"
+   },
+   "id": "NLF712102020",
+   "isrc": "NLF712102020",
+   "origin": "mb_random",
+   "mbid": "faacbd31-a59a-48cc-8d2d-4a6e575a5e9e",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "What You Want",
+   "artist": "Angèle",
+   "album": "Instinct",
+   "credit": "Angèle & Justice",
+   "names_from": "listenbrainz",
+   "length_s": 188,
+   "deezer": {
+    "track": "What You Want",
+    "artist": "Angèle",
+    "album": "What You Want"
+   },
+   "id": "BE8HB2600001",
+   "isrc": "BE8HB2600001",
+   "origin": "chart:FR",
+   "mbid": "08b0ae35-ab1e-421d-b4f3-74fe4fb4c1c0",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "Flores de abraços",
+   "artist": "Fito Páez",
+   "album": "Locura total",
+   "credit": "Fito Páez & Moska",
+   "names_from": "listenbrainz",
+   "length_s": 166,
+   "id": "ARF101500148",
+   "isrc": "ARF101500148",
+   "origin": "mb_random",
+   "mbid": "4b365103-329e-4b79-83bd-ec275ca2a6ff",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "VIVE LA MONNAIE",
+   "artist": "GIMS",
+   "album": "VIVE LA MONNAIE",
+   "credit": "GIMS & Mauvais Djo",
+   "names_from": "listenbrainz",
+   "length_s": 184,
+   "id": "FRX282661554",
+   "isrc": "FRX282661554",
+   "origin": "chart:FR",
+   "mbid": "24cdc60f-50a4-4f44-8972-b8d026ef249d",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "Movin' To The Sun",
+   "artist": "HUGEL",
+   "album": "Twenty One",
+   "credit": "HUGEL, Imael Angel & Ultra Naté",
+   "names_from": "listenbrainz",
+   "length_s": 142,
+   "deezer": {
+    "track": "Movin' To The Sun",
+    "artist": "HUGEL",
+    "album": "Movin' To The Sun"
+   },
+   "id": "QT4K42627327",
+   "isrc": "QT4K42627327",
+   "origin": "chart:GB",
+   "mbid": "3b5d5699-fdb1-4147-a76f-8f33a556d381",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "Xonei",
+   "artist": "Jorge & Mateus",
+   "album": "Check-In",
+   "credit": "Jorge & Mateus e Henrique & Juliano",
+   "names_from": "listenbrainz",
+   "length_s": 155,
+   "deezer": {
+    "track": "Xonei",
+    "artist": "Jorge & Mateus",
+    "album": "Xonei"
+   },
+   "id": "BRRGE2400563",
+   "isrc": "BRRGE2400563",
+   "origin": "chart:BR",
+   "mbid": "f8f96427-acac-47c1-83dd-94b0ac6467c2",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "Not Sorry for Loving You",
+   "artist": "Jorge Rivera-Herrans",
+   "album": "EPIC: The Musical",
+   "credit": "Jorge Rivera-Herrans, Barbara Wangui & Cast of EPIC: The Musical",
+   "names_from": "listenbrainz",
+   "length_s": 185,
+   "deezer": {
+    "track": "Not Sorry for Loving You",
+    "artist": "Jorge Rivera-Herrans",
+    "album": "EPIC: The Vengeance Saga (Official Concept Album)"
+   },
+   "id": "QZWFS2453460",
+   "isrc": "QZWFS2453460",
+   "origin": "chart:KR",
+   "mbid": "02ded9f7-0506-492b-8047-90f627dbe27e",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "Que le vamo’ a hacer (remix 2025)",
+   "artist": "Los Auténticos Decadentes",
+   "album": "Mi vida loca",
+   "credit": "Los Auténticos Decadentes & Gastón Bernardou",
+   "names_from": "listenbrainz",
+   "length_s": 186,
+   "deezer": {
+    "track": "Que Le Vamo' a Hacer (Remix 2025)",
+    "artist": "Los Autenticos Decadentes",
+    "album": "Mi Vida Loca (30 Años)"
+   },
+   "id": "ARF102500404",
+   "isrc": "ARF102500404",
+   "origin": "mb_random",
+   "mbid": "e262b338-9b1e-4e15-b0c2-e37bc13c2780",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "RESACA EMOCIONAL",
+   "artist": "Lucho RK",
+   "album": "SORDO DE UN PIE",
+   "credit": "Lucho RK & Daniela Garsal",
+   "names_from": "musicbrainz",
+   "length_s": 197,
+   "id": "BK4DA2683755",
+   "isrc": "BK4DA2683755",
+   "origin": "chart:ES",
+   "mbid": "8f64b628-eb66-4199-a467-78ad15ba8bc7",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "Ask Me Why (II)",
+   "artist": "Royal Philharmonic Orchestra",
+   "album": "The Boy and the Heron: Symphonic Suite for Piano and Orchestra",
+   "credit": "Royal Philharmonic Orchestra, Joe Hisaishi",
+   "names_from": "listenbrainz",
+   "length_s": 208,
+   "deezer": {
+    "track": "Ask me why (II)",
+    "artist": "Joe Hisaishi",
+    "album": "Ask me why (II)"
+   },
+   "id": "JPPO02501432",
+   "isrc": "JPPO02501432",
+   "origin": "chart:KR",
+   "mbid": "4025711a-bd8a-4887-97e4-1c4e7e0cadb0",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "Something to Lose",
+   "artist": "STELLA LEFTY",
+   "album": "Long Way Home",
+   "credit": "STELLA LEFTY & Vincent Mason",
+   "names_from": "listenbrainz",
+   "length_s": 175,
+   "deezer": {
+    "track": "Something To Lose",
+    "artist": "STELLA LEFTY",
+    "album": "Is This Heaven?"
+   },
+   "id": "QZJ842604958",
+   "isrc": "QZJ842604958",
+   "origin": "chart:US",
+   "mbid": "872d9b4b-fb93-4404-9af7-6a3983119485",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "des fleurs",
+   "artist": "Tove Lo",
+   "album": "ESTRUS",
+   "credit": "Tove Lo & Stromae",
+   "names_from": "listenbrainz",
+   "length_s": 173,
+   "deezer": {
+    "track": "des fleurs",
+    "artist": "Tove Lo",
+    "album": "des fleurs x stromae"
+   },
+   "id": "USA2P2624775",
+   "isrc": "USA2P2624775",
+   "origin": "chart:FR",
+   "mbid": "b18641e3-66be-4ec5-87c4-fea038f124e7",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "Get a Room",
+   "artist": "VOILÀ",
+   "album": "Glass Half Empty",
+   "credit": "VOILÀ & Megan Cromwell",
+   "names_from": "listenbrainz",
+   "length_s": 253,
+   "deezer": {
+    "track": "Get A Room",
+    "artist": "Voila",
+    "album": "Glass Half Empty"
+   },
+   "id": "QM24S2401001",
+   "isrc": "QM24S2401001",
+   "origin": "chart:KR",
+   "mbid": "0c612f7e-0902-40f1-8b51-eda3d1c9d2bd",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "Melodrama",
+   "artist": "disiz",
+   "album": "on s'en rappellera pas",
+   "credit": "disiz & Theodora",
+   "names_from": "listenbrainz",
+   "length_s": 176,
+   "deezer": {
+    "track": "melodrama",
+    "artist": "disiz",
+    "album": "melodrama"
+   },
+   "id": "FR9W12550711",
+   "isrc": "FR9W12550711",
+   "origin": "chart:FR",
+   "mbid": "1de5e167-2ddd-491d-9ef5-a98d627a8049",
+   "bucket": "multi_artist",
+   "expect": "match"
+  },
+  {
+   "track": "Sabali (Vitalic remix radio edit)",
+   "artist": "Amadou & Mariam",
+   "album": "Remixes",
+   "credit": "Amadou & Mariam",
+   "names_from": "listenbrainz",
+   "length_s": 194,
+   "id": "FR6P10900960",
+   "isrc": "FR6P10900960",
+   "origin": "chart:JP",
+   "mbid": "f100f8c1-3c7a-4aaf-b358-057cf8cefce0",
+   "bucket": "version",
+   "expect": "match"
+  },
+  {
+   "track": "Feel It (extended mix)",
+   "artist": "Cosmic Gate",
+   "album": "Feel It",
+   "credit": "Cosmic Gate",
+   "names_from": "listenbrainz",
+   "length_s": 382,
+   "id": "NLE712100307",
+   "isrc": "NLE712100307",
+   "origin": "mb_random",
+   "mbid": "0d62ea1a-3da2-47ca-99f5-f424a9a8eff6",
+   "bucket": "version",
+   "expect": "match"
+  },
+  {
+   "track": "Vai dar PT",
+   "artist": "Léo Santana",
+   "album": "Vai dar PT",
+   "credit": "Léo Santana",
+   "names_from": "listenbrainz",
+   "length_s": 111,
+   "deezer": {
+    "track": "Vai Dar PT (Ao Vivo)",
+    "artist": "Léo Santana",
+    "album": "Ao Vivo Em Goiânia"
+   },
+   "id": "BRFGL1800051",
+   "isrc": "BRFGL1800051",
+   "origin": "chart:BR",
+   "mbid": "f6700d20-da28-4201-b883-12f9190d9557",
+   "bucket": "version",
+   "expect": "match"
+  },
+  {
+   "track": "Sex",
+   "artist": "Paul Young",
+   "album": "No Parlez",
+   "credit": "Paul Young",
+   "names_from": "listenbrainz",
+   "length_s": 291,
+   "deezer": {
+    "track": "Sex (2008 Re-Master Version)",
+    "artist": "Paul Young",
+    "album": "No Parlez"
+   },
+   "id": "GBARL0800690",
+   "isrc": "GBARL0800690",
+   "origin": "mb_random",
+   "mbid": "3ff3b828-a3a6-449a-8ca5-4cac39ccd182",
+   "bucket": "version",
+   "expect": "match"
+  },
+  {
+   "track": "Perrita",
+   "artist": "Ratones Paranoicos",
+   "album": "Los chicos quieren más",
+   "credit": "Ratones Paranoicos",
+   "names_from": "listenbrainz",
+   "length_s": 265,
+   "deezer": {
+    "track": "Perrita (En Vivo)",
+    "artist": "Ratones Paranoicos",
+    "album": "Luna Paranoico (Vivo Luna Park 2002)"
+   },
+   "id": "ARF850200093",
+   "isrc": "ARF850200093",
+   "origin": "mb_random",
+   "mbid": "9f4bc421-36f8-43e0-80dc-ce99a6f27dee",
+   "bucket": "version",
+   "expect": "match"
+  },
+  {
+   "track": "Fly to Me to the Moon & Back (Movie Size)",
+   "artist": "Spiders From Mars",
+   "album": "INITIAL D THE MOVIE ORIGINAL SOUND TRACKS",
+   "credit": "The Spiders From Mars",
+   "names_from": "listenbrainz",
+   "length_s": 153,
+   "deezer": {
+    "track": "Fly to me to the moon & back (Extended Mix)",
+    "artist": "Spiders From Mars",
+    "album": "Give me heart & soul"
+   },
+   "id": "ITA870079094",
+   "isrc": "ITA870079094",
+   "origin": "mb_random",
+   "mbid": "1486f241-3abc-467d-9817-871bbaceae2f",
+   "bucket": "version",
+   "expect": "match"
+  },
+  {
+   "track": "The North (Breakglass version)",
+   "artist": "Stars",
+   "album": "The North",
+   "credit": "Stars",
+   "names_from": "listenbrainz",
+   "length_s": 208,
+   "id": "CA7T31200013",
+   "isrc": "CA7T31200013",
+   "origin": "mb_random",
+   "mbid": "c2ddab08-5fc0-4274-b8f5-684e33eb208a",
+   "bucket": "version",
+   "expect": "match"
+  },
+  {
+   "track": "I Knew It, I Knew You",
+   "artist": "Taylor Swift",
+   "album": "Toy Story 5: Original Motion Picture Soundtrack",
+   "credit": "Taylor Swift",
+   "names_from": "listenbrainz",
+   "length_s": 178,
+   "deezer": {
+    "track": "I Knew It, I Knew You (From \"Toy Story 5\")",
+    "artist": "Taylor Swift",
+    "album": "I Knew It, I Knew You (From \"Toy Story 5\")"
+   },
+   "id": "USWD12641055",
+   "isrc": "USWD12641055",
+   "origin": "chart:US",
+   "mbid": "0b6b2607-eff3-4753-9a4c-a4782caa5d57",
+   "bucket": "version",
+   "expect": "match"
+  },
+  {
+   "track": "Ain’t in LA",
+   "artist": "ADÉLA",
+   "album": "PRIMA",
+   "credit": "ADÉLA",
+   "names_from": "listenbrainz",
+   "length_s": 186,
+   "deezer": {
+    "track": "Ain't In LA",
+    "artist": "ADÉLA",
+    "album": "Ain't In LA"
+   },
+   "id": "USUM72605978",
+   "isrc": "USUM72605978",
+   "origin": "chart:DE",
+   "mbid": "d14a2392-c6cc-439c-a576-0a1ad3095660",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Nicole Kidman",
+   "artist": "ADÉLA",
+   "album": "PRIMA",
+   "credit": "ADÉLA",
+   "names_from": "listenbrainz",
+   "length_s": 181,
+   "id": "USUM72606032",
+   "isrc": "USUM72606032",
+   "origin": "chart:US",
+   "mbid": "e57859ec-f484-42f4-978a-65e262a60c68",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Une seule vie",
+   "artist": "Angèle",
+   "album": "Instinct",
+   "credit": "Angèle",
+   "names_from": "listenbrainz",
+   "length_s": 245,
+   "id": "BE8HB2600017",
+   "isrc": "BE8HB2600017",
+   "origin": "chart:FR",
+   "mbid": "c037c903-50b3-4857-903d-65f355f8e61f",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Calaveras porteñas",
+   "artist": "Arraigo",
+   "album": "Nosotrosacayahora",
+   "credit": "Arraigo",
+   "names_from": "listenbrainz",
+   "length_s": 423,
+   "id": "AR2E61700011",
+   "isrc": "AR2E61700011",
+   "origin": "mb_random",
+   "mbid": "d56b1de5-6a49-4181-bc80-51c90a81e742",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Deléctrico (remix)",
+   "artist": "Babasónicos",
+   "album": "Jessico Dance Mix",
+   "credit": "Babasónicos",
+   "names_from": "listenbrainz",
+   "length_s": 342,
+   "deezer": {
+    "track": "Delectrico (remix por Claudio Ferrante)",
+    "artist": "Babasonicos",
+    "album": "Jessico Dancemix"
+   },
+   "id": "ARF470200216",
+   "isrc": "ARF470200216",
+   "origin": "mb_random",
+   "mbid": "a296fbe0-f480-4493-b51d-c984c2c6fcd4",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Sábado, Distrito Federal",
+   "artist": "Chava Flores",
+   "album": "Mi pueblo",
+   "credit": "Chava Flores",
+   "names_from": "listenbrainz",
+   "length_s": 184,
+   "deezer": {
+    "track": "Sabado D.F.",
+    "artist": "Chava Flores",
+    "album": "Chava Flores En Concierto"
+   },
+   "id": "MXF600600388",
+   "isrc": "MXF600600388",
+   "origin": "mb_random",
+   "mbid": "7c717d16-80af-4519-85c7-5f0e0b1b0da4",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Sudamérica",
+   "artist": "Gustavo Santaolalla",
+   "album": "Raconto",
+   "credit": "Gustavo Santaolalla",
+   "names_from": "listenbrainz",
+   "length_s": 195,
+   "deezer": {
+    "track": "Sudamérica (En Vivo)",
+    "artist": "Gustavo Santaolalla",
+    "album": "Raconto"
+   },
+   "id": "ARNDG1700008",
+   "isrc": "ARNDG1700008",
+   "origin": "mb_random",
+   "mbid": "29027636-aeb2-4fd3-880a-fe34fc5297c6",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Gówniarzyki",
+   "artist": "KSU",
+   "album": "44",
+   "credit": "KSU",
+   "names_from": "listenbrainz",
+   "length_s": 208,
+   "id": "PLB822200191",
+   "isrc": "PLB822200191",
+   "origin": "mb_random",
+   "mbid": "096dd726-fb87-4901-968c-a3130c396416",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Mówię ci, że",
+   "artist": "Kwiat Jabłoni",
+   "album": "Wolne serca",
+   "credit": "Kwiat Jabłoni",
+   "names_from": "listenbrainz",
+   "length_s": 216,
+   "deezer": {
+    "track": "Mówię ci, że",
+    "artist": "Kwiat Jabłoni",
+    "album": "Kwiat Jabłoni i goście: Wolne serca"
+   },
+   "id": "PLC592200094",
+   "isrc": "PLC592200094",
+   "origin": "mb_random",
+   "mbid": "46f2a29c-0d60-4457-8348-b4c9c3ef85d5",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Tempo perdido",
+   "artist": "Legião Urbana",
+   "album": "Dois",
+   "credit": "Legião Urbana",
+   "names_from": "listenbrainz",
+   "length_s": 302,
+   "deezer": {
+    "track": "Tempo Perdido",
+    "artist": "Legiao Urbana",
+    "album": "Dois"
+   },
+   "id": "BREMI8600025",
+   "isrc": "BREMI8600025",
+   "origin": "chart:BR",
+   "mbid": "51c6c422-afa5-43ae-ad16-1848428a85ab",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "The Mandalorian",
+   "artist": "Ludwig Göransson",
+   "album": "Star Wars Celebration Japan 2025: Original Soundtrack Box Set",
+   "credit": "Ludwig Göransson",
+   "names_from": "listenbrainz",
+   "length_s": 198,
+   "deezer": {
+    "track": "The Mandalorian",
+    "artist": "Ludwig Göransson",
+    "album": "The Mandalorian: Chapter 1 (Original Score)"
+   },
+   "id": "USWD11995118",
+   "isrc": "USWD11995118",
+   "origin": "chart:ES",
+   "mbid": "3bc4155f-da5a-4681-8728-abe2e57787af",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Pilé",
+   "artist": "Mauvais Djo",
+   "album": "L'undertaker",
+   "credit": "Mauvais Djo",
+   "names_from": "listenbrainz",
+   "length_s": 156,
+   "deezer": {
+    "track": "Pilé",
+    "artist": "Mauvais djo",
+    "album": "L'undertaker, Pt.1"
+   },
+   "id": "QZWFU2567999",
+   "isrc": "QZWFU2567999",
+   "origin": "chart:FR",
+   "mbid": "524607a9-023b-4b8d-8f09-b446b1199c3c",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Otóż to",
+   "artist": "Mor W.A.",
+   "album": "Vademecum",
+   "credit": "Mor W.A.",
+   "names_from": "listenbrainz",
+   "length_s": 157,
+   "id": "PLA552200800",
+   "isrc": "PLA552200800",
+   "origin": "mb_random",
+   "mbid": "f324d443-3c0f-4671-9270-c1c42a3bfbf1",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "ONE TRACK MIND",
+   "artist": "Naïka",
+   "album": "ECLESIA",
+   "credit": "Naïka",
+   "names_from": "listenbrainz",
+   "length_s": 201,
+   "deezer": {
+    "track": "ONE TRACK MIND",
+    "artist": "Naïka",
+    "album": "ONE TRACK MIND"
+   },
+   "id": "QMFMG2543019",
+   "isrc": "QMFMG2543019",
+   "origin": "chart:FR",
+   "mbid": "14873dd5-3c89-43dc-b71c-974c0fe7e209",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Soirée mondaine",
+   "artist": "Oria",
+   "album": "",
+   "credit": "Oria",
+   "names_from": "listenbrainz",
+   "length_s": 198,
+   "deezer": {
+    "track": "Soirée mondaine",
+    "artist": "Oria",
+    "album": "Soirée mondaine"
+   },
+   "id": "FRETX2500040",
+   "isrc": "FRETX2500040",
+   "origin": "chart:FR",
+   "mbid": "45b0f9ef-fa1c-4947-bfb8-13843466fb66",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "Duvet",
+   "artist": "bôa",
+   "album": "The Race of a Thousand Camels",
+   "credit": "bôa",
+   "names_from": "listenbrainz",
+   "length_s": 203,
+   "deezer": {
+    "track": "Duvet",
+    "artist": "bôa",
+    "album": "Twilight"
+   },
+   "id": "USCGJ0659337",
+   "isrc": "USCGJ0659337",
+   "origin": "chart:JP",
+   "mbid": "f4d36326-da1b-4b43-af19-7113c2adb92d",
+   "bucket": "accented",
+   "expect": "match"
+  },
+  {
+   "track": "SUPERESTRELLA",
+   "artist": "Aitana",
+   "album": "CUARTO AZUL",
+   "credit": "Aitana",
+   "names_from": "listenbrainz",
+   "length_s": 184,
+   "id": "ESUM72500492",
+   "isrc": "ESUM72500492",
+   "origin": "chart:ES",
+   "mbid": "a542ab6b-9756-4c1b-a48f-4bbdee47ae38",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Ordinary",
+   "artist": "Alex Warren",
+   "album": "You’ll Be Alright, Kid",
+   "credit": "Alex Warren",
+   "names_from": "listenbrainz",
+   "length_s": 187,
+   "deezer": {
+    "track": "Ordinary",
+    "artist": "Alex Warren",
+    "album": "Ordinary"
+   },
+   "id": "USAT22500463",
+   "isrc": "USAT22500463",
+   "origin": "chart:GB",
+   "mbid": "18c0f758-b5da-48da-9a2c-c21804702e9d",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Sue me",
+   "artist": "Audrey Hobert",
+   "album": "Who’s the Clown?",
+   "credit": "Audrey Hobert",
+   "names_from": "listenbrainz",
+   "length_s": 170,
+   "deezer": {
+    "track": "Sue me",
+    "artist": "Audrey Hobert",
+    "album": "Who's the Clown?"
+   },
+   "id": "USRC12500621",
+   "isrc": "USRC12500621",
+   "origin": "chart:DE",
+   "mbid": "5a319493-8d4a-4854-a144-1c71df5ee31a",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Sur la piste",
+   "artist": "Eva",
+   "album": "Summergirl",
+   "credit": "Eva",
+   "names_from": "listenbrainz",
+   "length_s": 172,
+   "id": "FR9W12619638",
+   "isrc": "FR9W12619638",
+   "origin": "chart:FR",
+   "mbid": "a5e554c4-0ff6-4db9-b8b0-20663baa4af5",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "The Kids Are All Dying",
+   "artist": "FINNEAS",
+   "album": "Optimist",
+   "credit": "FINNEAS",
+   "names_from": "listenbrainz",
+   "length_s": 168,
+   "id": "USUG12103242",
+   "isrc": "USUG12103242",
+   "origin": "chart:KR",
+   "mbid": "6e521f3d-25c6-4631-8dd1-4cdf91652a3b",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Where Is Gone?",
+   "artist": "Fontaines D.C.",
+   "album": "Dopamine Chamber",
+   "credit": "Fontaines D.C.",
+   "names_from": "listenbrainz",
+   "length_s": 316,
+   "id": "GBBKS2600150",
+   "isrc": "GBBKS2600150",
+   "origin": "chart:ES",
+   "mbid": "419e2dd9-63a6-408e-bed4-dbde3826958b",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Animal",
+   "artist": "KATSEYE",
+   "album": "Animal",
+   "credit": "KATSEYE",
+   "names_from": "listenbrainz",
+   "length_s": 158,
+   "id": "USUM72602757",
+   "isrc": "USUM72602757",
+   "origin": "chart:DE",
+   "mbid": "d2c85680-63a7-425d-a8d9-5d992c4a983a",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "MUTT",
+   "artist": "Leon Thomas",
+   "album": "MUTT",
+   "credit": "Leon Thomas",
+   "names_from": "listenbrainz",
+   "length_s": 193,
+   "id": "USUM72409025",
+   "isrc": "USUM72409025",
+   "origin": "chart:IT",
+   "mbid": "955962c6-7e95-4223-ba17-9103a92b624f",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "In the End",
+   "artist": "Linkin Park",
+   "album": "Hybrid Theory",
+   "credit": "Linkin Park",
+   "names_from": "listenbrainz",
+   "length_s": 216,
+   "deezer": {
+    "track": "In the End",
+    "artist": "Linkin Park",
+    "album": "Hybrid Theory (Bonus Edition)"
+   },
+   "id": "USWB10002407",
+   "isrc": "USWB10002407",
+   "origin": "chart:BR",
+   "mbid": "9d70086c-5d7a-4e7f-b1ed-c53c4b11310f",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Maladie",
+   "artist": "Mauvais Djo",
+   "album": "L'undertaker",
+   "credit": "Mauvais Djo",
+   "names_from": "listenbrainz",
+   "length_s": 192,
+   "deezer": {
+    "track": "Maladie",
+    "artist": "Mauvais djo",
+    "album": "Maladie"
+   },
+   "id": "QZRP52634919",
+   "isrc": "QZRP52634919",
+   "origin": "chart:FR",
+   "mbid": "d028f7f7-fe93-4f71-a55f-d45ab9cbfc21",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Pocahontas",
+   "artist": "PLK",
+   "album": "Grand Garçon",
+   "credit": "PLK",
+   "names_from": "listenbrainz",
+   "length_s": 169,
+   "id": "FR7O52600090",
+   "isrc": "FR7O52600090",
+   "origin": "chart:FR",
+   "mbid": "8e070988-a534-4741-a16d-d2038b4a5e6d",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Love Me Not",
+   "artist": "Ravyn Lenae",
+   "album": "Bird's Eye",
+   "credit": "Ravyn Lenae",
+   "names_from": "listenbrainz",
+   "length_s": 213,
+   "deezer": {
+    "track": "Love Me Not",
+    "artist": "Ravyn Lenae",
+    "album": "Love Me Not / Love Is Blind"
+   },
+   "id": "USAT22401137",
+   "isrc": "USAT22401137",
+   "origin": "chart:DE",
+   "mbid": "d8759cc0-b58e-4e03-9e7a-71dd8eb8f052",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Die on This Hill",
+   "artist": "SIENNA SPIRO",
+   "album": "Visitor",
+   "credit": "SIENNA SPIRO",
+   "names_from": "listenbrainz",
+   "length_s": 217,
+   "deezer": {
+    "track": "Die On This Hill",
+    "artist": "SIENNA SPIRO",
+    "album": "Die On This Hill"
+   },
+   "id": "USUG12508560",
+   "isrc": "USUG12508560",
+   "origin": "chart:GB",
+   "mbid": "277e6d7a-1c4c-4d5f-9c19-1da1f359b6c9",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Good News",
+   "artist": "Shaboozey",
+   "album": "Where I’ve Been, Isn’t Where I’m Going",
+   "credit": "Shaboozey",
+   "names_from": "listenbrainz",
+   "length_s": 199,
+   "deezer": {
+    "track": "Good News",
+    "artist": "Shaboozey",
+    "album": "Good News"
+   },
+   "id": "USUYG1580113",
+   "isrc": "USUYG1580113",
+   "origin": "chart:GB",
+   "mbid": "f57ac272-c194-40dd-89bc-e8affb655770",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Take On Me",
+   "artist": "a‐ha",
+   "album": "Hunting High and Low",
+   "credit": "a‐ha",
+   "names_from": "listenbrainz",
+   "length_s": 169,
+   "deezer": {
+    "track": "Take on Me",
+    "artist": "a-ha",
+    "album": "Hunting High and Low"
+   },
+   "id": "USWB19901214",
+   "isrc": "USWB19901214",
+   "origin": "chart:KR",
+   "mbid": "05d7335f-af76-4b67-9427-b4c3b492f5ea",
+   "bucket": "chart",
+   "expect": "match"
+  },
+  {
+   "track": "Porcelain",
+   "artist": "48th St. Collective",
+   "album": "Music Links",
+   "credit": "48th St. Collective",
+   "names_from": "listenbrainz",
+   "length_s": 199,
+   "deezer": {
+    "track": "Porcelain",
+    "artist": "48th St. Collective",
+    "album": "Jazz and 90s - Part Two"
+   },
+   "id": "ARF411500263",
+   "isrc": "ARF411500263",
+   "origin": "mb_random",
+   "mbid": "6c7729b9-e4a1-4aab-9bae-e9219400be7f",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "I Want Water",
+   "artist": "African Head Charge",
+   "album": "Drastic Season",
+   "credit": "African Head Charge",
+   "names_from": "listenbrainz",
+   "length_s": 366,
+   "deezer": {
+    "track": "I Want Water",
+    "artist": "African Head Charge",
+    "album": "Shrunken Head"
+   },
+   "id": "GB5P50300016",
+   "isrc": "GB5P50300016",
+   "origin": "mb_random",
+   "mbid": "a2758f1e-e206-41d8-a0c7-413d31cde603",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "Hothouse Flower",
+   "artist": "Andrea England",
+   "album": "Hope & Other Sins",
+   "credit": "Andrea England",
+   "names_from": "listenbrainz",
+   "length_s": 204,
+   "id": "CAL491200003",
+   "isrc": "CAL491200003",
+   "origin": "mb_random",
+   "mbid": "39f0356b-b615-48bc-b04f-e8c857f28183",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "Lust and Found",
+   "artist": "Bertie Blackman",
+   "album": "Secrets and Lies",
+   "credit": "Bertie Blackman",
+   "names_from": "listenbrainz",
+   "length_s": 255,
+   "deezer": {
+    "track": "Lust And Found",
+    "artist": "Bertie Blackman",
+    "album": "Secrets & Lies"
+   },
+   "id": "AUFO30900015",
+   "isrc": "AUFO30900015",
+   "origin": "mb_random",
+   "mbid": "ac351a74-eacd-4b29-970a-6fa66a35ab75",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "Must I Paint You a Picture",
+   "artist": "Billy Bragg",
+   "album": "Workers Playtime",
+   "credit": "Billy Bragg",
+   "names_from": "listenbrainz",
+   "length_s": 332,
+   "deezer": {
+    "track": "Must I Paint You a Picture",
+    "artist": "Billy Bragg",
+    "album": "Must I Paint You a Picture?: The Essential Billy Bragg"
+   },
+   "id": "GBCEJ0300137",
+   "isrc": "GBCEJ0300137",
+   "origin": "mb_random",
+   "mbid": "ad7db3f1-d81b-4c16-b8e7-bb2e7ab98431",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "Cristal",
+   "artist": "Cosaquitos en Globo",
+   "album": "Pure Latin Synth, Vol. 1",
+   "credit": "Cosaquitos en Globo",
+   "names_from": "listenbrainz",
+   "length_s": 263,
+   "deezer": {
+    "track": "Cristal",
+    "artist": "Cosaquitos En Globo",
+    "album": "Humanum"
+   },
+   "id": "AR8F51700002",
+   "isrc": "AR8F51700002",
+   "origin": "mb_random",
+   "mbid": "9d53a9a4-b16d-4b9a-813a-0a4563fa9842",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "Ay, que dios boludo",
+   "artist": "Divididos",
+   "album": "Vengo del placard de otro",
+   "credit": "Divididos",
+   "names_from": "listenbrainz",
+   "length_s": 265,
+   "deezer": {
+    "track": "Ay, Que Dios Boludo",
+    "artist": "Divididos",
+    "album": "Canciones de Cuna al Palo"
+   },
+   "id": "ARF030200255",
+   "isrc": "ARF030200255",
+   "origin": "mb_random",
+   "mbid": "7a0a231f-a08f-4dfd-b090-8dc17af245c0",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "Let It Be",
+   "artist": "House of Shem",
+   "album": "Harmony",
+   "credit": "House of Shem",
+   "names_from": "listenbrainz",
+   "length_s": 286,
+   "deezer": {
+    "track": "Let It Be (NZ Version)",
+    "artist": "House Of Shem",
+    "album": "Hemp! A Reggae Tribute to The Beatles, Vol. II"
+   },
+   "id": "AR1K21300037",
+   "isrc": "AR1K21300037",
+   "origin": "mb_random",
+   "mbid": "ba741c36-f1ae-4040-b0ee-c5282ac47ddb",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "Aufwach",
+   "artist": "IcyNyu",
+   "album": "Yellow Moon Told Me Your Name",
+   "credit": "IcyNyu",
+   "names_from": "listenbrainz",
+   "length_s": 182,
+   "id": "NL4NL2135637",
+   "isrc": "NL4NL2135637",
+   "origin": "mb_random",
+   "mbid": "bb0c021b-6851-4086-890c-d4f5b9f7d385",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "Break It Down",
+   "artist": "Januskopf",
+   "album": "Rave Muzik 072",
+   "credit": "Januskopf",
+   "names_from": "listenbrainz",
+   "length_s": 287,
+   "id": "GBKQU2461797",
+   "isrc": "GBKQU2461797",
+   "origin": "mb_random",
+   "mbid": "2ac5b595-c29e-4b23-bc87-5d77b67fb6ca",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "Matter of Time",
+   "artist": "Lady Blackbird",
+   "album": "Slang Spirituals",
+   "credit": "Lady Blackbird",
+   "names_from": "listenbrainz",
+   "length_s": 237,
+   "id": "GB5KW2401014",
+   "isrc": "GB5KW2401014",
+   "origin": "mb_random",
+   "mbid": "0bd50a7e-6339-439a-a5e0-ff3b1f5203f5",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "Ave Maria",
+   "artist": "Lauren Waterworth",
+   "album": "Beyond Her Years",
+   "credit": "Lauren Waterworth",
+   "names_from": "listenbrainz",
+   "length_s": 268,
+   "id": "GBAHK0300152",
+   "isrc": "GBAHK0300152",
+   "origin": "mb_random",
+   "mbid": "d2d14d2e-51ba-4a8a-9e20-283f154cb3c1",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "Confetti / Porcelain",
+   "artist": "Little Birdy",
+   "album": "Confetti",
+   "credit": "Little Birdy",
+   "names_from": "listenbrainz",
+   "length_s": 744,
+   "deezer": {
+    "track": "Confetti",
+    "artist": "Little Birdy",
+    "album": "Confetti"
+   },
+   "id": "AUEL00900011",
+   "isrc": "AUEL00900011",
+   "origin": "mb_random",
+   "mbid": "e034280c-8d14-477a-a1d2-4eab552e5aa1",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "The Very Last Song",
+   "artist": "Peter Combe",
+   "album": "Kiddywinks",
+   "credit": "Peter Combe",
+   "names_from": "listenbrainz",
+   "length_s": 144,
+   "id": "AUQP30900091",
+   "isrc": "AUQP30900091",
+   "origin": "mb_random",
+   "mbid": "9b53e5e4-9a4d-4f43-b2ab-7cdc18e0eab3",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "track": "MAID",
+   "artist": "SUNMI",
+   "album": "HEART MAID",
+   "credit": "SUNMI",
+   "names_from": "listenbrainz",
+   "length_s": 60,
+   "id": "KRMIM2558153",
+   "isrc": "KRMIM2558153",
+   "origin": "mb_random",
+   "mbid": "b476c50c-c2e7-423f-8f7d-99eca02d0c68",
+   "bucket": "long_tail",
+   "expect": "match"
+  },
+  {
+   "id": "trap-artist-00",
+   "bucket": "wrong_artist",
+   "expect": "none",
+   "track": "Happy For You",
+   "artist": "ROSALÍA",
+   "album": "",
+   "length_s": 229,
+   "built_from": [
+    "GBBKS2600146",
+    "USSM12504035"
+   ]
+  },
+  {
+   "id": "trap-artist-01",
+   "bucket": "wrong_artist",
+   "expect": "none",
+   "track": "Festive Overture, op. 148",
+   "artist": "Felipe e Rodrigo",
+   "album": "",
+   "length_s": 729,
+   "built_from": [
+    "DEB202245406",
+    "BKMKR2400004"
+   ]
+  },
+  {
+   "id": "trap-artist-02",
+   "bucket": "wrong_artist",
+   "expect": "none",
+   "track": "Jealous Type",
+   "artist": "TeddyBear",
+   "album": "",
+   "length_s": 163,
+   "built_from": [
+    "USRC12500972",
+    "FR59R2687617"
+   ]
+  },
+  {
+   "id": "trap-artist-03",
+   "bucket": "wrong_artist",
+   "expect": "none",
+   "track": "Burning Blue",
+   "artist": "Александр Буйнов",
+   "album": "",
+   "length_s": 206,
+   "built_from": [
+    "USSM12501674",
+    "RUB731522320"
+   ]
+  },
+  {
+   "id": "trap-artist-04",
+   "bucket": "wrong_artist",
+   "expect": "none",
+   "track": "Whistlin’ Past the Graveyard",
+   "artist": "Chava Flores",
+   "album": "",
+   "length_s": 189,
+   "built_from": [
+    "CA7PX1200009",
+    "MXF600600211"
+   ]
+  },
+  {
+   "id": "trap-artist-05",
+   "bucket": "wrong_artist",
+   "expect": "none",
+   "track": "Peão Todo Tatuado",
+   "artist": "Ana Mena",
+   "album": "",
+   "length_s": 134,
+   "built_from": [
+    "BRKUY2500072",
+    "ES5022600597"
+   ]
+  },
+  {
+   "id": "trap-artist-06",
+   "bucket": "wrong_artist",
+   "expect": "none",
+   "track": "Octopus’ Garden",
+   "artist": "Bersuit Vergarabat",
+   "album": "",
+   "length_s": 203,
+   "built_from": [
+    "AR1K21300047",
+    "ARF140200007"
+   ]
+  },
+  {
+   "id": "trap-artist-07",
+   "bucket": "wrong_artist",
+   "expect": "none",
+   "track": "The Fool on the Hill",
+   "artist": "Lord Huron",
+   "album": "",
+   "length_s": 243,
+   "built_from": [
+    "AR1K21300041",
+    "US53Q1200097"
+   ]
+  },
+  {
+   "id": "trap-artist-08",
+   "bucket": "wrong_artist",
+   "expect": "none",
+   "track": "Sweet Lavalamp",
+   "artist": "Killers",
+   "album": "",
+   "length_s": 168,
+   "built_from": [
+    "ITI020000034",
+    "GBFFP0300052"
+   ]
+  },
+  {
+   "id": "trap-artist-09",
+   "bucket": "wrong_artist",
+   "expect": "none",
+   "track": "So Good",
+   "artist": "ILLIT",
+   "album": "",
+   "length_s": 237,
+   "built_from": [
+    "USUM72608343",
+    "USA2P2661210"
+   ]
+  },
+  {
+   "id": "trap-length-00",
+   "bucket": "wrong_length",
+   "expect": "none",
+   "track": "Dai dai",
+   "artist": "Shakira",
+   "album": "Dai dai",
+   "length_s": 313,
+   "built_from": [
+    "USQX92602558"
+   ]
+  },
+  {
+   "id": "trap-length-01",
+   "bucket": "wrong_length",
+   "expect": "none",
+   "track": "Lay It on Me",
+   "artist": "Ina Wroldsen",
+   "album": "Lay It on Me",
+   "length_s": 318,
+   "built_from": [
+    "NOUM71600419"
+   ]
+  },
+  {
+   "id": "trap-length-02",
+   "bucket": "wrong_length",
+   "expect": "none",
+   "track": "stupid song",
+   "artist": "Olivia Rodrigo",
+   "album": "you seem pretty sad for a girl so in love",
+   "length_s": 300,
+   "built_from": [
+    "USUG12601723"
+   ]
+  },
+  {
+   "id": "trap-length-03",
+   "bucket": "wrong_length",
+   "expect": "none",
+   "track": "South of Sanity",
+   "artist": "Zach Top",
+   "album": "Ain't in It For My Health",
+   "length_s": 311,
+   "built_from": [
+    "QZWH32500409"
+   ]
+  },
+  {
+   "id": "trap-length-04",
+   "bucket": "wrong_length",
+   "expect": "none",
+   "track": "날아라 제임수딘",
+   "artist": "이은미",
+   "album": "Ma Non Tanto",
+   "length_s": 448,
+   "built_from": [
+    "KRA030402641"
+   ]
+  },
+  {
+   "id": "trap-mix-00",
+   "bucket": "title_mix",
+   "expect": "none",
+   "track": "Choosin’ Her",
+   "artist": "Ella Langley",
+   "album": "",
+   "length_s": 232,
+   "built_from": [
+    "USSM12504190",
+    "USSM12600141"
+   ]
+  },
+  {
+   "id": "trap-mix-01",
+   "bucket": "title_mix",
+   "expect": "none",
+   "track": "twilight made you love me",
+   "artist": "Ariana Grande",
+   "album": "",
+   "length_s": 198,
+   "built_from": [
+    "USUM72501915",
+    "USUM72601821"
+   ]
+  },
+  {
+   "id": "trap-mix-02",
+   "bucket": "title_mix",
+   "expect": "none",
+   "track": "What seule vie",
+   "artist": "Angèle",
+   "album": "",
+   "length_s": 188,
+   "built_from": [
+    "BE8HB2600001",
+    "BE8HB2600017"
+   ]
+  },
+  {
+   "id": "trap-mix-03",
+   "bucket": "title_mix",
+   "expect": "none",
+   "track": "The Fate Zero",
+   "artist": "Taylor Swift",
+   "album": "",
+   "length_s": 226,
+   "built_from": [
+    "USUG12506436",
+    "USUG12602391"
+   ]
+  },
+  {
+   "id": "trap-mix-04",
+   "bucket": "title_mix",
+   "expect": "none",
+   "track": "Six Is Gone?",
+   "artist": "Fontaines D.C.",
+   "album": "",
+   "length_s": 297,
+   "built_from": [
+    "GBBKS2600143",
+    "GBBKS2600150"
+   ]
+  }
+ ],
+ "queries": [
+  {
+   "qid": "c64adb1c9224",
+   "query": "месяц palina",
+   "uses": [
+    {
+     "seed": "RUA1H2242680",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "e558fb6e24c6",
+   "query": "Месяц",
+   "uses": [
+    {
+     "seed": "RUA1H2242680",
+     "shape": "T"
+    },
+    {
+     "seed": "RUA1H2242680",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "32bb9f6f44a0",
+   "query": "Месяц Palina",
+   "uses": [
+    {
+     "seed": "RUA1H2242680",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "a2b4a40b8d09",
+   "query": "зараза renie",
+   "uses": [
+    {
+     "seed": "UAEO12400451",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "67c6d29a9c88",
+   "query": "зараза",
+   "uses": [
+    {
+     "seed": "UAEO12400451",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "eca6e51ac210",
+   "query": "зараза renie cares",
+   "uses": [
+    {
+     "seed": "UAEO12400451",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "d47513cf8c82",
+   "query": "la princesse lointaine",
+   "uses": [
+    {
+     "seed": "UAEO12400451",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "a343403024fe",
+   "query": "минут remix",
+   "uses": [
+    {
+     "seed": "RUA110100014",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "bccc0b2f9f8d",
+   "query": "30 минут (Moscow Grooves Institute remix)",
+   "uses": [
+    {
+     "seed": "RUA110100014",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "1dbb2877564a",
+   "query": "30 минут (Moscow Grooves Institute remix) t.A.T.u.",
+   "uses": [
+    {
+     "seed": "RUA110100014",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "4e2bd20a0e89",
+   "query": "200 по встречной",
+   "uses": [
+    {
+     "seed": "RUA110100014",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "a2f0fb0ac26f",
+   "query": "клинит александр",
+   "uses": [
+    {
+     "seed": "RUB731522372",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "bc0b9519e5a6",
+   "query": "Клинит",
+   "uses": [
+    {
+     "seed": "RUB731522372",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "4748cfc6fc55",
+   "query": "Клинит Александр Буйнов",
+   "uses": [
+    {
+     "seed": "RUB731522372",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "1833cdf46d1f",
+   "query": "P.R.O. Любовь",
+   "uses": [
+    {
+     "seed": "RUB731522372",
+     "shape": "B"
+    },
+    {
+     "seed": "RUB731522380",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "52bcd98f9f33",
+   "query": "маменька александр",
+   "uses": [
+    {
+     "seed": "RUB731522380",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "4fb6d4ce703b",
+   "query": "Маменька",
+   "uses": [
+    {
+     "seed": "RUB731522380",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "e86327e3ddb6",
+   "query": "Маменька Александр Буйнов",
+   "uses": [
+    {
+     "seed": "RUB731522380",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "d5c588202e1e",
+   "query": "валенки александр",
+   "uses": [
+    {
+     "seed": "RUB310800105",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "35fa2ca18b7e",
+   "query": "Валенки, валенки",
+   "uses": [
+    {
+     "seed": "RUB310800105",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "1f1ba8257543",
+   "query": "Валенки, валенки Александр Пушной",
+   "uses": [
+    {
+     "seed": "RUB310800105",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "e2d936ae93a5",
+   "query": "александрпушной.ru",
+   "uses": [
+    {
+     "seed": "RUB310800105",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "4d800435cb56",
+   "query": "серце пивоваров",
+   "uses": [
+    {
+     "seed": "UABM12400811",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "22d4cc5d5458",
+   "query": "Серце",
+   "uses": [
+    {
+     "seed": "UABM12400811",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "be7d60efe619",
+   "query": "Серце Артем Пивоваров",
+   "uses": [
+    {
+     "seed": "UABM12400811",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "f5d3bebca8bd",
+   "query": "Твої вірші, мої ноти II",
+   "uses": [
+    {
+     "seed": "UABM12400811",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "cc15f82be800",
+   "query": "красивая артур",
+   "uses": [
+    {
+     "seed": "RUB731577202",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "2f8700e9a74c",
+   "query": "Красивая",
+   "uses": [
+    {
+     "seed": "RUB731577202",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "0f069c8f8cf3",
+   "query": "Красивая Артур",
+   "uses": [
+    {
+     "seed": "RUB731577202",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "b965bc0c4ea1",
+   "query": "Любимой женщине 2019",
+   "uses": [
+    {
+     "seed": "RUB731577202",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "8083ccec631b",
+   "query": "тобой би",
+   "uses": [
+    {
+     "seed": "RUA120100007",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "ba3b40b002a6",
+   "query": "С тобой",
+   "uses": [
+    {
+     "seed": "RUA120100007",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "68538c87876f",
+   "query": "С тобой Би-2",
+   "uses": [
+    {
+     "seed": "RUA120100007",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "308957a7acaa",
+   "query": "Мяу кисс ми",
+   "uses": [
+    {
+     "seed": "RUA120100007",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "4cc6bd6dcc09",
+   "query": "сумашедшем владимир",
+   "uses": [
+    {
+     "seed": "RUA0G1507360",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "2daf348a039b",
+   "query": "песня владимир",
+   "uses": [
+    {
+     "seed": "RUA0G1507360",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "0008d87b0f00",
+   "query": "Песня о сумашедшем доме",
+   "uses": [
+    {
+     "seed": "RUA0G1507360",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "0d510a8f968f",
+   "query": "Песня о сумашедшем доме Владимир Высоцкий",
+   "uses": [
+    {
+     "seed": "RUA0G1507360",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "81aefdcdaef4",
+   "query": "Новый звук",
+   "uses": [
+    {
+     "seed": "RUA0G1507360",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "8a013676dbf0",
+   "query": "шахматной владимир",
+   "uses": [
+    {
+     "seed": "RUA0G1507380",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "3d3506f34056",
+   "query": "короны владимир",
+   "uses": [
+    {
+     "seed": "RUA0G1507380",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "73917668db87",
+   "query": "Честь шахматной короны-игра",
+   "uses": [
+    {
+     "seed": "RUA0G1507380",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "bde23708d9ce",
+   "query": "Честь шахматной короны-игра Владимир Высоцкий",
+   "uses": [
+    {
+     "seed": "RUA0G1507380",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "ee5af1843ea9",
+   "query": "Памятник",
+   "uses": [
+    {
+     "seed": "RUA0G1507380",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "08a2d670e3d7",
+   "query": "неземная пресняков",
+   "uses": [
+    {
+     "seed": "RUB421700973",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "4dbdb3b588cb",
+   "query": "Неземная",
+   "uses": [
+    {
+     "seed": "RUB421700973",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "b99debd3ea29",
+   "query": "Неземная Владимир Пресняков",
+   "uses": [
+    {
+     "seed": "RUB421700973",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "cb45f5209167",
+   "query": "Слушая тишину",
+   "uses": [
+    {
+     "seed": "RUB421700973",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "8210797fe8ad",
+   "query": "грім гошуля",
+   "uses": [
+    {
+     "seed": "UAEO12400376",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "f0aa41337a95",
+   "query": "Грім",
+   "uses": [
+    {
+     "seed": "UAEO12400376",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "fdc5d91e1d51",
+   "query": "Грім Гошуля",
+   "uses": [
+    {
+     "seed": "UAEO12400376",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "ffed19ab5896",
+   "query": "перезаряджаю гошуля",
+   "uses": [
+    {
+     "seed": "UAEO12400150",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "32c34f839ea6",
+   "query": "Перезаряджаю",
+   "uses": [
+    {
+     "seed": "UAEO12400150",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "06025296b230",
+   "query": "Перезаряджаю Гошуля",
+   "uses": [
+    {
+     "seed": "UAEO12400150",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "787e7115b654",
+   "query": "где билан",
+   "uses": [
+    {
+     "seed": "RUB421500020",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "6adcbc41d84b",
+   "query": "то билан",
+   "uses": [
+    {
+     "seed": "RUB421500020",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "c799529b23e4",
+   "query": "Где-то",
+   "uses": [
+    {
+     "seed": "RUB421500020",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "7feb79a8c851",
+   "query": "Где-то Дима Билан",
+   "uses": [
+    {
+     "seed": "RUB421500020",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "83bce6d1187e",
+   "query": "Время-река",
+   "uses": [
+    {
+     "seed": "RUB421500020",
+     "shape": "B"
+    },
+    {
+     "seed": "RUB421500018",
+     "shape": "T"
+    },
+    {
+     "seed": "RUB421500018",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "c77f5b776c13",
+   "query": "время билан",
+   "uses": [
+    {
+     "seed": "RUB421500018",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "01a8797d3137",
+   "query": "река билан",
+   "uses": [
+    {
+     "seed": "RUB421500018",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "31179a141e23",
+   "query": "Время-река Дима Билан",
+   "uses": [
+    {
+     "seed": "RUB421500018",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "6d0110edd4c1",
+   "query": "wish леонид",
+   "uses": [
+    {
+     "seed": "RUB731570519",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "4ed2f4c831d4",
+   "query": "I Wish",
+   "uses": [
+    {
+     "seed": "RUB731570519",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "5bc0faaf1f9a",
+   "query": "I Wish Леонид Агутин",
+   "uses": [
+    {
+     "seed": "RUB731570519",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "18df3aee09bf",
+   "query": "Cover Version",
+   "uses": [
+    {
+     "seed": "RUB731570519",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "0a0ba7587c5e",
+   "query": "романа началова",
+   "uses": [
+    {
+     "seed": "RUA1H1510414",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "4d9baa7828bb",
+   "query": "герой началова",
+   "uses": [
+    {
+     "seed": "RUA1H1510414",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "220bde353245",
+   "query": "Герой не моего романа (ремикс)",
+   "uses": [
+    {
+     "seed": "RUA1H1510414",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "a598b15255a0",
+   "query": "Герой не моего романа (ремикс) Юлия Началова",
+   "uses": [
+    {
+     "seed": "RUA1H1510414",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "8f8a3d5dade4",
+   "query": "Давай поговорим о любви",
+   "uses": [
+    {
+     "seed": "RUA1H1510414",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "b62d921a61dd",
+   "query": "뛰어 blackpink",
+   "uses": [
+    {
+     "seed": "KRA402400094",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "dfd81f3cf02b",
+   "query": "뛰어 (JUMP)",
+   "uses": [
+    {
+     "seed": "KRA402400094",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "169debb5b4d9",
+   "query": "뛰어 (JUMP) BLACKPINK",
+   "uses": [
+    {
+     "seed": "KRA402400094",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "bb0d79b578ec",
+   "query": "JUMP",
+   "uses": [
+    {
+     "seed": "KRA402400094",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "dd453aa04185",
+   "query": "모금 btob",
+   "uses": [
+    {
+     "seed": "KRA391400038",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "371708e968ff",
+   "query": "한 모금",
+   "uses": [
+    {
+     "seed": "KRA391400038",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "43db2b9b53f1",
+   "query": "한 모금 BTOB",
+   "uses": [
+    {
+     "seed": "KRA391400038",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "c337cbdf3665",
+   "query": "The Winter's Tale",
+   "uses": [
+    {
+     "seed": "KRA391400038",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "9fa7be32a225",
+   "query": "가위바위보 fifty",
+   "uses": [
+    {
+     "seed": "KRB462500465",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "c2c17aa83d73",
+   "query": "가위바위보 (Eeny meeny miny moe)",
+   "uses": [
+    {
+     "seed": "KRB462500465",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "9d08560e3063",
+   "query": "가위바위보 (Eeny meeny miny moe) FIFTY FIFTY",
+   "uses": [
+    {
+     "seed": "KRB462500465",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "945ece999648",
+   "query": "Too Much Part 1",
+   "uses": [
+    {
+     "seed": "KRB462500465",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "f13bd29a723a",
+   "query": "נכנסת gerin",
+   "uses": [
+    {
+     "seed": "ARA821764605",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "136378ee1135",
+   "query": "השבת gerin",
+   "uses": [
+    {
+     "seed": "ARA821764605",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "fe30d58714dd",
+   "query": "השבת כבר נכנסת",
+   "uses": [
+    {
+     "seed": "ARA821764605",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "3ea7096ae786",
+   "query": "השבת כבר נכנסת Gerin Tebi",
+   "uses": [
+    {
+     "seed": "ARA821764605",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "0feab681ba10",
+   "query": "בראשית",
+   "uses": [
+    {
+     "seed": "ARA821764605",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "a2e843e6a323",
+   "query": "분다 infinite",
+   "uses": [
+    {
+     "seed": "KRA381702892",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "489eaac58e4a",
+   "query": "분다",
+   "uses": [
+    {
+     "seed": "KRA381702892",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "cbd9485aeaed",
+   "query": "분다 INFINITE",
+   "uses": [
+    {
+     "seed": "KRA381702892",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "98b887409b13",
+   "query": "TOP SEED",
+   "uses": [
+    {
+     "seed": "KRA381702892",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "e76881d0a02d",
+   "query": "애매모호 mamamoo",
+   "uses": [
+    {
+     "seed": "KRA491400933",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "c3101b85edd3",
+   "query": "Mr.애매모호",
+   "uses": [
+    {
+     "seed": "KRA491400933",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "341a936998f9",
+   "query": "Mr.애매모호 MAMAMOO",
+   "uses": [
+    {
+     "seed": "KRA491400933",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "f7ff9e8b7bb2",
+   "query": "Hello",
+   "uses": [
+    {
+     "seed": "KRA491400933",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "c8bfd069affb",
+   "query": "여름빛 velvet",
+   "uses": [
+    {
+     "seed": "KRA301700281",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "1c53f718d7a3",
+   "query": "여름빛 (Mojito)",
+   "uses": [
+    {
+     "seed": "KRA301700281",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "0e66bd480dfa",
+   "query": "여름빛 (Mojito) Red Velvet",
+   "uses": [
+    {
+     "seed": "KRA301700281",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "ab9ceeb52a77",
+   "query": "The Red Summer",
+   "uses": [
+    {
+     "seed": "KRA301700281",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "498d4dc8d195",
+   "query": "強盗と花束 ヨルシカ",
+   "uses": [
+    {
+     "seed": "JPPO02004290",
+     "shape": "L0"
+    },
+    {
+     "seed": "JPPO02004290",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "64a6bcf6dffb",
+   "query": "強盗と花束",
+   "uses": [
+    {
+     "seed": "JPPO02004290",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "77926e80fa77",
+   "query": "創作",
+   "uses": [
+    {
+     "seed": "JPPO02004290",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "5b9143476244",
+   "query": "whenever",
+   "uses": [
+    {
+     "seed": "JPQ402001230",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "bc8d8647b02d",
+   "query": "call",
+   "uses": [
+    {
+     "seed": "JPQ402001230",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "e75527a072d0",
+   "query": "Whenever You Call",
+   "uses": [
+    {
+     "seed": "JPQ402001230",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "4a34ccae941a",
+   "query": "Whenever You Call 嵐",
+   "uses": [
+    {
+     "seed": "JPQ402001230",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "200e410c127b",
+   "query": "This is 嵐",
+   "uses": [
+    {
+     "seed": "JPQ402001230",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "498e86fe7301",
+   "query": "シケモク 田中公平",
+   "uses": [
+    {
+     "seed": "JPT552200295",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "6bb179834e19",
+   "query": "サンジ 田中公平",
+   "uses": [
+    {
+     "seed": "JPT552200295",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "414c4df35ae9",
+   "query": "サンジ～シケモク～",
+   "uses": [
+    {
+     "seed": "JPT552200295",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "007ff5e4332c",
+   "query": "サンジ～シケモク～ 田中公平",
+   "uses": [
+    {
+     "seed": "JPT552200295",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "d06f2e630b7f",
+   "query": "ONE PIECE オリジナルサウンドトラック\"WANOKUNI\"",
+   "uses": [
+    {
+     "seed": "JPT552200295",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "fc85d93371a7",
+   "query": "소재 악동뮤지션",
+   "uses": [
+    {
+     "seed": "KRB471400422",
+     "shape": "L0"
+    },
+    {
+     "seed": "KRB471400422",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "85884279e724",
+   "query": "소재",
+   "uses": [
+    {
+     "seed": "KRB471400422",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "60c4451bd6e6",
+   "query": "Akdong Musician Debut Album \"Play\"",
+   "uses": [
+    {
+     "seed": "KRB471400422",
+     "shape": "B"
+    },
+    {
+     "seed": "KRB471400420",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "38b6321893c1",
+   "query": "작은별 악동뮤지션",
+   "uses": [
+    {
+     "seed": "KRB471400420",
+     "shape": "L0"
+    },
+    {
+     "seed": "KRB471400420",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "8c4ceec6854d",
+   "query": "작은별",
+   "uses": [
+    {
+     "seed": "KRB471400420",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "6e7b937fa47f",
+   "query": "아카시아 이은미",
+   "uses": [
+    {
+     "seed": "KRA030402637",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "330036218d7d",
+   "query": "아카시아 (숨겨진 사랑)",
+   "uses": [
+    {
+     "seed": "KRA030402637",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "efbed11607d5",
+   "query": "아카시아 (숨겨진 사랑) 이은미",
+   "uses": [
+    {
+     "seed": "KRA030402637",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "0b21c9d79898",
+   "query": "Ma Non Tanto",
+   "uses": [
+    {
+     "seed": "KRA030402637",
+     "shape": "B"
+    },
+    {
+     "seed": "trap-length-04",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "fa75c3fd66d9",
+   "query": "기억속으로 이은미",
+   "uses": [
+    {
+     "seed": "KRA030402618",
+     "shape": "L0"
+    },
+    {
+     "seed": "KRA030402618",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "2042b4055dc9",
+   "query": "기억속으로",
+   "uses": [
+    {
+     "seed": "KRA030402618",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "c29460f5e7ac",
+   "query": "히든싱어 컬렉션",
+   "uses": [
+    {
+     "seed": "KRA030402618",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "110efe8ac0df",
+   "query": "worship extended avira",
+   "uses": [
+    {
+     "seed": "NLF712102020",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "da809b3955cb",
+   "query": "patrice avira",
+   "uses": [
+    {
+     "seed": "NLF712102020",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "a197fcacc09d",
+   "query": "The Worship Patrice (Bäumel extended remix)",
+   "uses": [
+    {
+     "seed": "NLF712102020",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "ebc65ffcc680",
+   "query": "The Worship Patrice Baumel extended remix",
+   "uses": [
+    {
+     "seed": "NLF712102020",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "20a7c90cdddb",
+   "query": "The Worship Patrice (Bäumel extended remix) AVIRA",
+   "uses": [
+    {
+     "seed": "NLF712102020",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "f320c68f2a03",
+   "query": "The Worship",
+   "uses": [
+    {
+     "seed": "NLF712102020",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "47530bd07861",
+   "query": "what angèle",
+   "uses": [
+    {
+     "seed": "BE8HB2600001",
+     "shape": "L0"
+    },
+    {
+     "seed": "trap-mix-02",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "6c4cf7330a4b",
+   "query": "want angèle",
+   "uses": [
+    {
+     "seed": "BE8HB2600001",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "7011f48dfd16",
+   "query": "What You Want",
+   "uses": [
+    {
+     "seed": "BE8HB2600001",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "e83380590146",
+   "query": "What You Want Angèle",
+   "uses": [
+    {
+     "seed": "BE8HB2600001",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "8b466a9d6a80",
+   "query": "Instinct",
+   "uses": [
+    {
+     "seed": "BE8HB2600001",
+     "shape": "B"
+    },
+    {
+     "seed": "BE8HB2600017",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "8a148283c8f7",
+   "query": "abraços fito",
+   "uses": [
+    {
+     "seed": "ARF101500148",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "0182db43b711",
+   "query": "flores fito",
+   "uses": [
+    {
+     "seed": "ARF101500148",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "c194b9fc657a",
+   "query": "Flores de abraços",
+   "uses": [
+    {
+     "seed": "ARF101500148",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "1a3d38daa59f",
+   "query": "Flores de abracos",
+   "uses": [
+    {
+     "seed": "ARF101500148",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "513cd65908f3",
+   "query": "Flores de abraços Fito Páez",
+   "uses": [
+    {
+     "seed": "ARF101500148",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "e78ed41c655e",
+   "query": "Locura total",
+   "uses": [
+    {
+     "seed": "ARF101500148",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "25080652f013",
+   "query": "monnaie gims",
+   "uses": [
+    {
+     "seed": "FRX282661554",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "086ddddc759c",
+   "query": "vive gims",
+   "uses": [
+    {
+     "seed": "FRX282661554",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "3e8ba2c9c34d",
+   "query": "VIVE LA MONNAIE",
+   "uses": [
+    {
+     "seed": "FRX282661554",
+     "shape": "T"
+    },
+    {
+     "seed": "FRX282661554",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "9d97add3172b",
+   "query": "VIVE LA MONNAIE GIMS",
+   "uses": [
+    {
+     "seed": "FRX282661554",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "3cbd47e731a8",
+   "query": "movin hugel",
+   "uses": [
+    {
+     "seed": "QT4K42627327",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "1ee3a362b23a",
+   "query": "sun hugel",
+   "uses": [
+    {
+     "seed": "QT4K42627327",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "eaac8e811a6b",
+   "query": "Movin' To The Sun",
+   "uses": [
+    {
+     "seed": "QT4K42627327",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "c534bf311229",
+   "query": "Movin' To The Sun HUGEL",
+   "uses": [
+    {
+     "seed": "QT4K42627327",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "bd7af7b28553",
+   "query": "Twenty One",
+   "uses": [
+    {
+     "seed": "QT4K42627327",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "0f334102be6c",
+   "query": "xonei mateus",
+   "uses": [
+    {
+     "seed": "BRRGE2400563",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "2b5a5d943093",
+   "query": "Xonei",
+   "uses": [
+    {
+     "seed": "BRRGE2400563",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "1337c331d8e2",
+   "query": "Xonei Jorge & Mateus",
+   "uses": [
+    {
+     "seed": "BRRGE2400563",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "c403d32e48e6",
+   "query": "Check-In",
+   "uses": [
+    {
+     "seed": "BRRGE2400563",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "860554fb667e",
+   "query": "loving herrans",
+   "uses": [
+    {
+     "seed": "QZWFS2453460",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "37b91abf6c04",
+   "query": "sorry herrans",
+   "uses": [
+    {
+     "seed": "QZWFS2453460",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "877d04dc0053",
+   "query": "Not Sorry for Loving You",
+   "uses": [
+    {
+     "seed": "QZWFS2453460",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "1be93ba3cc71",
+   "query": "Not Sorry for Loving You Jorge Rivera-Herrans",
+   "uses": [
+    {
+     "seed": "QZWFS2453460",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "ea3e2a97b1e6",
+   "query": "EPIC: The Musical",
+   "uses": [
+    {
+     "seed": "QZWFS2453460",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "e8ed44650164",
+   "query": "hacer remix auténticos",
+   "uses": [
+    {
+     "seed": "ARF102500404",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "dd9a0da525c3",
+   "query": "vamo auténticos",
+   "uses": [
+    {
+     "seed": "ARF102500404",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "8012af6431e4",
+   "query": "Que le vamo’ a hacer (remix 2025)",
+   "uses": [
+    {
+     "seed": "ARF102500404",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "a0c88974e997",
+   "query": "Que le vamo’ a hacer (remix 2025) Los Auténticos Decadentes",
+   "uses": [
+    {
+     "seed": "ARF102500404",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "2dc161fc11a9",
+   "query": "Mi vida loca",
+   "uses": [
+    {
+     "seed": "ARF102500404",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "a58c673b15e1",
+   "query": "emocional lucho",
+   "uses": [
+    {
+     "seed": "BK4DA2683755",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "0602bd90aed6",
+   "query": "resaca lucho",
+   "uses": [
+    {
+     "seed": "BK4DA2683755",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "874ec70ab061",
+   "query": "RESACA EMOCIONAL",
+   "uses": [
+    {
+     "seed": "BK4DA2683755",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "1410c0fb871d",
+   "query": "RESACA EMOCIONAL Lucho RK",
+   "uses": [
+    {
+     "seed": "BK4DA2683755",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "e980d89f915b",
+   "query": "SORDO DE UN PIE",
+   "uses": [
+    {
+     "seed": "BK4DA2683755",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "35c81b188b9c",
+   "query": "ask philharmonic",
+   "uses": [
+    {
+     "seed": "JPPO02501432",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "c87e18e76acf",
+   "query": "why philharmonic",
+   "uses": [
+    {
+     "seed": "JPPO02501432",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "2e7bc8f9b5da",
+   "query": "Ask Me Why (II)",
+   "uses": [
+    {
+     "seed": "JPPO02501432",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "5cf2da57b3ed",
+   "query": "Ask Me Why (II) Royal Philharmonic Orchestra",
+   "uses": [
+    {
+     "seed": "JPPO02501432",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "c2f387bf6f44",
+   "query": "The Boy and the Heron: Symphonic Suite for Piano and Orchestra",
+   "uses": [
+    {
+     "seed": "JPPO02501432",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "fe94ffea1d03",
+   "query": "something stella",
+   "uses": [
+    {
+     "seed": "QZJ842604958",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "51464266cefd",
+   "query": "lose stella",
+   "uses": [
+    {
+     "seed": "QZJ842604958",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "e90b5467cfdd",
+   "query": "Something to Lose",
+   "uses": [
+    {
+     "seed": "QZJ842604958",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "2d863614966f",
+   "query": "Something to Lose STELLA LEFTY",
+   "uses": [
+    {
+     "seed": "QZJ842604958",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "ef8886c8edb3",
+   "query": "Long Way Home",
+   "uses": [
+    {
+     "seed": "QZJ842604958",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "74799d5bad2a",
+   "query": "fleurs tove",
+   "uses": [
+    {
+     "seed": "USA2P2624775",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "3418b06b259b",
+   "query": "des tove",
+   "uses": [
+    {
+     "seed": "USA2P2624775",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "26e680995568",
+   "query": "des fleurs",
+   "uses": [
+    {
+     "seed": "USA2P2624775",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "15f0e46da0aa",
+   "query": "des fleurs Tove Lo",
+   "uses": [
+    {
+     "seed": "USA2P2624775",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "f83b956141ac",
+   "query": "ESTRUS",
+   "uses": [
+    {
+     "seed": "USA2P2624775",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "dcf947954000",
+   "query": "room voilà",
+   "uses": [
+    {
+     "seed": "QM24S2401001",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "4449c2e18c2c",
+   "query": "get voilà",
+   "uses": [
+    {
+     "seed": "QM24S2401001",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "c227ba161939",
+   "query": "Get a Room",
+   "uses": [
+    {
+     "seed": "QM24S2401001",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "a6bdc13a9d64",
+   "query": "Get a Room VOILÀ",
+   "uses": [
+    {
+     "seed": "QM24S2401001",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "46d85ace16e6",
+   "query": "Glass Half Empty",
+   "uses": [
+    {
+     "seed": "QM24S2401001",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "7405b03492e0",
+   "query": "melodrama disiz",
+   "uses": [
+    {
+     "seed": "FR9W12550711",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "4eb3c5adbee2",
+   "query": "Melodrama",
+   "uses": [
+    {
+     "seed": "FR9W12550711",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "b5238e83e520",
+   "query": "Melodrama disiz",
+   "uses": [
+    {
+     "seed": "FR9W12550711",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "c06e52275981",
+   "query": "on s'en rappellera pas",
+   "uses": [
+    {
+     "seed": "FR9W12550711",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "97248c59968e",
+   "query": "sabali remix amadou",
+   "uses": [
+    {
+     "seed": "FR6P10900960",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "d0ebb942d1d3",
+   "query": "Sabali (Vitalic remix radio edit)",
+   "uses": [
+    {
+     "seed": "FR6P10900960",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "4df4f62c50db",
+   "query": "Sabali (Vitalic remix radio edit) Amadou & Mariam",
+   "uses": [
+    {
+     "seed": "FR6P10900960",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "8058934bf459",
+   "query": "Remixes",
+   "uses": [
+    {
+     "seed": "FR6P10900960",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "7828932a412f",
+   "query": "feel extended cosmic",
+   "uses": [
+    {
+     "seed": "NLE712100307",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "77e1ca7f5927",
+   "query": "Feel It (extended mix)",
+   "uses": [
+    {
+     "seed": "NLE712100307",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "5c5e1ebfd3e4",
+   "query": "Feel It (extended mix) Cosmic Gate",
+   "uses": [
+    {
+     "seed": "NLE712100307",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "30d1b35ac320",
+   "query": "Feel It",
+   "uses": [
+    {
+     "seed": "NLE712100307",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "4dca6ba0d34d",
+   "query": "vai santana",
+   "uses": [
+    {
+     "seed": "BRFGL1800051",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "933e5f3534b1",
+   "query": "dar santana",
+   "uses": [
+    {
+     "seed": "BRFGL1800051",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "98713ee1e763",
+   "query": "Vai dar PT",
+   "uses": [
+    {
+     "seed": "BRFGL1800051",
+     "shape": "T"
+    },
+    {
+     "seed": "BRFGL1800051",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "59a7f43e0f1d",
+   "query": "Vai dar PT Léo Santana",
+   "uses": [
+    {
+     "seed": "BRFGL1800051",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "2f985920d974",
+   "query": "sex young",
+   "uses": [
+    {
+     "seed": "GBARL0800690",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "e301dd6062f7",
+   "query": "Sex",
+   "uses": [
+    {
+     "seed": "GBARL0800690",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "b2c2562abf3d",
+   "query": "Sex Paul Young",
+   "uses": [
+    {
+     "seed": "GBARL0800690",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "446d150d3917",
+   "query": "No Parlez",
+   "uses": [
+    {
+     "seed": "GBARL0800690",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "cdb723dc7765",
+   "query": "perrita paranoicos",
+   "uses": [
+    {
+     "seed": "ARF850200093",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "da5f00467e8f",
+   "query": "Perrita",
+   "uses": [
+    {
+     "seed": "ARF850200093",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "2fed27d2a270",
+   "query": "Perrita Ratones Paranoicos",
+   "uses": [
+    {
+     "seed": "ARF850200093",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "2b954c08f39a",
+   "query": "Los chicos quieren más",
+   "uses": [
+    {
+     "seed": "ARF850200093",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "f6ffa0be5d4f",
+   "query": "moon spiders",
+   "uses": [
+    {
+     "seed": "ITA870079094",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "f695a2fee530",
+   "query": "back spiders",
+   "uses": [
+    {
+     "seed": "ITA870079094",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "fe60a6e1e738",
+   "query": "Fly to Me to the Moon & Back (Movie Size)",
+   "uses": [
+    {
+     "seed": "ITA870079094",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "cac5aac5f8e8",
+   "query": "Fly to Me to the Moon & Back (Movie Size) Spiders From Mars",
+   "uses": [
+    {
+     "seed": "ITA870079094",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "ffb2d736739c",
+   "query": "INITIAL D THE MOVIE ORIGINAL SOUND TRACKS",
+   "uses": [
+    {
+     "seed": "ITA870079094",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "38cddeb6d75f",
+   "query": "north stars",
+   "uses": [
+    {
+     "seed": "CA7T31200013",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "9287de8a0e01",
+   "query": "The North (Breakglass version)",
+   "uses": [
+    {
+     "seed": "CA7T31200013",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "2d0ee714ca05",
+   "query": "The North (Breakglass version) Stars",
+   "uses": [
+    {
+     "seed": "CA7T31200013",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "e519a0fbe211",
+   "query": "The North",
+   "uses": [
+    {
+     "seed": "CA7T31200013",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "727163785830",
+   "query": "knew taylor",
+   "uses": [
+    {
+     "seed": "USWD12641055",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "75f1c49f703b",
+   "query": "you taylor",
+   "uses": [
+    {
+     "seed": "USWD12641055",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "8d65694aace2",
+   "query": "I Knew It, I Knew You",
+   "uses": [
+    {
+     "seed": "USWD12641055",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "31f909bb601d",
+   "query": "I Knew It, I Knew You Taylor Swift",
+   "uses": [
+    {
+     "seed": "USWD12641055",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "6814f4a022fd",
+   "query": "Toy Story 5: Original Motion Picture Soundtrack",
+   "uses": [
+    {
+     "seed": "USWD12641055",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "9045b07be196",
+   "query": "ain’t adéla",
+   "uses": [
+    {
+     "seed": "USUM72605978",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "c3b38e6504ec",
+   "query": "Ain’t in LA",
+   "uses": [
+    {
+     "seed": "USUM72605978",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "f56c3fe91a86",
+   "query": "Ain’t in LA ADÉLA",
+   "uses": [
+    {
+     "seed": "USUM72605978",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "37a771b9e48e",
+   "query": "PRIMA",
+   "uses": [
+    {
+     "seed": "USUM72605978",
+     "shape": "B"
+    },
+    {
+     "seed": "USUM72606032",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "273ee809f6e8",
+   "query": "nicole adéla",
+   "uses": [
+    {
+     "seed": "USUM72606032",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "79cc8ad2f8ed",
+   "query": "kidman adéla",
+   "uses": [
+    {
+     "seed": "USUM72606032",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "6b57f31e39d4",
+   "query": "Nicole Kidman",
+   "uses": [
+    {
+     "seed": "USUM72606032",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "b9a2c79be3a2",
+   "query": "Nicole Kidman ADÉLA",
+   "uses": [
+    {
+     "seed": "USUM72606032",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "19b1ee4e36bd",
+   "query": "seule angèle",
+   "uses": [
+    {
+     "seed": "BE8HB2600017",
+     "shape": "L0"
+    },
+    {
+     "seed": "trap-mix-02",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "3a1f75ff3418",
+   "query": "une angèle",
+   "uses": [
+    {
+     "seed": "BE8HB2600017",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "4ba031430fe9",
+   "query": "Une seule vie",
+   "uses": [
+    {
+     "seed": "BE8HB2600017",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "5ebf9fb2a30b",
+   "query": "Une seule vie Angèle",
+   "uses": [
+    {
+     "seed": "BE8HB2600017",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "913ec602675d",
+   "query": "calaveras arraigo",
+   "uses": [
+    {
+     "seed": "AR2E61700011",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "90a966b2306f",
+   "query": "porteñas arraigo",
+   "uses": [
+    {
+     "seed": "AR2E61700011",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "13c82f9f6655",
+   "query": "Calaveras porteñas",
+   "uses": [
+    {
+     "seed": "AR2E61700011",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "ea92c84a12b2",
+   "query": "Calaveras portenas",
+   "uses": [
+    {
+     "seed": "AR2E61700011",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "aa34c3d8042d",
+   "query": "Calaveras porteñas Arraigo",
+   "uses": [
+    {
+     "seed": "AR2E61700011",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "75298e654e3c",
+   "query": "Nosotrosacayahora",
+   "uses": [
+    {
+     "seed": "AR2E61700011",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "cf58b752214d",
+   "query": "deléctrico remix babasónicos",
+   "uses": [
+    {
+     "seed": "ARF470200216",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "3d2566758e0d",
+   "query": "Deléctrico (remix)",
+   "uses": [
+    {
+     "seed": "ARF470200216",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "595626110012",
+   "query": "Delectrico remix",
+   "uses": [
+    {
+     "seed": "ARF470200216",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "4785b4476b35",
+   "query": "Deléctrico (remix) Babasónicos",
+   "uses": [
+    {
+     "seed": "ARF470200216",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "70a1f031cef9",
+   "query": "Jessico Dance Mix",
+   "uses": [
+    {
+     "seed": "ARF470200216",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "4c68e160b897",
+   "query": "distrito flores",
+   "uses": [
+    {
+     "seed": "MXF600600388",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "095aa59589dc",
+   "query": "federal flores",
+   "uses": [
+    {
+     "seed": "MXF600600388",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "091ad5fce690",
+   "query": "Sábado, Distrito Federal",
+   "uses": [
+    {
+     "seed": "MXF600600388",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "be74bcdd3e6d",
+   "query": "Sabado Distrito Federal",
+   "uses": [
+    {
+     "seed": "MXF600600388",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "0125614b8f8b",
+   "query": "Sábado, Distrito Federal Chava Flores",
+   "uses": [
+    {
+     "seed": "MXF600600388",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "e5ed7a7fe753",
+   "query": "Mi pueblo",
+   "uses": [
+    {
+     "seed": "MXF600600388",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "59a7fd36b3a9",
+   "query": "sudamérica santaolalla",
+   "uses": [
+    {
+     "seed": "ARNDG1700008",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "309d8d45398a",
+   "query": "Sudamérica",
+   "uses": [
+    {
+     "seed": "ARNDG1700008",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "23a9dec3f39e",
+   "query": "Sudamerica",
+   "uses": [
+    {
+     "seed": "ARNDG1700008",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "aeb55c9aa4f9",
+   "query": "Sudamérica Gustavo Santaolalla",
+   "uses": [
+    {
+     "seed": "ARNDG1700008",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "7db18cc16788",
+   "query": "Raconto",
+   "uses": [
+    {
+     "seed": "ARNDG1700008",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "7a1011def9a8",
+   "query": "gówniarzyki ksu",
+   "uses": [
+    {
+     "seed": "PLB822200191",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "44c78a8ea7fb",
+   "query": "Gówniarzyki",
+   "uses": [
+    {
+     "seed": "PLB822200191",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "a89bf46ebc98",
+   "query": "Gowniarzyki",
+   "uses": [
+    {
+     "seed": "PLB822200191",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "94c70c4c6462",
+   "query": "Gówniarzyki KSU",
+   "uses": [
+    {
+     "seed": "PLB822200191",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "98fbc42faedc",
+   "query": "44",
+   "uses": [
+    {
+     "seed": "PLB822200191",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "d9ef2019dcbe",
+   "query": "mówię jabłoni",
+   "uses": [
+    {
+     "seed": "PLC592200094",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "6372a8908725",
+   "query": "Mówię ci, że",
+   "uses": [
+    {
+     "seed": "PLC592200094",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "4b4868dc64b3",
+   "query": "Mowie ci ze",
+   "uses": [
+    {
+     "seed": "PLC592200094",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "3016f24e5423",
+   "query": "Mówię ci, że Kwiat Jabłoni",
+   "uses": [
+    {
+     "seed": "PLC592200094",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "fb01f7253967",
+   "query": "Wolne serca",
+   "uses": [
+    {
+     "seed": "PLC592200094",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "ebded6a391ad",
+   "query": "perdido legião",
+   "uses": [
+    {
+     "seed": "BREMI8600025",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "21c786708db8",
+   "query": "tempo legião",
+   "uses": [
+    {
+     "seed": "BREMI8600025",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "27977a78b33c",
+   "query": "Tempo perdido",
+   "uses": [
+    {
+     "seed": "BREMI8600025",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "2862a66c819e",
+   "query": "Tempo perdido Legião Urbana",
+   "uses": [
+    {
+     "seed": "BREMI8600025",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "3fc264d3c502",
+   "query": "Dois",
+   "uses": [
+    {
+     "seed": "BREMI8600025",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "b88812b55e49",
+   "query": "mandalorian göransson",
+   "uses": [
+    {
+     "seed": "USWD11995118",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "e35463914f49",
+   "query": "The Mandalorian",
+   "uses": [
+    {
+     "seed": "USWD11995118",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "9379cf9df856",
+   "query": "The Mandalorian Ludwig Göransson",
+   "uses": [
+    {
+     "seed": "USWD11995118",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "13818594cb9a",
+   "query": "Star Wars Celebration Japan 2025: Original Soundtrack Box Set",
+   "uses": [
+    {
+     "seed": "USWD11995118",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "af633d7c5889",
+   "query": "pilé mauvais",
+   "uses": [
+    {
+     "seed": "QZWFU2567999",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "53a7250c0e95",
+   "query": "Pilé",
+   "uses": [
+    {
+     "seed": "QZWFU2567999",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "8970c3317475",
+   "query": "Pile",
+   "uses": [
+    {
+     "seed": "QZWFU2567999",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "5ed6a285caf7",
+   "query": "Pilé Mauvais Djo",
+   "uses": [
+    {
+     "seed": "QZWFU2567999",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "6af6352a472d",
+   "query": "L'undertaker",
+   "uses": [
+    {
+     "seed": "QZWFU2567999",
+     "shape": "B"
+    },
+    {
+     "seed": "QZRP52634919",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "cdf3f408b1aa",
+   "query": "otóż mor",
+   "uses": [
+    {
+     "seed": "PLA552200800",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "e3e7274267c9",
+   "query": "Otóż to",
+   "uses": [
+    {
+     "seed": "PLA552200800",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "07962abfa098",
+   "query": "Otoz to",
+   "uses": [
+    {
+     "seed": "PLA552200800",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "37c007254418",
+   "query": "Otóż to Mor W.A.",
+   "uses": [
+    {
+     "seed": "PLA552200800",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "7afd8cdc4f9e",
+   "query": "Vademecum",
+   "uses": [
+    {
+     "seed": "PLA552200800",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "881e025d9945",
+   "query": "mind naïka",
+   "uses": [
+    {
+     "seed": "QMFMG2543019",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "9e09737986fd",
+   "query": "one naïka",
+   "uses": [
+    {
+     "seed": "QMFMG2543019",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "de97eb66bc7a",
+   "query": "ONE TRACK MIND",
+   "uses": [
+    {
+     "seed": "QMFMG2543019",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "6448690cc301",
+   "query": "ONE TRACK MIND Naïka",
+   "uses": [
+    {
+     "seed": "QMFMG2543019",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "1bf9b70c782a",
+   "query": "ECLESIA",
+   "uses": [
+    {
+     "seed": "QMFMG2543019",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "bd5f3aca7097",
+   "query": "mondaine oria",
+   "uses": [
+    {
+     "seed": "FRETX2500040",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "1c4ae90ee1f0",
+   "query": "soirée oria",
+   "uses": [
+    {
+     "seed": "FRETX2500040",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "a6b5ae30973c",
+   "query": "Soirée mondaine",
+   "uses": [
+    {
+     "seed": "FRETX2500040",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "014efbe4f30b",
+   "query": "Soiree mondaine",
+   "uses": [
+    {
+     "seed": "FRETX2500040",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "879344a60324",
+   "query": "Soirée mondaine Oria",
+   "uses": [
+    {
+     "seed": "FRETX2500040",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "86935e45030c",
+   "query": "duvet bôa",
+   "uses": [
+    {
+     "seed": "USCGJ0659337",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "1c14facd3340",
+   "query": "Duvet",
+   "uses": [
+    {
+     "seed": "USCGJ0659337",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "dc73f8b3d300",
+   "query": "Duvet bôa",
+   "uses": [
+    {
+     "seed": "USCGJ0659337",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "0e8f0733abe6",
+   "query": "The Race of a Thousand Camels",
+   "uses": [
+    {
+     "seed": "USCGJ0659337",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "8240be1d3d7a",
+   "query": "superestrella aitana",
+   "uses": [
+    {
+     "seed": "ESUM72500492",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "043d6527881f",
+   "query": "SUPERESTRELLA",
+   "uses": [
+    {
+     "seed": "ESUM72500492",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "3b0b43377612",
+   "query": "SUPERESTRELLA Aitana",
+   "uses": [
+    {
+     "seed": "ESUM72500492",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "3d363f2a49ea",
+   "query": "CUARTO AZUL",
+   "uses": [
+    {
+     "seed": "ESUM72500492",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "669761c54032",
+   "query": "ordinary warren",
+   "uses": [
+    {
+     "seed": "USAT22500463",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "0bc63392df32",
+   "query": "Ordinary",
+   "uses": [
+    {
+     "seed": "USAT22500463",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "742c6556ac04",
+   "query": "Ordinary Alex Warren",
+   "uses": [
+    {
+     "seed": "USAT22500463",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "314b69d2176f",
+   "query": "You’ll Be Alright, Kid",
+   "uses": [
+    {
+     "seed": "USAT22500463",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "4de42a28f495",
+   "query": "sue audrey",
+   "uses": [
+    {
+     "seed": "USRC12500621",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "d9ffc754f913",
+   "query": "Sue me",
+   "uses": [
+    {
+     "seed": "USRC12500621",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "03dde003f698",
+   "query": "Sue me Audrey Hobert",
+   "uses": [
+    {
+     "seed": "USRC12500621",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "f81bdedaaf70",
+   "query": "Who’s the Clown?",
+   "uses": [
+    {
+     "seed": "USRC12500621",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "16419847ff16",
+   "query": "piste eva",
+   "uses": [
+    {
+     "seed": "FR9W12619638",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "5d7eea0e500d",
+   "query": "sur eva",
+   "uses": [
+    {
+     "seed": "FR9W12619638",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "9448c93dde31",
+   "query": "Sur la piste",
+   "uses": [
+    {
+     "seed": "FR9W12619638",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "70e5454d5b59",
+   "query": "Sur la piste Eva",
+   "uses": [
+    {
+     "seed": "FR9W12619638",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "0611c09eba3d",
+   "query": "Summergirl",
+   "uses": [
+    {
+     "seed": "FR9W12619638",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "a769bfb29ad4",
+   "query": "dying finneas",
+   "uses": [
+    {
+     "seed": "USUG12103242",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "ac77d83122f0",
+   "query": "kids finneas",
+   "uses": [
+    {
+     "seed": "USUG12103242",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "66ee4d51d42c",
+   "query": "The Kids Are All Dying",
+   "uses": [
+    {
+     "seed": "USUG12103242",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "fff7e608271c",
+   "query": "The Kids Are All Dying FINNEAS",
+   "uses": [
+    {
+     "seed": "USUG12103242",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "c7530a0c6735",
+   "query": "Optimist",
+   "uses": [
+    {
+     "seed": "USUG12103242",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "66bbdde19229",
+   "query": "where fontaines",
+   "uses": [
+    {
+     "seed": "GBBKS2600150",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "dc068e58d0ab",
+   "query": "gone fontaines",
+   "uses": [
+    {
+     "seed": "GBBKS2600150",
+     "shape": "L1"
+    },
+    {
+     "seed": "trap-mix-04",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "2e28c0dd9896",
+   "query": "Where Is Gone?",
+   "uses": [
+    {
+     "seed": "GBBKS2600150",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "b77c2e162058",
+   "query": "Where Is Gone? Fontaines D.C.",
+   "uses": [
+    {
+     "seed": "GBBKS2600150",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "86a3f4ae580d",
+   "query": "Dopamine Chamber",
+   "uses": [
+    {
+     "seed": "GBBKS2600150",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "2f49f3f4729b",
+   "query": "animal katseye",
+   "uses": [
+    {
+     "seed": "USUM72602757",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "7389b3b752fa",
+   "query": "Animal",
+   "uses": [
+    {
+     "seed": "USUM72602757",
+     "shape": "T"
+    },
+    {
+     "seed": "USUM72602757",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "11da816510b5",
+   "query": "Animal KATSEYE",
+   "uses": [
+    {
+     "seed": "USUM72602757",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "a4a54381698f",
+   "query": "mutt thomas",
+   "uses": [
+    {
+     "seed": "USUM72409025",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "d3bda29233d1",
+   "query": "MUTT",
+   "uses": [
+    {
+     "seed": "USUM72409025",
+     "shape": "T"
+    },
+    {
+     "seed": "USUM72409025",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "990aa3ca5227",
+   "query": "MUTT Leon Thomas",
+   "uses": [
+    {
+     "seed": "USUM72409025",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "4746b7905c77",
+   "query": "end linkin",
+   "uses": [
+    {
+     "seed": "USWB10002407",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "0c3dd20cc9ab",
+   "query": "In the End",
+   "uses": [
+    {
+     "seed": "USWB10002407",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "2c282fb1249d",
+   "query": "In the End Linkin Park",
+   "uses": [
+    {
+     "seed": "USWB10002407",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "90c49baf4877",
+   "query": "Hybrid Theory",
+   "uses": [
+    {
+     "seed": "USWB10002407",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "5696bd3e41de",
+   "query": "maladie mauvais",
+   "uses": [
+    {
+     "seed": "QZRP52634919",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "37c2435e3e83",
+   "query": "Maladie",
+   "uses": [
+    {
+     "seed": "QZRP52634919",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "bd9b042c2e2d",
+   "query": "Maladie Mauvais Djo",
+   "uses": [
+    {
+     "seed": "QZRP52634919",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "ff9f636e1d35",
+   "query": "pocahontas plk",
+   "uses": [
+    {
+     "seed": "FR7O52600090",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "7e78ef6c298d",
+   "query": "Pocahontas",
+   "uses": [
+    {
+     "seed": "FR7O52600090",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "de3ec41705bd",
+   "query": "Pocahontas PLK",
+   "uses": [
+    {
+     "seed": "FR7O52600090",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "03798f0e739f",
+   "query": "Grand Garçon",
+   "uses": [
+    {
+     "seed": "FR7O52600090",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "83649d70b6ab",
+   "query": "love ravyn",
+   "uses": [
+    {
+     "seed": "USAT22401137",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "8819210c025d",
+   "query": "not ravyn",
+   "uses": [
+    {
+     "seed": "USAT22401137",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "c0b039cc9271",
+   "query": "Love Me Not",
+   "uses": [
+    {
+     "seed": "USAT22401137",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "eccf657c2fd8",
+   "query": "Love Me Not Ravyn Lenae",
+   "uses": [
+    {
+     "seed": "USAT22401137",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "8857f34cb876",
+   "query": "Bird's Eye",
+   "uses": [
+    {
+     "seed": "USAT22401137",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "52f0785823ba",
+   "query": "this sienna",
+   "uses": [
+    {
+     "seed": "USUG12508560",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "ca0142f3c220",
+   "query": "hill sienna",
+   "uses": [
+    {
+     "seed": "USUG12508560",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "20c3eb64e825",
+   "query": "Die on This Hill",
+   "uses": [
+    {
+     "seed": "USUG12508560",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "7d7897ed0f8a",
+   "query": "Die on This Hill SIENNA SPIRO",
+   "uses": [
+    {
+     "seed": "USUG12508560",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "c909c1c780a1",
+   "query": "Visitor",
+   "uses": [
+    {
+     "seed": "USUG12508560",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "5a6c6e40bc0f",
+   "query": "good shaboozey",
+   "uses": [
+    {
+     "seed": "USUYG1580113",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "fdd29afd04c6",
+   "query": "news shaboozey",
+   "uses": [
+    {
+     "seed": "USUYG1580113",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "e9ac33ac9ab6",
+   "query": "Good News",
+   "uses": [
+    {
+     "seed": "USUYG1580113",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "569d2f03637c",
+   "query": "Good News Shaboozey",
+   "uses": [
+    {
+     "seed": "USUYG1580113",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "e43e0f0167a4",
+   "query": "Where I’ve Been, Isn’t Where I’m Going",
+   "uses": [
+    {
+     "seed": "USUYG1580113",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "53bd7d992ed7",
+   "query": "take",
+   "uses": [
+    {
+     "seed": "USWB19901214",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "16bd082a58ec",
+   "query": "Take On Me",
+   "uses": [
+    {
+     "seed": "USWB19901214",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "b97fcc6bc123",
+   "query": "Take On Me a‐ha",
+   "uses": [
+    {
+     "seed": "USWB19901214",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "820440312505",
+   "query": "Hunting High and Low",
+   "uses": [
+    {
+     "seed": "USWB19901214",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "d56c5ff7a278",
+   "query": "porcelain collective",
+   "uses": [
+    {
+     "seed": "ARF411500263",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "79e59b6d40ad",
+   "query": "Porcelain",
+   "uses": [
+    {
+     "seed": "ARF411500263",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "e1f96208743d",
+   "query": "Porcelain 48th St. Collective",
+   "uses": [
+    {
+     "seed": "ARF411500263",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "a5454543c65d",
+   "query": "Music Links",
+   "uses": [
+    {
+     "seed": "ARF411500263",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "6e3813d937ec",
+   "query": "water african",
+   "uses": [
+    {
+     "seed": "GB5P50300016",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "455b1c737de3",
+   "query": "want african",
+   "uses": [
+    {
+     "seed": "GB5P50300016",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "1e8012bb56d3",
+   "query": "I Want Water",
+   "uses": [
+    {
+     "seed": "GB5P50300016",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "a14f77f1aa13",
+   "query": "I Want Water African Head Charge",
+   "uses": [
+    {
+     "seed": "GB5P50300016",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "e679d4c75000",
+   "query": "Drastic Season",
+   "uses": [
+    {
+     "seed": "GB5P50300016",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "d0fa556c2bda",
+   "query": "hothouse england",
+   "uses": [
+    {
+     "seed": "CAL491200003",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "10d040df3459",
+   "query": "flower england",
+   "uses": [
+    {
+     "seed": "CAL491200003",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "6f3f1240ffbe",
+   "query": "Hothouse Flower",
+   "uses": [
+    {
+     "seed": "CAL491200003",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "b09df6a38f28",
+   "query": "Hothouse Flower Andrea England",
+   "uses": [
+    {
+     "seed": "CAL491200003",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "8115a7441204",
+   "query": "Hope & Other Sins",
+   "uses": [
+    {
+     "seed": "CAL491200003",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "5affc93b83a5",
+   "query": "found blackman",
+   "uses": [
+    {
+     "seed": "AUFO30900015",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "af45f91236a0",
+   "query": "lust blackman",
+   "uses": [
+    {
+     "seed": "AUFO30900015",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "2e7b832b2604",
+   "query": "Lust and Found",
+   "uses": [
+    {
+     "seed": "AUFO30900015",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "145a350951cb",
+   "query": "Lust and Found Bertie Blackman",
+   "uses": [
+    {
+     "seed": "AUFO30900015",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "3c7fa8a1ff33",
+   "query": "Secrets and Lies",
+   "uses": [
+    {
+     "seed": "AUFO30900015",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "8a19e67871a4",
+   "query": "picture billy",
+   "uses": [
+    {
+     "seed": "GBCEJ0300137",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "decce10a7d98",
+   "query": "paint billy",
+   "uses": [
+    {
+     "seed": "GBCEJ0300137",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "e605e023fb8b",
+   "query": "Must I Paint You a Picture",
+   "uses": [
+    {
+     "seed": "GBCEJ0300137",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "5563965ed3d1",
+   "query": "Must I Paint You a Picture Billy Bragg",
+   "uses": [
+    {
+     "seed": "GBCEJ0300137",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "62f9e7e0c69b",
+   "query": "Workers Playtime",
+   "uses": [
+    {
+     "seed": "GBCEJ0300137",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "8caf8129b676",
+   "query": "cristal cosaquitos",
+   "uses": [
+    {
+     "seed": "AR8F51700002",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "0e28789e9e17",
+   "query": "Cristal",
+   "uses": [
+    {
+     "seed": "AR8F51700002",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "922dd48ad11b",
+   "query": "Cristal Cosaquitos en Globo",
+   "uses": [
+    {
+     "seed": "AR8F51700002",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "c2e09088d812",
+   "query": "Pure Latin Synth, Vol. 1",
+   "uses": [
+    {
+     "seed": "AR8F51700002",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "508664ea4e9a",
+   "query": "boludo divididos",
+   "uses": [
+    {
+     "seed": "ARF030200255",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "dce61fc3e7ba",
+   "query": "dios divididos",
+   "uses": [
+    {
+     "seed": "ARF030200255",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "a0a6c06718d3",
+   "query": "Ay, que dios boludo",
+   "uses": [
+    {
+     "seed": "ARF030200255",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "5c0558bb003a",
+   "query": "Ay, que dios boludo Divididos",
+   "uses": [
+    {
+     "seed": "ARF030200255",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "97538ebe83aa",
+   "query": "Vengo del placard de otro",
+   "uses": [
+    {
+     "seed": "ARF030200255",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "6010731ff35a",
+   "query": "let house",
+   "uses": [
+    {
+     "seed": "AR1K21300037",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "c2dce76333c5",
+   "query": "Let It Be",
+   "uses": [
+    {
+     "seed": "AR1K21300037",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "65b1b7ceca77",
+   "query": "Let It Be House of Shem",
+   "uses": [
+    {
+     "seed": "AR1K21300037",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "09b6aa6507d0",
+   "query": "Harmony",
+   "uses": [
+    {
+     "seed": "AR1K21300037",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "82b02c6af065",
+   "query": "aufwach icynyu",
+   "uses": [
+    {
+     "seed": "NL4NL2135637",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "cea55aafda7b",
+   "query": "Aufwach",
+   "uses": [
+    {
+     "seed": "NL4NL2135637",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "3ce47c22a1b2",
+   "query": "Aufwach IcyNyu",
+   "uses": [
+    {
+     "seed": "NL4NL2135637",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "169b77296014",
+   "query": "Yellow Moon Told Me Your Name",
+   "uses": [
+    {
+     "seed": "NL4NL2135637",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "de9a8f91c9a3",
+   "query": "break januskopf",
+   "uses": [
+    {
+     "seed": "GBKQU2461797",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "79ca89517d39",
+   "query": "down januskopf",
+   "uses": [
+    {
+     "seed": "GBKQU2461797",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "c00dd97c9a2a",
+   "query": "Break It Down",
+   "uses": [
+    {
+     "seed": "GBKQU2461797",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "99a1cbcb4aba",
+   "query": "Break It Down Januskopf",
+   "uses": [
+    {
+     "seed": "GBKQU2461797",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "5eddd6853a62",
+   "query": "Rave Muzik 072",
+   "uses": [
+    {
+     "seed": "GBKQU2461797",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "375ecaf1ce93",
+   "query": "matter blackbird",
+   "uses": [
+    {
+     "seed": "GB5KW2401014",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "ab5ea5c48419",
+   "query": "time blackbird",
+   "uses": [
+    {
+     "seed": "GB5KW2401014",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "51b5ee946bf5",
+   "query": "Matter of Time",
+   "uses": [
+    {
+     "seed": "GB5KW2401014",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "82f51e83f3b1",
+   "query": "Matter of Time Lady Blackbird",
+   "uses": [
+    {
+     "seed": "GB5KW2401014",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "ccfc61640016",
+   "query": "Slang Spirituals",
+   "uses": [
+    {
+     "seed": "GB5KW2401014",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "616e7b1e054e",
+   "query": "maria waterworth",
+   "uses": [
+    {
+     "seed": "GBAHK0300152",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "4954944c831d",
+   "query": "ave waterworth",
+   "uses": [
+    {
+     "seed": "GBAHK0300152",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "447f56ccfab8",
+   "query": "Ave Maria",
+   "uses": [
+    {
+     "seed": "GBAHK0300152",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "18d9152b0c55",
+   "query": "Ave Maria Lauren Waterworth",
+   "uses": [
+    {
+     "seed": "GBAHK0300152",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "1c8774437982",
+   "query": "Beyond Her Years",
+   "uses": [
+    {
+     "seed": "GBAHK0300152",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "f341de5f9319",
+   "query": "porcelain little",
+   "uses": [
+    {
+     "seed": "AUEL00900011",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "c32ad5ac1a49",
+   "query": "confetti little",
+   "uses": [
+    {
+     "seed": "AUEL00900011",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "5d86633165bb",
+   "query": "Confetti / Porcelain",
+   "uses": [
+    {
+     "seed": "AUEL00900011",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "07625ef1f9a8",
+   "query": "Confetti / Porcelain Little Birdy",
+   "uses": [
+    {
+     "seed": "AUEL00900011",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "79141e063e10",
+   "query": "Confetti",
+   "uses": [
+    {
+     "seed": "AUEL00900011",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "a67205a71b5f",
+   "query": "very peter",
+   "uses": [
+    {
+     "seed": "AUQP30900091",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "071d6fda21f3",
+   "query": "last peter",
+   "uses": [
+    {
+     "seed": "AUQP30900091",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "c4b61feee9cd",
+   "query": "The Very Last Song",
+   "uses": [
+    {
+     "seed": "AUQP30900091",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "20cf177a710e",
+   "query": "The Very Last Song Peter Combe",
+   "uses": [
+    {
+     "seed": "AUQP30900091",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "624a1778ae3a",
+   "query": "Kiddywinks",
+   "uses": [
+    {
+     "seed": "AUQP30900091",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "622e2cc6365a",
+   "query": "maid sunmi",
+   "uses": [
+    {
+     "seed": "KRMIM2558153",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "3b7d11591a5e",
+   "query": "MAID",
+   "uses": [
+    {
+     "seed": "KRMIM2558153",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "e060c188bb0f",
+   "query": "MAID SUNMI",
+   "uses": [
+    {
+     "seed": "KRMIM2558153",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "fd1e4eb349c4",
+   "query": "HEART MAID",
+   "uses": [
+    {
+     "seed": "KRMIM2558153",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "41ec8721a1d6",
+   "query": "happy rosalía",
+   "uses": [
+    {
+     "seed": "trap-artist-00",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "a582691e5cda",
+   "query": "you rosalía",
+   "uses": [
+    {
+     "seed": "trap-artist-00",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "571b0be0b362",
+   "query": "Happy For You",
+   "uses": [
+    {
+     "seed": "trap-artist-00",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "ba1d65d2bd90",
+   "query": "Happy For You ROSALÍA",
+   "uses": [
+    {
+     "seed": "trap-artist-00",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "1f1953f31cb4",
+   "query": "overture rodrigo",
+   "uses": [
+    {
+     "seed": "trap-artist-01",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "e63473178877",
+   "query": "festive rodrigo",
+   "uses": [
+    {
+     "seed": "trap-artist-01",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "a972d4420a4c",
+   "query": "Festive Overture, op. 148",
+   "uses": [
+    {
+     "seed": "trap-artist-01",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "621154105cc0",
+   "query": "Festive Overture, op. 148 Felipe e Rodrigo",
+   "uses": [
+    {
+     "seed": "trap-artist-01",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "0a7d7dfa835e",
+   "query": "jealous teddybear",
+   "uses": [
+    {
+     "seed": "trap-artist-02",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "340483021467",
+   "query": "Jealous Type",
+   "uses": [
+    {
+     "seed": "trap-artist-02",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "e66f3425edee",
+   "query": "Jealous Type TeddyBear",
+   "uses": [
+    {
+     "seed": "trap-artist-02",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "18a9acb9a2ef",
+   "query": "burning александр",
+   "uses": [
+    {
+     "seed": "trap-artist-03",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "81d1c49c3df9",
+   "query": "blue александр",
+   "uses": [
+    {
+     "seed": "trap-artist-03",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "ad9440d677eb",
+   "query": "Burning Blue",
+   "uses": [
+    {
+     "seed": "trap-artist-03",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "5b7c84920da5",
+   "query": "Burning Blue Александр Буйнов",
+   "uses": [
+    {
+     "seed": "trap-artist-03",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "85cae38b229f",
+   "query": "graveyard flores",
+   "uses": [
+    {
+     "seed": "trap-artist-04",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "16760aba2d72",
+   "query": "whistlin flores",
+   "uses": [
+    {
+     "seed": "trap-artist-04",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "93c28c7ea773",
+   "query": "Whistlin’ Past the Graveyard",
+   "uses": [
+    {
+     "seed": "trap-artist-04",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "bee6d223c4fa",
+   "query": "Whistlin’ Past the Graveyard Chava Flores",
+   "uses": [
+    {
+     "seed": "trap-artist-04",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "b17f92b3c79e",
+   "query": "tatuado mena",
+   "uses": [
+    {
+     "seed": "trap-artist-05",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "b1bdf9f0ff54",
+   "query": "peão mena",
+   "uses": [
+    {
+     "seed": "trap-artist-05",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "e067c0f521d2",
+   "query": "Peão Todo Tatuado",
+   "uses": [
+    {
+     "seed": "trap-artist-05",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "6054ac2a030d",
+   "query": "Peao Todo Tatuado",
+   "uses": [
+    {
+     "seed": "trap-artist-05",
+     "shape": "F:T"
+    }
+   ]
+  },
+  {
+   "qid": "25463e1cc278",
+   "query": "Peão Todo Tatuado Ana Mena",
+   "uses": [
+    {
+     "seed": "trap-artist-05",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "dae7fb3122ca",
+   "query": "octopus vergarabat",
+   "uses": [
+    {
+     "seed": "trap-artist-06",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "994e02374b71",
+   "query": "garden vergarabat",
+   "uses": [
+    {
+     "seed": "trap-artist-06",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "3474fb9dee78",
+   "query": "Octopus’ Garden",
+   "uses": [
+    {
+     "seed": "trap-artist-06",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "fe3e4c563bc9",
+   "query": "Octopus’ Garden Bersuit Vergarabat",
+   "uses": [
+    {
+     "seed": "trap-artist-06",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "fb5466b914c4",
+   "query": "fool huron",
+   "uses": [
+    {
+     "seed": "trap-artist-07",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "0f5753eedb19",
+   "query": "hill huron",
+   "uses": [
+    {
+     "seed": "trap-artist-07",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "7570bb502620",
+   "query": "The Fool on the Hill",
+   "uses": [
+    {
+     "seed": "trap-artist-07",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "7c7f12f60f7a",
+   "query": "The Fool on the Hill Lord Huron",
+   "uses": [
+    {
+     "seed": "trap-artist-07",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "dc4a153171f6",
+   "query": "lavalamp killers",
+   "uses": [
+    {
+     "seed": "trap-artist-08",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "dd44f90267d1",
+   "query": "sweet killers",
+   "uses": [
+    {
+     "seed": "trap-artist-08",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "f24590679add",
+   "query": "Sweet Lavalamp",
+   "uses": [
+    {
+     "seed": "trap-artist-08",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "823fe613bfa5",
+   "query": "Sweet Lavalamp Killers",
+   "uses": [
+    {
+     "seed": "trap-artist-08",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "ebe5faa4699e",
+   "query": "good illit",
+   "uses": [
+    {
+     "seed": "trap-artist-09",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "d37f3212253d",
+   "query": "So Good",
+   "uses": [
+    {
+     "seed": "trap-artist-09",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "351ee89fad61",
+   "query": "So Good ILLIT",
+   "uses": [
+    {
+     "seed": "trap-artist-09",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "ad07c4b5fbc6",
+   "query": "dai shakira",
+   "uses": [
+    {
+     "seed": "trap-length-00",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "1f394ca5ed4e",
+   "query": "Dai dai",
+   "uses": [
+    {
+     "seed": "trap-length-00",
+     "shape": "T"
+    },
+    {
+     "seed": "trap-length-00",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "6d6031c54b29",
+   "query": "Dai dai Shakira",
+   "uses": [
+    {
+     "seed": "trap-length-00",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "e969bd03ee81",
+   "query": "lay wroldsen",
+   "uses": [
+    {
+     "seed": "trap-length-01",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "425c011ad32a",
+   "query": "Lay It on Me",
+   "uses": [
+    {
+     "seed": "trap-length-01",
+     "shape": "T"
+    },
+    {
+     "seed": "trap-length-01",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "12c319fbfb49",
+   "query": "Lay It on Me Ina Wroldsen",
+   "uses": [
+    {
+     "seed": "trap-length-01",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "b34285dad4b1",
+   "query": "stupid rodrigo",
+   "uses": [
+    {
+     "seed": "trap-length-02",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "9b493edd5fb1",
+   "query": "stupid song",
+   "uses": [
+    {
+     "seed": "trap-length-02",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "990aeb929e14",
+   "query": "stupid song Olivia Rodrigo",
+   "uses": [
+    {
+     "seed": "trap-length-02",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "cbe8cec6d88a",
+   "query": "you seem pretty sad for a girl so in love",
+   "uses": [
+    {
+     "seed": "trap-length-02",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "a8b57d443be4",
+   "query": "sanity zach",
+   "uses": [
+    {
+     "seed": "trap-length-03",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "28d0623a4f48",
+   "query": "south zach",
+   "uses": [
+    {
+     "seed": "trap-length-03",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "5684188d5d78",
+   "query": "South of Sanity",
+   "uses": [
+    {
+     "seed": "trap-length-03",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "821d8317a69a",
+   "query": "South of Sanity Zach Top",
+   "uses": [
+    {
+     "seed": "trap-length-03",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "07ec2563aebd",
+   "query": "Ain't in It For My Health",
+   "uses": [
+    {
+     "seed": "trap-length-03",
+     "shape": "B"
+    }
+   ]
+  },
+  {
+   "qid": "11752c05f35b",
+   "query": "제임수딘 이은미",
+   "uses": [
+    {
+     "seed": "trap-length-04",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "5c9512601502",
+   "query": "날아라 이은미",
+   "uses": [
+    {
+     "seed": "trap-length-04",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "d82329d2bd04",
+   "query": "날아라 제임수딘",
+   "uses": [
+    {
+     "seed": "trap-length-04",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "15d3567a1609",
+   "query": "날아라 제임수딘 이은미",
+   "uses": [
+    {
+     "seed": "trap-length-04",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "3527143436fc",
+   "query": "choosin langley",
+   "uses": [
+    {
+     "seed": "trap-mix-00",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "e1a7330aa96a",
+   "query": "her langley",
+   "uses": [
+    {
+     "seed": "trap-mix-00",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "c599daa13f70",
+   "query": "Choosin’ Her",
+   "uses": [
+    {
+     "seed": "trap-mix-00",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "91d60b51dcc6",
+   "query": "Choosin’ Her Ella Langley",
+   "uses": [
+    {
+     "seed": "trap-mix-00",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "4cfae7ad75d0",
+   "query": "twilight ariana",
+   "uses": [
+    {
+     "seed": "trap-mix-01",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "640968978729",
+   "query": "made ariana",
+   "uses": [
+    {
+     "seed": "trap-mix-01",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "74bd1e7e58de",
+   "query": "twilight made you love me",
+   "uses": [
+    {
+     "seed": "trap-mix-01",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "8ed4896e98c1",
+   "query": "twilight made you love me Ariana Grande",
+   "uses": [
+    {
+     "seed": "trap-mix-01",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "9f5d0cbe6114",
+   "query": "What seule vie",
+   "uses": [
+    {
+     "seed": "trap-mix-02",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "2d35045f36bd",
+   "query": "What seule vie Angèle",
+   "uses": [
+    {
+     "seed": "trap-mix-02",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "c0881807de2c",
+   "query": "fate taylor",
+   "uses": [
+    {
+     "seed": "trap-mix-03",
+     "shape": "L0"
+    }
+   ]
+  },
+  {
+   "qid": "da8ecfd54602",
+   "query": "zero taylor",
+   "uses": [
+    {
+     "seed": "trap-mix-03",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "1663c4d22f28",
+   "query": "The Fate Zero",
+   "uses": [
+    {
+     "seed": "trap-mix-03",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "9758b6036482",
+   "query": "The Fate Zero Taylor Swift",
+   "uses": [
+    {
+     "seed": "trap-mix-03",
+     "shape": "TA"
+    }
+   ]
+  },
+  {
+   "qid": "aa5402cece0a",
+   "query": "six fontaines",
+   "uses": [
+    {
+     "seed": "trap-mix-04",
+     "shape": "L1"
+    }
+   ]
+  },
+  {
+   "qid": "ff2082ef5576",
+   "query": "Six Is Gone?",
+   "uses": [
+    {
+     "seed": "trap-mix-04",
+     "shape": "T"
+    }
+   ]
+  },
+  {
+   "qid": "d4d01e5b5e75",
+   "query": "Six Is Gone? Fontaines D.C.",
+   "uses": [
+    {
+     "seed": "trap-mix-04",
+     "shape": "TA"
+    }
+   ]
+  }
+ ]
+}

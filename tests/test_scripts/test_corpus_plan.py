@@ -1,16 +1,57 @@
-"""Tests for the harvest query plan (#34)."""
+"""Tests for the search test v2 query plan (#75)."""
 
+import json
 from pathlib import Path
 
-import tomllib
+import pytest
 
 from scripts.corpus import plan
 
-SEEDS = Path(__file__).parents[1] / "fixtures" / "corpus" / "seeds.toml"
+SEEDS = Path(__file__).parents[1] / "fixtures" / "search_test_v2" / "seeds.json"
 
 
-def _shapes(seed):
+def _shapes(track, artist, album=""):
+    seed = {"id": "x", "track": track, "artist": artist, "album": album}
     return dict(plan.seed_queries(seed))
+
+
+class TestSelectWords:
+    @pytest.mark.parametrize(
+        ("text", "want"),
+        [
+            ("Love Will Tear Us Apart", ["apart", "love", "will", "tear"]),
+            ("Высоцкий", ["высоцкий"]),
+            ("強盗と花束", ["強盗と花束"]),
+            ("안녕", ["안녕"]),  # 2 letters count outside Latin script
+            ("Hoppípolla", ["hoppípolla"]),  # accents kept
+            ("Ain’t in LA", ["ain’t"]),  # apostrophe keeps the word whole
+        ],
+    )
+    def test_words(self, text, want):
+        assert plan.select_words(text) == want
+
+    def test_drops_feat_brackets_stopwords_short_and_digits(self):
+        assert plan.select_words("Feel It (extended mix) feat. Somebody") == ["feel"]
+        assert plan.select_words("The 1975 of Us") == []
+
+
+class TestLadder:
+    def test_l0_l1(self):
+        assert plan.ladder("Love Will Tear Us Apart", "Joy Division") == [
+            "apart division",
+            "love division",
+        ]
+
+    def test_qualifier_goes_into_l0(self):
+        assert plan.ladder("Feel It (extended mix)", "Cosmic Gate") == [
+            "feel extended cosmic"
+        ]
+
+    def test_original_script(self):
+        assert plan.ladder("С тобой", "Би-2") == ["тобой би"]
+
+    def test_title_without_words_uses_artist(self):
+        assert plan.ladder("Intro", "Muse") == ["muse"]
 
 
 class TestFold:
@@ -18,138 +59,51 @@ class TestFold:
         assert plan.fold_query("$uicideboy$") == "suicideboys"
 
     def test_accents_folded(self):
-        assert plan.fold_query("Sigur Rós") == "Sigur Ros"
+        assert plan.fold_query("Hoppípolla") == "Hoppipolla"
 
     def test_non_latin_marks_survive(self):
         assert plan.fold_query("丸の内サディスティック") == "丸の内サディスティック"
         assert plan.fold_query("Судно (Борис Рыжий)") == "Судно Борис Рыжий"
 
-    def test_punctuation_becomes_space(self):
-        assert plan.fold_query("AC/DC") == "AC DC"
-
-
-class TestDelimiters:
-    def test_slash_split(self):
-        assert plan.delimiter_parts("Heavy Water/I'd Rather Be Sleeping") == [
-            "Heavy Water",
-            "I'd Rather Be Sleeping",
-        ]
-
-    def test_dash_and_parens(self):
-        assert plan.delimiter_parts("Shine On You Crazy Diamond (Parts I-V)") == [
-            "Shine On You Crazy Diamond",
-            "Parts I-V",
-        ]
-
-    def test_hyphen_inside_word_is_not_a_delimiter(self):
-        assert plan.delimiter_parts("blink-182") == []
-
-    def test_no_delimiter(self):
-        assert plan.delimiter_parts("Karma Police") == []
-
-
-class TestTwoLongest:
-    def test_two_title_words(self):
-        assert plan.two_longest("Love Will Tear Us Apart", "Substance") == "apart love"
-
-    def test_one_word_title_borrows_album_word(self):
-        assert plan.two_longest("Roads", "Dummy") == "roads dummy"
-
-    def test_short_words_dont_count(self):
-        # "One" is the only word >2 chars in "One"; album supplies the second.
-        assert plan.two_longest("One", "Achtung Baby") == "one achtung"
-
 
 class TestSeedQueries:
-    def test_track_shapes(self):
-        s = _shapes(
-            {
-                "type": "track",
-                "artist": "Sigur Rós",
-                "title": "Hoppípolla",
-                "album": "Takk...",
-            }
-        )
-        assert s["T"] == "Hoppípolla"
-        assert s["A"] == "Sigur Rós"
-        assert s["B"] == "Takk..."
-        assert s["F:T"] == "Hoppipolla"
-        assert s["F:A"] == "Sigur Ros"
-        assert s["F:B"] == "Takk"
-        assert "L0" in s and "W2" in s
-        assert not any(k.startswith("D") for k in s)
+    def test_shapes(self):
+        s = _shapes("Sábado, Distrito Federal", "Chava Flores", "Mi pueblo")
+        assert s == {
+            "L0": "distrito flores",
+            "L1": "federal flores",
+            "T": "Sábado, Distrito Federal",
+            "F:T": "Sabado Distrito Federal",
+            "TA": "Sábado, Distrito Federal Chava Flores",
+            "B": "Mi pueblo",
+        }
 
-    def test_no_mixed_full_title_and_artist_query(self):
-        seed = {"type": "track", "artist": "Radiohead", "title": "Karma Police"}
-        assert "Karma Police Radiohead" not in _shapes(seed).values()
+    def test_no_fold_when_only_punctuation_or_case_changes(self):
+        assert "F:T" not in _shapes("Back, Baby", "Jessica Pratt")
+        assert "F:T" not in _shapes("Высоцкий", "x")
 
-    def test_fold_only_when_it_changes_text(self):
-        s = _shapes({"type": "artist", "artist": "Radiohead"})
-        assert s == {"A": "Radiohead"}
+    def test_no_album_no_b(self):
+        assert "B" not in _shapes("Toxic", "Sigur Rós")
 
-    def test_album_shapes(self):
-        s = _shapes({"type": "album", "artist": "Massive Attack", "album": "Mezzanine"})
-        assert s["B"] == "Mezzanine" and s["A"] == "Massive Attack"
-        assert s["LW"] == "mezzanine massive"
-        assert s["W2"] == "mezzanine massive"
-
-    def test_negative_seed_without_album_has_no_b(self):
-        s = _shapes(
-            {"type": "track", "artist": "Sigur Rós", "title": "Toxic", "expect": "none"}
-        )
-        assert "B" not in s and s["T"] == "Toxic"
+    def test_dropped_shapes_are_gone(self):
+        keys = set(_shapes("Karma Police", "Radiohead", "OK Computer"))
+        assert keys == {"L0", "L1", "T", "TA", "B"}
 
 
 def test_plan_dedupes_queries_and_keeps_every_use():
     seeds = [
-        {
-            "type": "track",
-            "artist": "Radiohead",
-            "title": "Karma Police",
-            "album": "OK Computer",
-        },
-        {"type": "artist", "artist": "Radiohead"},
+        {"id": "a", "track": "Dreams", "artist": "Fleetwood Mac", "album": "Rumours"},
+        {"id": "b", "track": "Dreams", "artist": "The Cranberries", "album": ""},
     ]
     p = plan.build_plan(seeds)
-    radiohead = [q for q in p["queries"] if q["query"] == "Radiohead"]
-    assert len(radiohead) == 1
-    assert {u["shape"] for u in radiohead[0]["uses"]} == {"A"}
-    assert len(radiohead[0]["uses"]) == 2
-
-
-def test_sample_spreads_across_buckets():
-    seeds = tomllib.loads(SEEDS.read_text())["seed"]
-    picked = plan.sample_seeds(seeds, 12)
-    assert len(picked) == 12
-    assert all(s["type"] == "track" for s in picked)
-    assert len({s["bucket"] for s in picked}) == 12
+    t = next(q for q in p["queries"] if q["query"] == "Dreams")
+    assert t["uses"] == [{"seed": "a", "shape": "T"}, {"seed": "b", "shape": "T"}]
 
 
 def test_real_seed_list_plans_cleanly():
-    seeds = tomllib.loads(SEEDS.read_text())["seed"]
+    data = json.loads(SEEDS.read_text())
+    seeds = data["seeds"] + data["traps"]
     p = plan.build_plan(seeds)
-    assert len(p["seeds"]) == len(seeds)
+    planned = {u["seed"] for q in p["queries"] for u in q["uses"]}
+    assert planned == {s["id"] for s in seeds}
     assert all(q["query"].strip() for q in p["queries"])
-    assert len({q["qid"] for q in p["queries"]}) == len(p["queries"])
-
-
-def test_lw_and_at_for_tracks():
-    s = dict(
-        plan.seed_queries(
-            {
-                "type": "track",
-                "artist": "Gorillaz",
-                "title": "Feel Good Inc.",
-                "album": "Demon Days",
-            }
-        )
-    )
-    assert s["LW"] == "demon gorillaz"
-    assert s["AT"] == "demon feel"
-
-
-def test_single_uses_title_as_album():
-    s = dict(
-        plan.seed_queries({"type": "track", "artist": "Bleeker", "title": "ELEPHANT"})
-    )
-    assert s["LW"] == "elephant bleeker"
