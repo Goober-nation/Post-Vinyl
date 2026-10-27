@@ -116,10 +116,11 @@ Goal: the same song from any source normalizes to identical `[track, artist, alb
 - Some words are filtered by the Soulseek server: "octopus garden beatles" returned 0
   responses with or without the apostrophe.
 
-## Normalization stage 2 plan (user, 2026-10-27)
+## Normalization stage 2 plan (user, 2026-10-27; rescoped the same day, #72)
 
-Goal: a peer's file path normalizes to the same `[track, artist, album]` arrays as the stage 1
-API names. Starts after stage 1's rules are settled (#71) and reuses that normalizer.
+Goal (rescoped): measure how peers lay out and spell file paths, so the matcher (milestone 5)
+has data-backed rules. `normalize.py` only builds query names, so paths are no longer
+normalized "into the same arrays".
 
 - **Input**: raw responses from the first harvest (#34), copied read-only from the server into a
   local gitignored cache (ask before touching the server). Ground truth: the old track seeds
