@@ -66,6 +66,26 @@ Goal: the same song from any source normalizes to identical `[track, artist, alb
 - **No pass target**: the report gives equality rates per field and per rule, plus the mismatch
   list; the user judges.
 
+## Normalization stage 2 plan (user, 2026-10-27)
+
+Goal: a peer's file path normalizes to the same `[track, artist, album]` arrays as the stage 1
+API names. Starts after stage 1's rules are settled (#71) and reuses that normalizer.
+
+- **Input**: raw responses from the first harvest (#34), copied read-only from the server into a
+  local gitignored cache (ask before touching the server). Ground truth: the old track seeds
+  with an MBID, **excluding the `library` bucket**; their names are re-fetched from MusicBrainz
+  by MBID, not read from `seeds.toml`.
+- **Which files count**: candidates by ±3 s of the MusicBrainz length plus loose word overlap;
+  the user hand-checks a random ~100 once to measure the rule's error rate (the rule is partly
+  circular with the matcher, so the sample is what keeps it honest).
+- **Path → fields**: filename → track, parent folder → album, the folder above → artist. Clean
+  track numbers (`01 -`, `1-01`), "Artist - Title" filenames, `_`/`.` as spaces, disc folders
+  (`CD3`), backslashes, `(1997)`, `[FLAC]`, extensions; then the stage 1 normalizer.
+- **Report** (offline): equality per field and per rule; containment (every seed word somewhere
+  in the path) separately from field equality; failure categories with counts; mismatch list.
+- **Kept separate** from stage 1 data. Only the script and an aggregate report are committed:
+  peer names and full paths stay local (public repo).
+
 ## Still to define
 
 - Exact seed list (draft for the user to edit) and the trap count.
