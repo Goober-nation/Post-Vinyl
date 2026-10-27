@@ -197,3 +197,156 @@ def test_title_inside_longer_title_still_needs_phrase():
     seed = {"type": "track", "artist": "Muse", "title": "Intro"}
     f = _f("Muse\\Absolution\\01 - Intro.flac")
     assert lb.label_track_file(f, seed).label == "correct"
+
+
+# --- search test v2 (#76): real filenames from the 2026-10-27 runs ---
+
+BI2 = {"track": "С тобой", "artist": "Би-2", "album": "Мяу кисс ми", "length_s": 238}
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "@@sykcl\\shared\\rock\\russian\\Би-2\\2001 - Мяу кисс ми\\09 - С тобой.mp3",
+        "G:\\БИ-2\\2001 - Мяу Кисс Ми\\09. С тобой.m4a",
+        "@@cntiu\\mp3\\Би-2\\2001 - Мяу Кисс Ми\\09 - С Тобой.mp3",
+    ],
+)
+def test_v2_cyrillic_correct(name):
+    assert lb.label_track_file(_f(name, 238), BI2).label == "correct"
+
+
+def test_v2_cyrillic_short_i_is_not_folded():
+    # NFKD folding turned й into и; "За тобой" must still not match "С тобой".
+    assert lb.norm("Рыжий") == "рыжий"
+    name = "G:\\БИ-2\\2013 - Нечетный воин 3\\08. За тобой.m4a"
+    assert lb.label_track_file(_f(name, 238), BI2).label == "no_title"
+
+
+@pytest.mark.parametrize(
+    ("name", "reason"),
+    [
+        ("Би-2\\Drum[a]\\05 - С Тобой(Nova Bossa Mix By Da_Pop).mp3", "excluded:mix"),
+        (
+            "Би-2\\...и корабль плывет\\CD 4 - LIVE\\07 - С тобой (Москва).mp3",
+            "excluded:live",
+        ),
+        ("Би-2\\Karaoke\\С тобой.mp3", "excluded:karaoke"),
+        ("Би-2\\С тобой (Sped Up).mp3", "excluded:sped up"),
+        ("Би-2\\С тобой (Nightcore).mp3", "excluded:nightcore"),
+        ("Би-2\\С тобой (instrumental).mp3", "excluded:instrumental"),
+    ],
+)
+def test_v2_excluded_versions(name, reason):
+    assert lb.label_track_file(_f(name, 238), BI2).label == reason
+
+
+def test_v2_original_mix_is_the_song():
+    seed = {"track": "Feel It", "artist": "Cosmic Gate", "length_s": 382}
+    name = "Cosmic Gate\\Feel It\\01 - Cosmic Gate - Feel It (Original Mix).flac"
+    assert lb.label_track_file(_f(name, 382), seed).label == "correct"
+
+
+def test_v2_requested_extended_mix_matches_only_itself():
+    seed = {"track": "Feel It (extended mix)", "artist": "Cosmic Gate", "length_s": 382}
+    ok = "Cosmic Gate\\Feel It\\01 Cosmic Gate - Feel It (Extended Mix).flac"
+    assert lb.label_track_file(_f(ok, 382), seed).label == "correct"
+
+
+def test_v2_hangul_and_kana_titles():
+    seed = {"track": "강도와 꽃다발", "artist": "이은미", "length_s": 200}
+    name = "이은미\\Ma Non Tanto\\03 이은미 - 강도와 꽃다발.flac"
+    assert lb.label_track_file(_f(name, 200), seed).label == "correct"
+    seed = {"track": "強盗と花束", "artist": "ヨルシカ", "length_s": 190}
+    name = "ヨルシカ\\創作\\02. 強盗と花束.flac"
+    assert lb.label_track_file(_f(name, 190), seed).label == "correct"
+
+
+def test_v2_accent_folded_both_sides():
+    seed = {"track": "Hoppípolla", "artist": "Sigur Rós", "length_s": 270}
+    name = "SIGUR ROS\\Takk\\03 - hoppipolla.MP3"
+    assert lb.label_track_file(_f(name, 270), seed).label == "correct"
+
+
+def test_v2_row_counts_free_slots_and_formats():
+    seed = {"id": "s", "track": "Dreams", "artist": "Fleetwood Mac", "length_s": 257}
+    peers = [
+        {
+            "username": "a",
+            "hasFreeUploadSlot": True,
+            "files": [_f("Fleetwood Mac\\Rumours\\02 Dreams.flac", 257)],
+        },
+        {
+            "username": "b",
+            "hasFreeUploadSlot": False,
+            "files": [
+                {**_f("Fleetwood Mac\\Rumours\\02 Dreams.mp3", 257), "bitRate": 320}
+            ],
+        },
+        {"username": "c", "files": [_f("Dokken\\In My Dreams.mp3", 257)]},
+    ]
+    rec = {"query": "Dreams", "responses": peers, "uses": [{"seed": "s", "shape": "T"}]}
+    (row,) = lb.score_record(rec, {"s": seed})
+    assert row["helpful_peers"] == 2 and row["helpful_free_slot"] == 1
+    assert row["formats"] == {"lossless": 1, "mp3 320": 1}
+
+
+@pytest.mark.parametrize(
+    ("raw", "want"),
+    [
+        ("G.O.M.D", "gomd"),
+        ("P.O.V.", "pov"),
+        ("R.E.M.", "rem"),
+        ("J. Cole", "j cole"),  # initial + space is not an acronym
+        ("Matty Wood$", "matty woods"),
+    ],
+)
+def test_v2_norm_acronyms_and_symbols(raw, want):
+    assert lb.norm(raw) == want
+
+
+def test_v2_acronym_title_matches_undotted_file():
+    seed = {"track": "G.O.M.D", "artist": "J. Cole", "length_s": 301}
+    for name in (
+        "music\\J. Cole\\08-j_cole-gomd.flac",
+        "J Cole\\08 - GOMD - J Cole.flac",
+    ):
+        assert lb.label_track_file(_f(name, 301), seed).label == "correct"
+
+
+def test_v2_cyrillic_version_word_matches_english_file():
+    seed = {
+        "track": "Герой не моего романа (ремикс)",
+        "artist": "Юлия Началова",
+        "length_s": 284,
+    }
+    name = (
+        "Retro Remix Quality Vol.56 (2018)\\"
+        "40. Юлия Началова - Герой не моего романа (remix).mp3"
+    )
+    assert lb.label_track_file(_f(name, 284), seed).label == "correct"
+
+
+def test_v2_russian_remix_is_excluded():
+    seed = {"track": "Неземная", "artist": "Макс Барских", "length_s": 202}
+    name = "Макс Барских\\Неземная (ремикс).mp3"
+    assert lb.label_track_file(_f(name, 202), seed).label == "excluded:remix"
+
+
+def test_v2_live_album_two_folders_up_is_excluded():
+    seed = {"track": "Sliver", "artist": "Nirvana", "length_s": 136}
+    name = "Nirvana - Live At The Paramount (2011) LP\\Music\\10. Sliver .flac"
+    assert lb.label_track_file(_f(name, 136), seed).label == "excluded:live"
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Music\\Tagged with cover art Jul 2017\\Massive Attack - Mezzanine\\03 - Teardrop.flac",
+        "Música\\OST\\Movie OST\\Drive\\Massive Attack - Teardrop.mp3",
+        "--==Ambient&ChillOut==--\\Massive Attack - Mezzanine\\03 - Teardrop.mp3",
+    ],
+)
+def test_v2_category_folders_one_level_up_are_not_versions(name):
+    seed = {"track": "Teardrop", "artist": "Massive Attack", "length_s": 330}
+    assert lb.label_track_file(_f(name, 330), seed).label == "correct"

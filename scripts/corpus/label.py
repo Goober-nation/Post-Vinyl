@@ -1,4 +1,4 @@
-"""Label harvested search responses and score query shapes by helpful peers (#34).
+"""Label harvested search responses and score query shapes by helpful peers (#34, #76).
 
 Offline: reads ``<corpus>/raw/*.json.gz`` + ``<corpus>/seeds.json`` from a
 harvest, never touches slskd. The unit of success is a **helpful peer** — a
@@ -10,12 +10,20 @@ A file is **correct** for a track seed when (decided 2026-10-04, #34):
 1. it is an audio file in the peer's unlocked ``files`` (locked files can't
    be downloaded and are only counted),
 2. no excluded version word appears in its filename or parent folder unless
-   the seed's own title/album contains it (covers, live, acoustic,
-   a cappella, mixes/remixes, extended, solo, reference, home sessions,
-   soundtracks, ambient — the user never wants these),
-3. every title word is in the **filename** (remaster/deluxe suffixes ignored,
-   they're the same song) and every artist word is somewhere in the path,
-4. its length is within ±3 s of the MusicBrainz duration, when both exist.
+   the seed's own title/album contains it (the AGENTS.md list: cover, live,
+   acoustic, a cappella, mix/remix, extended, solo, reference, home session,
+   soundtrack/OST, ambient, edit, karaoke, nightcore, sped up, slowed,
+   8d audio, mashup, bootleg, tribute, "in the style of", instrumental,
+   demo); "Original Mix" is the normal version, not a mix,
+3. the title is an in-order phrase in the **filename** (remaster/deluxe
+   suffixes ignored, they're the same song) and the main artist is somewhere
+   in the path,
+4. its length is within ±3 s of the MusicBrainz length, when both exist.
+
+Both sides are folded the same way before comparing: case, accents on Latin
+letters only (Cyrillic й and kana voicing marks stay), punctuation, "&" as
+"and" (data: ``docs/research/slskd-matching.md``). Seeds are the search test
+v2 seeds (``track``/``length_s``) or the old ones (``title``/``duration``).
 
 Album seeds: a peer is helpful when one folder holds the album — the folder
 path carries the album and artist words, has no excluded word, and holds at
@@ -23,10 +31,12 @@ least 80% of the MusicBrainz track count in audio files. Artist seeds: any
 audio file with the artist in its path. Negative seeds use the track rule;
 any helpful peer there is a false positive.
 
-Quality (format, bitrate, sample rate) is recorded per helpful peer but not
-scored yet.
+Per query it also counts helpful peers with a free upload slot and the
+format mix of their best files; downloadability is scored only after the run.
+The report holds counts only; the spot-check (peer names, paths) goes to a
+local file, never committed (public repo).
 
-    python -m scripts.corpus.label --corpus <dir> --report docs/search-benchmark.md
+    python -m scripts.corpus.label --corpus <dir> --report <report.md>
 """
 
 from __future__ import annotations
@@ -37,11 +47,10 @@ import json
 import random
 import re
 import statistics
-from collections import defaultdict
+import unicodedata
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-
-from scripts.corpus.resolve_seeds import norm, norm_title
 
 AUDIO_EXTS = {
     "flac", "mp3", "m4a", "aac", "ogg", "opus", "wav", "aiff", "aif",
@@ -55,7 +64,58 @@ EXCLUDED_VERSIONS = (
     "a cappella", "a capella", "mix", "mixes", "mixed", "remix", "remixes",
     "remixed", "rmx", "extended", "solo", "reference", "home session",
     "home sessions", "soundtrack", "ost", "ambient", "edit", "radio edit",
+    "karaoke", "nightcore", "sped up", "slowed", "8d audio", "8d", "mashup",
+    "bootleg", "tribute", "in the style of", "instrumental", "demo",
 )  # fmt: skip
+# The normal version, though it says "mix".
+SAME_SONG_PHRASES = ("original mix",)
+
+# Suffixes that don't change which song it is (decided 2026-10-03: a
+# remaster/deluxe/year tag is the same song; live/remix/acoustic is not).
+_SAME_SONG_RE = re.compile(
+    r"\s*[\(\[\-–]\s*(?:\d{4}\s+)?(?:remaster(?:ed)?|deluxe(?: edition)?|"
+    r"expanded(?: edition)?|bonus track|single version|album version|"
+    r"collectors edition)(?:\s+\d{4})?\s*[\)\]]?\s*$",
+    re.IGNORECASE,
+)
+_APOS_RE = re.compile(r"['’ʼ`´]")
+_ACRONYM_RE = re.compile(r"\b(?:\w\.){1,}\w\b\.?")
+# Peers write "$uicideboy$" as "suicideboys"; same map as the query plan.
+_SYMBOL_MAP = str.maketrans({"$": "s", "@": "a", "€": "e", "£": "l"})
+
+
+def norm(text: str) -> str:
+    """Compare-key: case-folded, accents off Latin letters only, punctuation
+    and whitespace collapsed, "&" as "and", "$" as "s", dotted acronyms
+    as one word (G.O.M.D → gomd). Non-Latin letters stay whole:
+    NFKD on everything would turn Cyrillic й into и and split Hangul."""
+    out = []
+    for ch in unicodedata.normalize("NFC", text or "").casefold():
+        base = unicodedata.normalize("NFD", ch)
+        if len(base) > 1 and unicodedata.name(base[0], "").startswith("LATIN"):
+            ch = "".join(c for c in base if not unicodedata.combining(c))
+        out.append(ch)
+    text = _APOS_RE.sub("", "".join(out)).replace("&", " and ")
+    text = text.translate(_SYMBOL_MAP)
+    # Dotted acronyms are one word: peers write G.O.M.D as "gomd".
+    text = _ACRONYM_RE.sub(lambda m: m.group(0).replace(".", ""), text)
+    return " ".join(re.sub(r"[\W_]+", " ", text).split())
+
+
+def norm_title(text: str) -> str:
+    prev = None
+    while prev != text:
+        prev, text = text, _SAME_SONG_RE.sub("", text)
+    return norm(text)
+
+
+def seed_title(seed: dict) -> str:
+    return seed.get("track") or seed.get("title") or ""
+
+
+def seed_length(seed: dict) -> float | None:
+    return seed.get("length_s") or seed.get("duration")
+
 
 DURATION_TOLERANCE_S = 3
 ALBUM_COMPLETENESS = 0.8
@@ -69,8 +129,18 @@ def split_path(filename: str) -> tuple[list[str], str, str]:
     return parts[:-1], stem if dot else base, ext.lower() if dot else ""
 
 
+# Version words in other languages, read as their English form on both sides,
+# so "(ремикс)" in a seed matches "(remix)" in a file and Russian remixes are
+# excluded like English ones (live 2026-10-27).
+VERSION_SYNONYMS = {
+    "ремикс": "remix", "ремиксы": "remixes", "кавер": "cover", "караоке": "karaoke",
+    "акустика": "acoustic", "акустическая": "acoustic", "инструментал": "instrumental",
+    "минусовка": "instrumental", "лайв": "live", "концерт": "live", "демо": "demo",
+}  # fmt: skip
+
+
 def _words(text: str) -> list[str]:
-    return norm(text).split()
+    return [VERSION_SYNONYMS.get(w, w) for w in norm(text).split()]
 
 
 def _has_phrase(haystack: list[str], phrase: str) -> bool:
@@ -85,6 +155,10 @@ _JOINED_LIVE_RE = re.compile(r"^live(?:box|at|in|from|on|set|show|tour|\d{2,4})$
 
 
 def _version_hit(local: list[str], own: list[str]) -> str | None:
+    text = " ".join(local)
+    for phrase in SAME_SONG_PHRASES:
+        text = f" {text} ".replace(f" {phrase} ", " ")
+    local = text.split()
     for phrase in EXCLUDED_VERSIONS:
         if _has_phrase(local, phrase) and not _has_phrase(own, phrase):
             return phrase
@@ -95,11 +169,19 @@ def _version_hit(local: list[str], own: list[str]) -> str | None:
 
 def excluded_word(filename: str, seed: dict) -> str | None:
     """The first excluded version word in the file's name or parent folder
-    that the seed itself doesn't carry, else None."""
+    that the seed itself doesn't carry, else None. "Live" is also checked one
+    folder higher: live albums often sit there ("Live At The Paramount\\
+    Music\\10. Sliver.flac"). Other words one level up were mostly category
+    folders ("Tagged with cover art", "OST\\Drive" holding the original
+    recording), so they're not (measured 2026-10-27 on 4 harvests).
+    """
     folders, stem, _ = split_path(filename)
     local = _words(stem) + (_words(folders[-1]) if folders else [])
-    own = _words(seed.get("title", "")) + _words(seed.get("album", ""))
-    return _version_hit(local, own)
+    own = _words(seed_title(seed)) + _words(seed.get("album", ""))
+    if hit := _version_hit(local, own):
+        return hit
+    above = _words(folders[-2]) if len(folders) > 1 else []
+    return "live" if _version_hit(above, own) == "live" else None
 
 
 def _contains_all(haystack: list[str], needle: list[str]) -> bool:
@@ -119,8 +201,8 @@ def title_matches(stem: str, title: str) -> bool:
     checked loosely because peers move them around: "Old Town Road (Remix)"
     is often "Old Town Road (feat. Billy Ray Cyrus) [Remix]".
     """
-    main = norm_title(_PAREN_RE.sub(" ", title)).split()
-    extra = norm_title(" ".join(_PAREN_RE.findall(title))).split()
+    main = _words(norm_title(_PAREN_RE.sub(" ", title)))
+    extra = _words(norm_title(" ".join(_PAREN_RE.findall(title))))
     words = _words(stem)
     if not main:  # title is all brackets
         return _contains_all(words, extra)
@@ -169,11 +251,11 @@ def label_track_file(f: dict, seed: dict) -> FileLabel:
         return FileLabel("not_audio", name)
     if word := excluded_word(name, seed):
         return FileLabel(f"excluded:{word}", name)
-    if not title_matches(stem, seed["title"]):
+    if not title_matches(stem, seed_title(seed)):
         return FileLabel("no_title", name)
     if not artist_matches(folders, stem, seed["artist"]):
         return FileLabel("no_artist", name)
-    want, got = seed.get("duration"), f.get("length")
+    want, got = seed_length(seed), f.get("length")
     if want and got and abs(int(got) - int(want)) > DURATION_TOLERANCE_S:
         return FileLabel("duration", name, f"{got}s vs {want}s")
     return FileLabel("correct", name)
@@ -212,6 +294,7 @@ class PeerLabel:
     helpful: bool
     files: int
     locked: int
+    free_slot: bool = False
     correct: list[str] = field(default_factory=list)
     best: dict | None = None
     reasons: dict[str, int] = field(default_factory=dict)
@@ -224,8 +307,9 @@ def label_peer(peer: dict, seed: dict) -> PeerLabel:
         helpful=False,
         files=len(files),
         locked=len(peer.get("lockedFiles") or []),
+        free_slot=bool(peer.get("hasFreeUploadSlot")),
     )
-    kind = seed["type"]
+    kind = seed.get("type", "track")
     if kind == "track":
         reasons: dict[str, int] = defaultdict(int)
         for f in files:
@@ -263,6 +347,18 @@ def _rank(q: dict) -> tuple:
     return (lossless, q.get("bitrate") or 0, q.get("size") or 0)
 
 
+def format_band(q: dict | None) -> str:
+    """flac/lossless, mp3 by bitrate band, or other."""
+    if not q:
+        return "none"
+    if q["ext"] in {"flac", "alac", "ape", "wv", "wav", "aiff", "aif"}:
+        return "lossless"
+    if q["ext"] == "mp3":
+        br = q.get("bitrate") or 0
+        return "mp3 320" if br >= 320 else "mp3 256-319" if br >= 256 else "mp3 <256"
+    return "other"
+
+
 def shape_family(shape: str) -> str:
     """L0/L1+/D/… — rungs past the first and delimiter parts are grouped."""
     if shape.startswith("L") and shape[1:].isdigit():
@@ -282,12 +378,17 @@ def score_record(record: dict, seeds: dict[str, dict]) -> list[dict]:
         rows.append(
             {
                 "seed": use["seed"],
-                "kind": "negative" if seed.get("expect") == "none" else seed["type"],
+                "kind": "negative"
+                if seed.get("expect") == "none"
+                else seed.get("type", "track"),
+                "bucket": seed.get("bucket", ""),
                 "shape": use["shape"],
                 "family": shape_family(use["shape"]),
                 "query": record["query"],
                 "peers": len(peers),
                 "helpful_peers": len(helpful),
+                "helpful_free_slot": sum(p.free_slot for p in helpful),
+                "formats": dict(Counter(format_band(p.best) for p in helpful)),
                 "files": sum(p.files for p in peers),
                 "correct_files": sum(len(p.correct) for p in helpful),
                 "stop_reason": record.get("stop_reason"),
@@ -329,39 +430,56 @@ def merge_plan_uses(records: list[dict], plans: list[dict]) -> None:
                 rec["uses"].append(use)
 
 
+def _stats(rs: list[dict]) -> dict:
+    ratios = [r["helpful_peers"] / r["peers"] for r in rs if r["peers"]]
+    return {
+        "n": len(rs),
+        "found_pct": 100 * sum(r["helpful_peers"] > 0 for r in rs) / len(rs),
+        "median_helpful_peers": statistics.median(r["helpful_peers"] for r in rs),
+        "mean_helpful_peers": statistics.mean(r["helpful_peers"] for r in rs),
+        "median_free_slot": statistics.median(
+            r.get("helpful_free_slot", 0) for r in rs
+        ),
+        "median_peers": statistics.median(r["peers"] for r in rs),
+        "median_peer_precision_pct": 100 * statistics.median(ratios) if ratios else 0.0,
+    }
+
+
 def summarise(rows: list[dict]) -> dict[str, dict[str, dict]]:
     by: dict[str, dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
     for r in rows:
         by[r["kind"]][r["family"]].append(r)
-    out: dict[str, dict[str, dict]] = {}
-    for kind, fams in by.items():
-        out[kind] = {}
-        for fam, rs in sorted(fams.items()):
-            ratios = [r["helpful_peers"] / r["peers"] for r in rs if r["peers"]]
-            out[kind][fam] = {
-                "n": len(rs),
-                "found_pct": 100 * sum(r["helpful_peers"] > 0 for r in rs) / len(rs),
-                "median_helpful_peers": statistics.median(
-                    r["helpful_peers"] for r in rs
-                ),
-                "mean_helpful_peers": statistics.mean(r["helpful_peers"] for r in rs),
-                "median_peers": statistics.median(r["peers"] for r in rs),
-                "median_peer_precision_pct": 100 * statistics.median(ratios)
-                if ratios
-                else 0.0,
-            }
-    return out
+    return {
+        kind: {fam: _stats(rs) for fam, rs in sorted(fams.items())}
+        for kind, fams in by.items()
+    }
 
 
-def render(summary: dict, rows: list[dict], seeds: dict[str, dict], sample: int) -> str:
+def by_bucket(rows: list[dict]) -> dict[str, dict[str, float]]:
+    """Found % per (bucket, shape family) for match seeds."""
+    by: dict[str, dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
+    for r in rows:
+        if r["kind"] != "negative":
+            by[r.get("bucket") or "-"][r["family"]].append(r)
+    return {
+        b: {
+            f: 100 * sum(r["helpful_peers"] > 0 for r in rs) / len(rs)
+            for f, rs in fams.items()
+        }
+        for b, fams in sorted(by.items())
+    }
+
+
+def render(summary: dict, rows: list[dict]) -> str:
+    """Counts only: no peer names or paths (public repo)."""
     lines = [
-        "# Search benchmark — helpful peers per query shape",
+        "# Search benchmark: helpful peers per query shape",
         "",
         "Generated by `python -m scripts.corpus.label`. A *helpful peer* has at",
         "least one correct, downloadable file (rules in `scripts/corpus/label.py`).",
         "*Found* = the query returned ≥1 helpful peer. *Peer precision* = helpful",
-        "peers / all peers that answered. Negative seeds: any helpful peer is a",
-        "false positive.",
+        "peers / all peers that answered. *Free slot* = helpful peers with a free",
+        "upload slot. Negative seeds (traps): any helpful peer is a false positive.",
         "",
     ]
     for kind in ("track", "album", "artist", "negative"):
@@ -370,61 +488,114 @@ def render(summary: dict, rows: list[dict], seeds: dict[str, dict], sample: int)
         lines += [
             f"## {kind}",
             "",
-            "| Shape | n | Found | Helpful peers (median) | (mean) | Peers (median) | Peer precision |",
-            "|---|---|---|---|---|---|---|",
+            (
+                "| Shape | n | Found | Helpful peers (median) | (mean) "
+                "| Free slot (median) | Peers (median) | Peer precision |"
+            ),
+            "|---|---|---|---|---|---|---|---|",
         ]
-        for fam, s in summary[kind].items():
+        for fam, st in summary[kind].items():
             lines.append(
-                f"| {fam} | {s['n']} | {s['found_pct']:.0f}% | {s['median_helpful_peers']:.0f} "
-                f"| {s['mean_helpful_peers']:.0f} | {s['median_peers']:.0f} "
-                f"| {s['median_peer_precision_pct']:.1f}% |"
+                f"| {fam} | {st['n']} | {st['found_pct']:.0f}% "
+                f"| {st['median_helpful_peers']:.0f} | {st['mean_helpful_peers']:.0f} "
+                f"| {st['median_free_slot']:.0f} | {st['median_peers']:.0f} "
+                f"| {st['median_peer_precision_pct']:.1f}% |"
             )
         lines.append("")
 
-    # Spot-check: random helpful verdicts and random misses, so a human can
-    # confirm the labeller isn't wrong in either direction.
-    rng = random.Random(0)
-    lines += ["## Spot-check", "", "Random helpful verdicts (should all be right):", ""]
-    pos = [r for r in rows if r["helpful_peers"] and r["kind"] == "track"]
-    for r in rng.sample(pos, min(sample, len(pos))):
-        s = seeds[r["seed"]]
-        ex = r["examples"][0]
+    buckets = by_bucket(rows)
+    fams = sorted({f for b in buckets.values() for f in b})
+    if buckets:
+        lines += [
+            "## Found per seed bucket",
+            "",
+            "| Bucket | " + " | ".join(fams) + " |",
+        ]
+        lines.append("|---" * (len(fams) + 1) + "|")
+        for b, row in buckets.items():
+            cells = [f"{row[f]:.0f}%" if f in row else "–" for f in fams]
+            lines.append(f"| {b} | " + " | ".join(cells) + " |")
+        lines.append("")
+
+    formats: dict[str, Counter[str]] = defaultdict(Counter)
+    for r in rows:
+        if r["kind"] != "negative":
+            formats[r["family"]].update(r.get("formats", {}))
+    bands = ["lossless", "mp3 320", "mp3 256-319", "mp3 <256", "other"]
+    lines += [
+        "## Format of helpful peers' best file",
+        "",
+        "| Shape | " + " | ".join(bands) + " |",
+        "|---" * (len(bands) + 1) + "|",
+    ]
+    for fam, c in sorted(formats.items()):
+        total = sum(c[b] for b in bands) or 1
         lines.append(
-            f"- `{r['shape']}` {s['artist']} – {s.get('title')}: `{ex['files'][0]}`"
+            f"| {fam} | "
+            + " | ".join(f"{100 * c[b] / total:.0f}%" for b in bands)
+            + " |"
         )
-    lines += ["", "Track queries with zero helpful peers (check none were missed):", ""]
-    neg = [r for r in rows if not r["helpful_peers"] and r["kind"] == "track"]
-    for r in rng.sample(neg, min(sample, len(neg))):
-        s = seeds[r["seed"]]
-        lines.append(
-            f"- `{r['shape']}` {s['artist']} – {s.get('title')} (query `{r['query']}`, "
-            f"{r['peers']} peers)"
-        )
-    # Zero peers after a full, connected search is almost always a phrase on
-    # Soulseek's server-side exclusion list (live 2026-10-04: "Kendrick
-    # Lamar", "Gorillaz", "Purple Rain" → 0 peers while "alright kendrick"
-    # → 300). Listed apart so a blocked phrase isn't read as a bad shape.
+
     empty = sorted({r["query"] for r in rows if r["peers"] == 0})
+    fps = [r for r in rows if r["kind"] == "negative" and r["helpful_peers"]]
     lines += [
         "",
-        f"Queries that got no peers at all ({len(empty)}; likely Soulseek-excluded phrases):",
-        "",
-        ", ".join(f"`{q}`" for q in empty),
+        (
+            f"Queries with no peers at all: {len(empty)} (likely Soulseek-excluded "
+            "phrases or a cold network)."
+        ),
+        (
+            f"Trap (seed, shape) pairs with a false positive: {len(fps)} of "
+            f"{sum(r['kind'] == 'negative' for r in rows)}."
+        ),
     ]
-    fps = [r for r in rows if r["kind"] == "negative" and r["helpful_peers"]]
-    lines += ["", f"False positives on negative seeds: {len(fps)}", ""]
-    for r in fps:
-        s = seeds[r["seed"]]
+    return "\n".join(lines) + "\n"
+
+
+def render_spot_check(rows: list[dict], seeds: dict[str, dict], sample: int) -> str:
+    """Random verdicts both ways plus every trap false positive, with paths:
+    for a human check, kept local (it names peers and their files)."""
+    rng = random.Random(0)
+    lines = [
+        "# Labeller spot-check (local only)",
+        "",
+        "## Helpful verdicts (should all be right)",
+        "",
+    ]
+    pos = [r for r in rows if r["helpful_peers"] and r["kind"] == "track"]
+    for r in rng.sample(pos, min(sample, len(pos))):
+        st = seeds[r["seed"]]
         lines.append(
-            f"- `{r['shape']}` {s['artist']} – {s['title']}: `{r['examples'][0]['files'][0]}`"
+            f"- `{r['shape']}` {st['artist']} – {seed_title(st)}: `{r['examples'][0]['files'][0]}`"
         )
+    lines += ["", "## Zero helpful peers (check none were missed)", ""]
+    neg = [
+        r
+        for r in rows
+        if not r["helpful_peers"] and r["kind"] == "track" and r["peers"]
+    ]
+    for r in rng.sample(neg, min(sample, len(neg))):
+        st = seeds[r["seed"]]
+        lines.append(
+            f"- `{r['shape']}` {st['artist']} – {seed_title(st)} (query `{r['query']}`, {r['peers']} peers)"
+        )
+    lines += ["", "## Trap false positives", ""]
+    for r in rows:
+        if r["kind"] == "negative" and r["helpful_peers"]:
+            st = seeds[r["seed"]]
+            lines.append(
+                f"- `{r['shape']}` {st['artist']} – {seed_title(st)}: `{r['examples'][0]['files'][0]}`"
+            )
     return "\n".join(lines) + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--corpus", type=Path, required=True)
-    ap.add_argument("--report", type=Path, default=Path("docs/search-benchmark.md"))
+    ap.add_argument("--report", type=Path, required=True)
+    ap.add_argument(
+        "--spot-check", type=Path, default=Path(".cache/label_spotcheck.md")
+    )
     ap.add_argument(
         "--rows", type=Path, default=None, help="write per-query rows as JSON"
     )
@@ -442,7 +613,9 @@ def main(argv: list[str] | None = None) -> int:
     merge_plan_uses(records, [json.loads(p.read_text()) for p in args.plan])
     rows = [row for rec in records for row in score_record(rec, seeds)]
     summary = summarise(rows)
-    args.report.write_text(render(summary, rows, seeds, args.sample))
+    args.report.write_text(render(summary, rows))
+    args.spot_check.parent.mkdir(parents=True, exist_ok=True)
+    args.spot_check.write_text(render_spot_check(rows, seeds, args.sample))
     if args.rows:
         args.rows.write_text(json.dumps(rows, ensure_ascii=False))
     print(f"{len(records)} records, {len(rows)} (seed, shape) rows → {args.report}")
