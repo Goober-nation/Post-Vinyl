@@ -42,3 +42,4 @@ legacy/app/static/fonts/*
 !legacy/app/static/fonts/logo-LICENSE.txt
 
 old_files/
+.cache/
