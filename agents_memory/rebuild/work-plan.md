@@ -125,3 +125,13 @@ live calls (zero trust for legacy, AGENTS.md). What later milestones need to kno
   `cancel_download(forget=True)` drops the record (the file stays on disk).
 - `GET /api/musicbrainz/search/recordings` takes `title`, not `query` like the search route:
   document or align in the API contract (step 6).
+
+## To decide in milestone 6 (core loop)
+
+- **How the first Navidrome admin is created** (user, 2026-10-28). The interim plan from #88,
+  `ND_DEVAUTOCREATEADMINPASSWORD` in compose (see `users-auth.md`), is suboptimal: it's a
+  dev-labelled option, it only runs on a fresh data folder, and it logs the password in plain
+  text. The user's preference: **setup through the app**; failing that, a **setup CLI script**
+  that creates the Navidrome admin. Whatever is picked has to close the window where an empty
+  Navidrome lets anyone who reaches it call `createAdmin`, for example by keeping Navidrome
+  unpublished until setup is done.
