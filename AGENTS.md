@@ -35,7 +35,8 @@ If anything is unclear or missing, ask before proceeding.
 - **`scripts/corpus/`** + **`tests/test_scripts/`** + **`tests/fixtures/corpus/`**: the search
   benchmark tooling. `plan.py` and `resolve_seeds.py` still import modules that now only exist in
   `legacy/`, so they're broken until those are ported.
-- No frontend until the backend is done; test through FastAPI's `/docs` (development only).
+- No frontend until the core backend is done (milestone 7); test through FastAPI's `/docs`
+  (development only). The frontend is milestone 8; later milestones add their pages as issues.
 - The server still runs the old app from `main`.
 
 ---
@@ -51,9 +52,9 @@ If anything is unclear or missing, ask before proceeding.
 
 ## Tracking: milestones + issues
 
-- GitHub milestones 1–10 on `Goober-nation/Post-Vinyl` are the roadmap (normalization research,
+- GitHub milestones 1–11 on `Goober-nation/Post-Vinyl` are the roadmap (normalization research,
   search test v2, service clients, data layer + login, core logic, core loop, wiring + validation,
-  approval inbox + Postradio, Yandex playlists, custom playlists).
+  frontend, approval inbox + Postradio, Yandex playlists, custom playlists).
 - **Issues are created when a milestone starts**, not before. Propose them (description,
   dependencies, how it'll be verified) with `AskUserQuestion` first.
 - Reference dependencies by issue number ("Depends on #12").

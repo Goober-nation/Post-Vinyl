@@ -21,8 +21,24 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   the old app untouched meanwhile.
 - **Database**: **one clean initial migration** with the full new schema (folds 001–016; no old
   data carried over).
-- **No frontend until the backend is done**: testing through FastAPI's **`/docs`** (Swagger UI),
-  allowed in development only (exempt from default deny there). The frontend is rebuilt after.
+- **No frontend until the core backend is done** (milestone 7): testing through FastAPI's
+  **`/docs`** (Swagger UI), allowed in development only (exempt from default deny there). The
+  frontend is milestone 8 (user, 2026-10-28); milestones 9–11 each add their own page.
+
+## Swappable sources (user, 2026-10-28)
+- **Download sources are pluggable.** Core asks a generic **`DownloadSource`** to "get this
+  song" (song data from the catalog) and only tracks the job from outside (requested, done,
+  failed, file path). It knows nothing about how the source finds or fetches files.
+- **slskd is one self-contained download backend**: a thin `clients/slskd.py` (raw HTTP, no
+  decisions) plus an slskd service that owns every Soulseek decision: readiness (logged in +
+  network parent), search rate cap, throttle detection, query strategy, picking files and
+  peers, stall rule, retries. It never calls MusicBrainz/Deezer itself. Another backend plugs in
+  as another `DownloadSource`.
+- **Catalog sources are swappable too**: MusicBrainz, ListenBrainz and Deezer sit behind a
+  generic `CatalogSource` ABC (search, lookup by id/ISRC) where a caller may use any of them.
+- `DownloadSource` and the slskd service land in milestones 5/6; milestone 3 builds the thin
+  clients only. Where §2–4 below name `search`/`download` services, read them as the slskd
+  backend's internals.
 
 ## 1. Layers and dependency direction
 
