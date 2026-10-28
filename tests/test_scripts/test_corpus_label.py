@@ -52,13 +52,13 @@ def test_wrong(name, reason):
     assert lb.label_track_file(_f(name, 264), KP).label == reason
 
 
-def test_duration_off_by_more_than_3s():
-    f = _f("Radiohead\\OK Computer\\Karma Police.flac", 270)
+def test_duration_off_by_more_than_6s():
+    f = _f("Radiohead\\OK Computer\\Karma Police.flac", 271)
     assert lb.label_track_file(f, KP).label == "duration"
 
 
 def test_duration_within_tolerance():
-    for length in (261, 267):
+    for length in (258, 270):
         f = _f("Radiohead\\OK Computer\\Karma Police.flac", length)
         assert lb.label_track_file(f, KP).label == "correct"
 

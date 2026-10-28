@@ -50,7 +50,10 @@ The rules from `scripts/corpus/label.py`, moved into one shared module that both
 4. the artist appears as an **in-order phrase in the path**; names of ≤2 characters
    ("xx", "X", "U2") must be their own path segment (a whole folder, or bounded by
    " - " / "_"), so "1975 09 xx Memphis" doesn't count as The xx;
-5. the duration is within **±3 s** of MusicBrainz, when the peer reports a length.
+5. the duration is within **±6 s** of the **recording the user picked** (its MusicBrainz
+   length), when the peer reports a length. ±6 s covers silence at the tail end (user,
+   2026-10-29; was ±3 s). Songs with many recordings (e.g. Высоцкий, 295–356 s) are matched
+   against the chosen one only; the catalog service (milestone 6) keeps that recording's length.
 
 Remaster/deluxe/year suffixes count as the **same song**. Non-Latin text is kept as is
 (no ASCII folding for matching).
@@ -62,6 +65,20 @@ slowed, 8d audio, mashup, bootleg, tribute, "made famous by", "in the style of",
 instrumental, demo, loop, flip, backing track, vip mix.
 Joined "live" forms count too: `Livebox`, `LiveAt`, `Live1999` (but never
 Liverpool/Lively/Oliver). **Not** excluded: remaster/remastered.
+
+**Live run on the test slskd (user, 2026-10-28, #90)**: Radiohead live bootlegs passed as
+correct ("Live Music\\Radiohead\\1998-04-06 - Pacific Coliseum\\Side A\\02 - Karma Police.flac").
+Now "live" counts in **any folder** of the path, and a folder with a **full date**
+(YYYY-MM-DD or YYYY.MM.DD) marks a concert recording (unless the song itself is live). Kept as
+is: the folder check for "mix" ("Mixed Music 3" category folders stay excluded). Seen,
+not yet handled: a different remix of a remix song ("Old Town Road (Maxun Remix)" for "Old Town
+Road (Remix)") passes when its length is within the duration tolerance.
+**Settled 2026-10-29** (rule 5 above): Владимир Высоцкий – Кони привередливые found no helpful peer. MusicBrainz
+writes "Владимир Высоцкий", Deezer "Vladimir Vysotsky"; peers mostly file under "Высоцкий".
+L0 picked "владимир" (tie on length), the matcher needs the full name, and MusicBrainz lists
+recordings from 295 to 356 s. Test slskd, names only (no duration): "title + album" found 3
+peers (Шемякин album) and 0 (Мустафиди); "title Высоцкий" found 15 (13 with the full-name rule);
+TA ("title Владимир Высоцкий") found 13 peers, all matching by name: only the length failed.
 
 **Album requests**: a peer qualifies when one folder holds the album: the folder path has
 the album and artist words, no excluded word, and ≥80% of the MusicBrainz track count in
