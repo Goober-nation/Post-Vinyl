@@ -96,6 +96,10 @@ live calls (zero trust for legacy, AGENTS.md). What later milestones need to kno
   limiter is shared and a 503 backs off. Search results have no ISRCs, and many recordings
   have none at all. Searching albums without an artist mostly finds tribute albums: pass the
   artist. "Album" release groups include live albums and compilations (`secondary_types`).
+  **Search ranking is not stable**: tied hits (e.g. 38 recordings all scoring 100) come back in
+  a different order per call/server node, so `limit=N` returns a different subset each time.
+  The catalog service must fetch all tied hits (≤100 per page) and order them itself; never
+  trust MusicBrainz's top N (live 2026-10-28, 5 identical queries → 3 different top-5s).
 - **Deezer**: errors come as HTTP 200 with an error object (800 = no data). The advanced-search
   `artist:"…"` field is broken (it matches titles), so searches send a plain "title artist"
   query. An ISRC lookup returns one track although several can share it. `artist` is the main

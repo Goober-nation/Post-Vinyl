@@ -61,7 +61,8 @@ def catalog(request: pytest.FixtureRequest) -> CatalogSource:
 
 
 def find_songs(catalog: CatalogSource) -> list[Track]:
-    hits = catalog.search_tracks(TITLE, ARTIST, limit=10)
+    # MusicBrainz returns tied hits in varying order: fetch all of them
+    hits = catalog.search_tracks(TITLE, ARTIST, limit=100)
     exact = [t for t in hits if t.title.lower() == TITLE.lower() and ARTIST in t.artist]
     assert exact, f"{catalog.source}: {TITLE} not in {[t.title for t in hits]}"
     return exact
@@ -71,12 +72,16 @@ def test_track_round_trip(catalog: CatalogSource) -> None:
     found = find_songs(catalog)
     assert all(t.source == catalog.source for t in found)
     # Not every catalog entry has an ISRC (many MusicBrainz recordings don't),
-    # but a lookup must return them for a well-known song's main entries.
-    full = [catalog.get_track(t.id) for t in found[:4]]
-    assert [t.id for t in full] == [t.id for t in found[:4]]
-    with_isrc = [t for t in full if t.isrcs]
-    assert with_isrc, f"{catalog.source}: no ISRC on {[t.id for t in full]}"
-    song = with_isrc[0]
+    # and search ranking varies between calls, so look through every exact hit
+    # until one has ISRCs; a well-known song must have some.
+    song = None
+    for hit in found:
+        full = catalog.get_track(hit.id)
+        assert full.id == hit.id
+        if full.isrcs:
+            song = full
+            break
+    assert song, f"{catalog.source}: no ISRC on {[t.id for t in found]}"
     assert song.duration_s and 200 < song.duration_s < 700
     by_isrc = catalog.tracks_by_isrc(song.isrcs[0])
     assert any(t.title.lower() == TITLE.lower() for t in by_isrc)

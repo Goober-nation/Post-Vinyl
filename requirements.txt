@@ -18,10 +18,7 @@ ruff>=0.7.0
 
 # Type checking
 mypy>=1.13.0
+types-requests>=2.32.0
 
 # Audio metadata (for future MBID extraction)
 mutagen>=1.47.0
-
-# Import/tagging (P6.6) — invoked as the `beet` CLI subprocess by
-# app/services/beets.py, not imported as a Python library.
-beets>=2.2.0

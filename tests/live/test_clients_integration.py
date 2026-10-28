@@ -16,6 +16,7 @@ import requests
 
 from app.clients.catalog import CatalogNotFound
 from app.clients.deezer import DeezerClient
+from app.clients.listenbrainz import ListenBrainzClient
 from app.clients.musicbrainz import MusicBrainzClient
 from app.clients.navidrome import NavidromeClient, Session
 from app.clients.slskd import SlskdClient
@@ -124,8 +125,42 @@ def test_library_song_found_in_both_catalogs(
     assert song is not None and song.id == rows[0]["id"]
     title = song.title.split(" (")[0]  # drop a version suffix like "(Radio Edit)"
     for catalog in (mb, dz):
-        hits = catalog.search_tracks(title, song.artist, 25)
+        # search ranking varies between calls (MusicBrainz), so look deep
+        hits = catalog.search_tracks(title, song.artist, 100)
         assert any(
             t.duration_s and abs(t.duration_s - song.duration) <= LENGTH_TOLERANCE_S
             for t in hits
         ), f"{catalog.source}: no {title} near {song.duration:.0f}s"
+
+
+@pytest.fixture(scope="module")
+def lb() -> ListenBrainzClient:
+    return ListenBrainzClient()
+
+
+def test_listenbrainz_metadata_agrees_with_musicbrainz(
+    mb: MusicBrainzClient, lb: ListenBrainzClient
+) -> None:
+    """MB recordings resolve in LB with the same title and length."""
+    songs = mb.search_tracks("Kickstart My Heart", "Mötley Crüe", 100)
+    meta = lb.recording_metadata([t.id for t in songs])
+    assert meta, "no MusicBrainz recording known to ListenBrainz"
+    for song in songs:
+        if song.id in meta and song.duration_s and meta[song.id].length_s:
+            assert meta[song.id].title == song.title
+            assert abs((meta[song.id].length_s or 0) - song.duration_s) <= 1
+
+
+def test_listenbrainz_lookup_maps_deezer_song_to_musicbrainz(
+    dz: DeezerClient, mb: MusicBrainzClient, lb: ListenBrainzClient
+) -> None:
+    """The fallback path: Deezer names -> LB lookup -> a real MB recording."""
+    token = os.environ.get("LISTENBRAINZ_TOKEN")
+    if not token:
+        pytest.skip("LISTENBRAINZ_TOKEN not set in .env.test")
+    assert lb.validate_token(token).valid
+    [song] = dz.search_tracks("Kickstart My Heart", "Mötley Crüe", 1)
+    found = lb.lookup_recording(song.artist, song.title, token)
+    assert found is not None
+    recording = mb.get_track(found.mbid)
+    assert recording.title.lower() == song.title.lower()
