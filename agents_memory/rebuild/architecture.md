@@ -39,6 +39,9 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
 - Catalog clients stay thin (user, 2026-10-28, #81): legacy's "pick the canonical release" and
   "looks like a variant" logic is a decision and moves to core / the catalog service
   (milestones 5/6); the MusicBrainz response cache is dropped (resolved songs live in the DB).
+- **ListenBrainz: one ABC, fully implemented** (user, 2026-10-28, #83): recording metadata,
+  name → MBID lookup, token validation. No split into capability interfaces while ListenBrainz
+  is the only source for them.
 - `DownloadSource` and the slskd service land in milestones 5/6; milestone 3 builds the thin
   clients only. Where §2–4 below name `search`/`download` services, read them as the slskd
   backend's internals.

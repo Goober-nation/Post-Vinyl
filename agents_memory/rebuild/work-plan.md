@@ -77,11 +77,47 @@ created when a milestone starts.
 7. **Validation**: end-to-end on the test stack, failure paths, report separating verified from
    unverified; log runs in `live-runs-log.md`.
 
+## Milestone 3 findings (service clients, 2026-10-28, #78–#82)
+Every client was checked against the service's source or docs at the running version, plus
+live calls (zero trust for legacy, AGENTS.md). What later milestones need to know:
+- **slskd 0.26.1**: queueing returns HTTP 200 when *every* file failed (207 when some
+  did), with the failures listed in the body; the response carries the transfer ids. A file the
+  peer doesn't have is accepted (201) and fails later in the transfer state; the reason is in
+  `Transfer.exception` (e.g. "Banned", "Overwhelmed"). Search responses are stored only when a
+  search ends, so the backend waits for the end or cancels first. `searchTimeout` is
+  milliseconds and counts from the last response. 429 = another start/queue call is still
+  running (one at a time); 409 on a search start = not logged in.
+- **Navidrome 0.64.2**: Subsonic errors come as HTTP 200 with `status: failed` (legacy's scan
+  trigger ignored this). Login gives a JWT plus a Subsonic token, so nothing after login needs
+  the password; logins are limited to 5 per 20 s. Path lookup uses the native API and is a
+  prefix match (the client keeps exact matches); Subsonic's `path` is built from tags.
+  `lastScan` before the first scan is `0001-01-01T00:00:00Z`.
+- **MusicBrainz**: 1 request/s per IP, and every request is refused while over it, so the
+  limiter is shared and a 503 backs off. Search results have no ISRCs, and many recordings
+  have none at all. Searching albums without an artist mostly finds tribute albums: pass the
+  artist. "Album" release groups include live albums and compilations (`secondary_types`).
+- **Deezer**: errors come as HTTP 200 with an error object (800 = no data). The advanced-search
+  `artist:"…"` field is broken (it matches titles), so searches send a plain "title artist"
+  query. An ISRC lookup returns one track although several can share it. `artist` is the main
+  artist only; featured artists are only in `contributors`. API docs now need a login.
+- **For normalization** (milestone 5): MusicBrainz writes "JAY‐Z" with U+2010 (hyphen) and
+  Deezer writes "JAŸ-Z" with a diaeresis; Deezer returns Japanese artists romanized ("Hikaru
+  Utada" for 宇多田ヒカル).
+- **Unverified live**: a peer vanishing mid-transfer (#79); `startScan` as a non-admin (#80);
+  Deezer's quota response, code 4 (#82). All are covered by unit tests only.
+- **Loose ends**: `types-requests` is needed for mypy but missing from `requirements.txt`;
+  `beets` is still listed there (the rebuild doesn't use it); `scripts/corpus/plan.py` and
+  `resolve_seeds.py` still import legacy and could move to the new MusicBrainz client.
+- **Tests**: `tests/test_clients/test_catalog_contract.py` runs one contract over every
+  `CatalogSource`; `tests/live/` holds the cross-client tests. Both run live with `PV_LIVE=1`
+  and `.env.test` sourced, and are skipped otherwise.
+
 ## Known bugs (from the 2026-10-19 live runs; fix in the relevant step)
 - `GET /api/searches` (list) shows `searching` for searches the detail endpoint shows `completed`
   (step 3/6).
 - Download path mapping misses peer paths with a subfolder like `CD3\` and backslashes; the
   basename fallback hides it (step 4/5).
-- Unverified whether slskd removes finished transfers (history cleaner) (step 5).
+- ~~Unverified whether slskd removes finished transfers~~: verified 2026-10-28 (#79):
+  `cancel_download(forget=True)` drops the record (the file stays on disk).
 - `GET /api/musicbrainz/search/recordings` takes `title`, not `query` like the search route:
   document or align in the API contract (step 6).
