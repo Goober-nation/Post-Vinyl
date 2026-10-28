@@ -29,8 +29,9 @@ class SlskdError(Exception):
 
 
 class SlskdBusy(SlskdError):
-    """slskd refused a call because it's busy or rate-limiting (409/429).
-    On queue_download, 429 means another queue call is still running."""
+    """slskd can't take the call now; retry later (409/429). 429: another
+    search start or queue call is still running (slskd allows one at a time).
+    409 on start_search: slskd isn't connected/logged in to Soulseek."""
 
 
 class SlskdNotFound(SlskdError):
@@ -108,7 +109,9 @@ class SlskdClientBase(ABC):
 
     @abstractmethod
     def get_responses(self, search_id: str) -> list[PeerResponse]:
-        """Every response slskd holds for the search; re-readable at any time."""
+        """Every response of the search. slskd stores them only when the search
+        ends (on its own or via cancel_search), so this is ``[]`` while it runs;
+        after that it can be re-read at any time."""
 
     @abstractmethod
     def cancel_search(self, search_id: str) -> None:
