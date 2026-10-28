@@ -67,6 +67,14 @@ Liverpool/Lively/Oliver). **Not** excluded: remaster/remastered.
 the album and artist words, no excluded word, and ≥80% of the MusicBrainz track count in
 audio files.
 
+**Input from the new slskd client (#78, live 2026-10-28)**: bugs 1–2 in §2 are fixed in
+`app/clients/slskd.py`, which returns every file per peer (locked ones flagged `locked`, so
+rule 1 filters on the flag) and its `length` (`None` when missing). In one live search, 214
+of 1348 files had no `length`, so rule 5's "when the peer reports a length" is common.
+**757 of 1348 files had an empty `extension`**, so "is it audio" (rule 1) must read the
+extension from the filename, not the field. slskd's search summary count can differ from
+the response list (441 vs 435); count from the list.
+
 **Success unit = helpful peer**: a peer with ≥1 correct file, counted once (40 copies on
 one peer are worth one). Replaces the old pass ratio (viable files / all files ≥ 0.6).
 
