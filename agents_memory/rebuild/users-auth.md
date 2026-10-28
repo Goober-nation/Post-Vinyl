@@ -25,6 +25,13 @@ header in `app/main.py`). The old `users`/`sessions` tables were dropped in migr
   clears them; accepted, as they reset after minutes anyway.
 - **Per-IP login limit: a small in-memory limiter**, not `slowapi` (no new dependency; one
   app process).
+- **Encryption is built** (#85): `app/services/encryption.py` (named so it doesn't shadow the
+  stdlib `secrets` the auth service needs). `SecretBox.from_env()` reads `PV_SECRET_KEY`:
+  one or more Fernet keys, **comma-separated, newest first**. Encrypts with the first, decrypts
+  with any; `rotate()` re-encrypts under the newest so an old key can then be dropped. A
+  missing/invalid key raises `SecretKeyError` (refuse to start); a wrong key or altered value
+  raises `DecryptError` (never a silent empty value). `generate_key()` is for the setup wizard.
+  Dependency: `cryptography>=44`.
 - The new app never had HTTP Basic auth, so "remove Basic auth" is only about `legacy/`.
 
 ## Decisions
