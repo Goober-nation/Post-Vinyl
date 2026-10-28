@@ -7,6 +7,23 @@ columns or decisions change; don't append a changelog.
 run by `app/stores/database.py`. The SQL sections further down (015, "planned") are history:
 where they differ from `001_initial.sql` and the decisions below, the migration wins.
 
+## Stores (#86, decided 2026-10-28)
+
+- One plain class per table group in `app/stores/` (users, songs, requests, downloads, slskd,
+  files, setup). No ABCs or fakes: tests use a real SQLite file.
+- **The caller passes the connection** (user): every method takes `conn`, so a service combines
+  stores in one `Database.transaction()` (all or nothing). Stores hold no connection.
+- Methods return **frozen dataclasses**, never `sqlite3.Row`. Times are passed in as `now`.
+- History is **page-number pagination** (user): `LIMIT/OFFSET` ordered `last_used_at DESC, id
+  DESC`. A row bumped mid-browse can shift between pages; that is accepted.
+- Typed Soulseek queries go only through `record_slskd_query` (an upsert on the partial unique
+  index); `create()` refuses `source='slskd'`, which enforces "no origin" outside the DB.
+- `downloads.complete()` is the only way to reach `completed` (it sets the location, and the
+  trigger hands the file over). `songs.find_or_create` raises `IdentityConflict` when ids point
+  at two songs; the service decides.
+- `requests.user_id` doesn't cascade: deleting a user who has requests fails (history is
+  never pruned). Revisit if user deletion is ever needed.
+
 ## Remember later (from building #84, 2026-10-28)
 - **Migrations**: `migrations/NNN_name.sql`, numbered without gaps; the applied number lives in
   `PRAGMA user_version`. **Never edit an applied migration**: every change is a new file. Each
