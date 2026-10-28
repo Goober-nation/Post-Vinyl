@@ -166,3 +166,47 @@ def test_limiter_spaces_calls(
     now[0] += 0.04
     deezer._wait_turn()
     assert no_waiting[-1] == pytest.approx(0.06)
+
+
+def test_unknown_record_type_keeps_empty_type() -> None:
+    album = deezer.parse_album({"id": 1, "title": "T", "record_type": "audiobook"})
+    assert album.primary_type == "" and album.secondary_types == ()
+
+
+def test_album_artist_from_search_item_wins() -> None:
+    raw = {"id": 1, "title": "T", "artist": {"name": "From item"}}
+    assert deezer.parse_album(raw, "Fallback").artist == "From item"
+
+
+def test_paging_stops_on_empty_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    # a "next" link on an empty page must not loop forever
+    client, calls = client_returning(
+        monkeypatch,
+        FakeResp({"data": [{"id": 1, "title": "T"}], "next": "…"}),
+        FakeResp({"data": [], "next": "…"}),
+    )
+    assert len(client.edition_tracks("9")) == 1 and len(calls) == 2
+
+
+def test_connection_error_is_catalog_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = DeezerClient()
+
+    def boom(*args: Any, **kwargs: Any) -> None:
+        raise deezer.requests.ConnectionError("refused")
+
+    monkeypatch.setattr(client._http, "get", boom)
+    with pytest.raises(CatalogError):
+        client.search_artists("x")
+
+
+def test_search_without_artist_is_title_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    client, calls = client_returning(monkeypatch, FakeResp({"data": []}))
+    assert client.search_albums("Dr. Feelgood") == []
+    assert calls[0][1] == {"q": "Dr. Feelgood", "limit": 25}
+
+
+def test_search_artists_parse(monkeypatch: pytest.MonkeyPatch) -> None:
+    body = {"data": [{"id": 1234, "name": "Mötley Crüe"}]}
+    client, _ = client_returning(monkeypatch, FakeResp(body))
+    [artist] = client.search_artists("Mötley Crüe")
+    assert (artist.id, artist.name, artist.source) == ("1234", "Mötley Crüe", "deezer")
