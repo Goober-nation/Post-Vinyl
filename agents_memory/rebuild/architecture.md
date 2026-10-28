@@ -81,7 +81,7 @@ Rules:
 | Store | Tables |
 |---|---|
 | `database.py` | connection, migrations, `PRAGMA foreign_keys = ON` |
-| `users.py` | `users`, `sessions`, `user_settings` (if kept) |
+| `users.py` | `users`, `sessions`, `user_settings` |
 | `songs.py` | `songs`, `song_identity` |
 | `requests.py` | `requests`, `origins`, `catalog_searches` |
 | `searches.py` | `slskd_searches` |
@@ -213,7 +213,8 @@ never calls slskd, downloads or files directly.
 - Postradio has many features (more planned), so it gets its **own client**:
   `clients/postradio.py` (ABC + fake). Recommendations come **from Postradio**.
 - `services/recs`: reads the user's taste (library via Navidrome), asks Postradio, resolves each
-  track with `catalog.resolve()` → `song_id`, writes proposals. Origin type table `rec_tracks`.
+  track with `catalog.resolve()` → `song_id`, writes proposals. Recommendations are **not an origin** (user, 2026-10-28): no `rec_tracks`
+  origin table.
   Worker `rec_puller` on a schedule.
 - Other Postradio features become their own services on the same client later.
 
@@ -245,7 +246,7 @@ never calls slskd, downloads or files directly.
 | Layer | Additions |
 |---|---|
 | `clients/` | `postradio.py`, `yandex.py` |
-| `stores/` | `proposals.py`; `playlists.py` (`synced_playlists`, `playlist_items`); `rec_tracks` in `requests.py` (origins) |
+| `stores/` | `proposals.py`; `playlists.py` (`synced_playlists`, `playlist_items`) |
 | `services/` | `proposals`, `recs`, `yandex_import`, `playlists` |
 | `workers/` | `rec_puller`, `playlist_sync` (daily) |
 | `routes/` | approval page, rec settings, Yandex account + followed playlists |
@@ -278,6 +279,5 @@ PV-owned playlist is edited directly in Navidrome (overwrite + warning, or detec
 rule format (JSON in the shape of Navidrome's `.nsp`, or fixed presets first).
 
 ## Open
-- `user_settings` table (old concept): keep?
 - Config layer redesign (`work-plan.md`) is not planned yet; the config object is passed into
   services until then.

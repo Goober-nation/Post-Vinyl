@@ -3,12 +3,62 @@
 Working note for the post-beets, post-recs database redesign (Core Rebuild board). Edit in place as
 columns or decisions change; don't append a changelog.
 
-**Status (2026-10-25):** migration **015** is committed (`c5491b3`, "WIP: core DB redesign
-baseline", with `request_store.py`, `file_store.py`, `peer_store.py`); `Database.connect()` now
-sets `PRAGMA foreign_keys = ON`. Migration **016** (users & sessions) and the songs/states
-changes are planned, not written (see `users-auth.md` and the planned sections below). Where a
-planned section conflicts with an older decision further down (`mb_provenance`, `stage`,
-`source` copying), the planned section wins.
+**Status (2026-10-28):** the schema is built as `app/stores/migrations/001_initial.sql` (#84),
+run by `app/stores/database.py`. The SQL sections further down (015, "planned") are history:
+where they differ from `001_initial.sql` and the decisions below, the migration wins.
+
+## Remember later (from building #84, 2026-10-28)
+- **Migrations**: `migrations/NNN_name.sql`, numbered without gaps; the applied number lives in
+  `PRAGMA user_version`. **Never edit an applied migration**: every change is a new file. Each
+  runs in one transaction with its version bump. An app older than the DB refuses to start.
+- **Needs SQLite ≥ 3.38** (`unixepoch()`; upsert inside a trigger). The test container has 3.46.
+- **Connections**: one per thread (`Database.connect()`), foreign keys on, WAL. Stores must not
+  share a connection across threads.
+- **Hand-off only fires when the request has a `song_id`**: services must set the song before a
+  download completes (Soulseek tab: matched song, or a `[u]` song from the file's data).
+- **A re-download resets the song's file row** (state `downloaded`, `verification` and
+  `navidrome_id` cleared): the files service must expect an indexed file to come back and re-link
+  the new `navidrome_id`. The old file on disk is the files service's to remove.
+- **`file_location` is relative to the source's download dir**; after the move Navidrome owns the
+  path (only `navidrome_id` is kept).
+- **Deletes that are refused on purpose**: a song with a file (no cascade from `songs`), and a user
+  with requests (requests are never pruned). Sessions cascade with the user.
+- **Rules enforced by store tests, not the DB**: a typed Soulseek request has no origin (#86).
+- **`user_settings`** (user, 2026-10-28): key/value per user `(user_id, key, value JSON,
+  updated_at)`, cascading with the user. For loose preferences only; anything that needs
+  encryption or constraints gets a real column on `users` (like `lb_token_enc`).
+- **Lockout state is in memory** (auth service), so it resets on restart.
+- Times are unix seconds everywhere; every FK column is indexed (a test checks this).
+
+## Decided 2026-10-28 (milestone 4 planning; wins over everything below)
+- **One clean initial migration** with the full schema (architecture.md); 015/016 are not
+  kept as separate files. `stores/database.py` runs it and sets `PRAGMA foreign_keys = ON`.
+- **Download sources are swappable** (architecture.md, "Swappable sources"), so:
+  - **`downloads` is generic**: one row per "get this file" with `request_id`, `source`
+    (`slskd`, …), a generic `state` (queued | downloading | completed | failed | cancelled),
+    timestamps and the finished file's location. Core and the hand-off trigger see only this.
+  - **Each source keeps its own prefixed tables**: `slskd_searches` → `requests` (a search
+    runs before any download row exists; keeps `strategy`), `slskd_attempts` → `downloads`
+    (peer, remote file, transfer id, rank, outcome, timings; replaces `download_attempts`),
+    `slskd_peers` with **no FK** (a peer's record spans downloads; replaces `peers`).
+  - **The hand-off trigger copies the generic location** from `downloads` into
+    `file_management`; nothing on the file side reads slskd fields. A source may deliver
+    files that skip a file state where `core/states.py` allows it.
+- `users` has **no `failed_logins` / `locked_until`**: the lockout is in memory in the auth
+  service (user, 2026-10-28).
+- **Soulseek-tab downloads always get a song** (user, 2026-10-28): when a file is queued, the
+  catalog service tries to match it; a match links the song and its identities. **No match**: a
+  song row is made from the file's own data (tags, else path) with **no `song_identity` rows**
+  (that is what "unknown" means; no flag column). Its own tags are kept (no catalog tags), and it
+  moves under one top-level **`[u]/Artist/Album/`** folder. It can be re-matched later: add the
+  identities, then move, scan, then retag (Navidrome keeps the id through a move or a retag
+  alone, not both between scans).
+- **`CHECK (source <> 'slskd' OR origin_id IS NULL)` dropped** (user, 2026-10-28): it guarded
+  one code path and hard-coded a source name; a requests-store test covers the rule instead.
+- **Recommendations are not an origin** (user, 2026-10-28): no `rec` origin kind, no
+  `rec_tracks` table.
+- Superseded by the above: `downloads.username/filename/slskd_id/search_id`,
+  `download_attempts`, `peers` as named, and `file_management.username/filename`.
 
 ## Schema
 

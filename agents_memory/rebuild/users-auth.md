@@ -15,6 +15,18 @@ header in `app/main.py`). The old `users`/`sessions` tables were dropped in migr
 - Cookies HttpOnly, Secure, SameSite=Lax. State-changing requests need a CSRF check.
 - Losing the encryption key loses every stored secret, so back the key up outside the DB.
 
+## Decided 2026-10-28 (milestone 4 planning; wins over the plan below)
+- Credentials are checked with the Navidrome client's `login()` (`POST /auth/login`, #80),
+  not Subsonic `ping`; it also returns the JWT and a Subsonic token for the session's calls.
+- **The encrypted Navidrome password is still stored** (re-encrypted on each login): background
+  native-API work must renew the 48 h JWT without the user present.
+- **Lockout is in memory too** (user, 2026-10-28): failed-login counts and lock expiry live in
+  the auth service, not in `users` (no `failed_logins` / `locked_until` columns). A restart
+  clears them; accepted, as they reset after minutes anyway.
+- **Per-IP login limit: a small in-memory limiter**, not `slowapi` (no new dependency; one
+  app process).
+- The new app never had HTTP Basic auth, so "remove Basic auth" is only about `legacy/`.
+
 ## Decisions
 - **Password checked against Navidrome on every login** (Subsonic `ping` with the typed
   credentials). Accepted tradeoff: PV login fails while Navidrome is down.
