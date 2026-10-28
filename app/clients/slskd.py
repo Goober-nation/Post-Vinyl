@@ -10,11 +10,17 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
-# slskd's own default (100) silently truncates a peer's file list; keep
-# everything a peer sends.
+# slskd answers a queue call only after negotiating with the peer, which can
+# take 20 s+ through an indirect connection; a shorter timeout reports a false
+# failure (legacy finding).
+_QUEUE_TIMEOUT_S = 45
+
+# slskd stops a search at 10,000 files by default (SearchRequest, 0.26.1);
+# keep everything peers send.
 _FILE_LIMIT = 100_000
 
 
@@ -23,7 +29,13 @@ class SlskdError(Exception):
 
 
 class SlskdBusy(SlskdError):
-    """slskd refused a call because it's busy or rate-limiting (409/429)."""
+    """slskd refused a call because it's busy or rate-limiting (409/429).
+    On queue_download, 429 means another queue call is still running."""
+
+
+class SlskdNotFound(SlskdError):
+    """HTTP 404: unknown search or transfer id, or (queue_download) the peer
+    is offline."""
 
 
 @dataclass(frozen=True)
@@ -64,13 +76,32 @@ class PeerResponse:
     files: tuple[PeerFile, ...]  # every file, locked ones included
 
 
+@dataclass(frozen=True)
+class Transfer:
+    id: str
+    username: str
+    filename: str  # full peer path, as queued
+    state: str  # raw slskd state, e.g. "Queued, Remotely", "Completed, Succeeded"
+    size: int
+    bytes_transferred: int
+    average_speed: int  # bytes/s
+    exception: str | None  # slskd's reason for a failed or rejected transfer
+
+
+@dataclass(frozen=True)
+class QueueResult:
+    transfers: list[Transfer]  # queued files, with their transfer ids
+    failures: dict[str, str]  # filename -> slskd's message; not queued
+
+
 class SlskdClientBase(ABC):
     @abstractmethod
     def app_state(self) -> AppState: ...
 
     @abstractmethod
-    def start_search(self, query: str, response_limit: int, timeout_s: int) -> str:
-        """Start a search and return its id."""
+    def start_search(self, query: str, response_limit: int, idle_timeout_s: int) -> str:
+        """Start a search and return its id. slskd ends it after
+        ``idle_timeout_s`` with no new response (not a total limit)."""
 
     @abstractmethod
     def get_search(self, search_id: str) -> SearchState: ...
@@ -82,6 +113,29 @@ class SlskdClientBase(ABC):
     @abstractmethod
     def cancel_search(self, search_id: str) -> None:
         """Stop a running search; slskd keeps it and its responses."""
+
+    @abstractmethod
+    def queue_download(
+        self,
+        username: str,
+        files: list[tuple[str, int]],
+        search_id: str | None = None,
+    ) -> QueueResult:
+        """Queue (filename, size) files from one peer. A file the peer doesn't
+        have is still accepted here and fails later in the transfer state."""
+
+    @abstractmethod
+    def list_downloads(self) -> list[Transfer]: ...
+
+    @abstractmethod
+    def get_download(self, username: str, transfer_id: str) -> Transfer: ...
+
+    @abstractmethod
+    def cancel_download(
+        self, username: str, transfer_id: str, forget: bool = False
+    ) -> None:
+        """Cancel a transfer; with ``forget`` slskd also drops its record.
+        The downloaded file, if any, stays on disk."""
 
 
 def _int(value: Any) -> int | None:
@@ -123,6 +177,19 @@ def parse_search(raw: dict[str, Any]) -> SearchState:
     )
 
 
+def parse_transfer(raw: dict[str, Any]) -> Transfer:
+    return Transfer(
+        id=raw["id"],
+        username=raw.get("username", ""),
+        filename=raw.get("filename", ""),
+        state=raw.get("state", ""),
+        size=raw.get("size", 0),
+        bytes_transferred=raw.get("bytesTransferred", 0),
+        average_speed=int(raw.get("averageSpeed") or 0),
+        exception=raw.get("exception"),
+    )
+
+
 class SlskdClient(SlskdClientBase):
     def __init__(self, base_url: str, api_key: str, timeout_s: float = 15) -> None:
         self._base = base_url.rstrip("/") + "/api/v0"
@@ -130,13 +197,17 @@ class SlskdClient(SlskdClientBase):
         self._session = requests.Session()
         self._session.headers["X-API-Key"] = api_key
 
-    def _call(self, method: str, path: str, **kwargs: Any) -> Any:
+    def _call(
+        self, method: str, path: str, timeout_s: float | None = None, **kwargs: Any
+    ) -> Any:
         try:
             resp = self._session.request(
-                method, self._base + path, timeout=self._timeout, **kwargs
+                method, self._base + path, timeout=timeout_s or self._timeout, **kwargs
             )
         except requests.RequestException as e:
             raise SlskdError(f"{method} {path}: {e}") from e
+        if resp.status_code == 404:
+            raise SlskdNotFound(f"{method} {path}: HTTP 404 {resp.text[:200]}")
         if resp.status_code in (409, 429):
             raise SlskdBusy(f"{method} {path}: HTTP {resp.status_code}")
         if not resp.ok:
@@ -152,11 +223,13 @@ class SlskdClient(SlskdClientBase):
             has_parent=bool((data.get("distributedNetwork") or {}).get("hasParent")),
         )
 
-    def start_search(self, query: str, response_limit: int, timeout_s: int) -> str:
+    def start_search(self, query: str, response_limit: int, idle_timeout_s: int) -> str:
         body = {
             "searchText": query,
             "responseLimit": response_limit,
-            "searchTimeout": timeout_s * 1000,
+            # milliseconds, despite slskd's doc comment saying seconds: it's
+            # passed straight to Soulseek.NET (checked live 2026-10-28)
+            "searchTimeout": idle_timeout_s * 1000,
             "fileLimit": _FILE_LIMIT,
         }
         return str(self._call("POST", "/searches", json=body)["id"])
@@ -170,3 +243,45 @@ class SlskdClient(SlskdClientBase):
 
     def cancel_search(self, search_id: str) -> None:
         self._call("PUT", f"/searches/{search_id}")
+
+    def queue_download(
+        self,
+        username: str,
+        files: list[tuple[str, int]],
+        search_id: str | None = None,
+    ) -> QueueResult:
+        body = {
+            "username": username,
+            "searchId": search_id,
+            "files": [{"filename": name, "size": size} for name, size in files],
+        }
+        # 201 all queued, 207 some failed, 200 all failed; the body lists both
+        data = self._call(
+            "POST", "/transfers/downloads/batches", _QUEUE_TIMEOUT_S, json=body
+        )
+        return QueueResult(
+            transfers=[
+                parse_transfer({"username": username, **t})
+                for t in (data.get("batch") or {}).get("transfers") or []
+            ],
+            failures={f["filename"]: f.get("message", "") for f in data["failures"]},
+        )
+
+    def list_downloads(self) -> list[Transfer]:
+        groups = self._call("GET", "/transfers/downloads") or []
+        return [
+            parse_transfer({"username": g.get("username", ""), **f})
+            for g in groups
+            for d in g.get("directories") or []
+            for f in d.get("files") or []
+        ]
+
+    def get_download(self, username: str, transfer_id: str) -> Transfer:
+        path = f"/transfers/downloads/{quote(username, safe='')}/{transfer_id}"
+        return parse_transfer({"username": username, **self._call("GET", path)})
+
+    def cancel_download(
+        self, username: str, transfer_id: str, forget: bool = False
+    ) -> None:
+        path = f"/transfers/downloads/{quote(username, safe='')}/{transfer_id}"
+        self._call("DELETE", path, params={"remove": "true"} if forget else None)
