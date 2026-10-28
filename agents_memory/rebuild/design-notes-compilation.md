@@ -104,6 +104,16 @@ runs only when the previous one found no helpful peer. Found 79 of 100 seeds (ce
 B, F:T, AT and LW are not in the ladder. **This replaces the provisional order below**, which
 is kept for history (from the first, flawed benchmark).
 
+**Success threshold + pooling (user, 2026-10-29; implemented by the milestone 6 search
+service)**: one helpful peer may be flaky, so a query **ends the ladder only with ≥5 helpful
+peers**. Otherwise the next shape runs, and after the last one the download gets **every
+helpful peer from all queries that ran, pooled** (deduplicated by peer, ranked by
+`core/ranking.py`). The song is `found` with ≥1 helpful peer overall, `notFound` with none.
+Simulated on the search test v2 rows (100 track seeds): found stays 79 at any threshold;
+average queries per song 1.48 at a threshold of 1 → 1.97 at 5; 28 of the 79 found songs end
+below 5 helpful peers even after the whole ladder (13 had exactly 1 on L0). The extra
+searches count against the search rate cap.
+
 **Provisional (user, 2026-10-25): the benchmark was flawed.** The rules get re-established and the
 test rerun before the final query order is assembled. The L0 → T / AT order below is the
 direction, not the final ladder.
