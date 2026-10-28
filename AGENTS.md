@@ -99,6 +99,13 @@ handling, security or accessibility.
   ListenBrainz, Deezer, Yandex, Postradio) need a real-service run; if you can't do one, say
   "unverified on real services".
 - Don't imply coverage you didn't achieve.
+- **Zero trust for legacy** (user, 2026-10-28): anything taken from `legacy/`, old notes
+  (`agents_memory/topics/`) or old scripts (endpoints, parameters, units, status codes, field
+  names, error behaviour) is a claim, not a fact. Before porting it, check it against the
+  outside service's source **at the version that's running** (or its docs when there's no
+  source) and confirm it with a live call. Record what was wrong in the issue and correct the
+  note. (Found on the slskd client: an all-failed queue returned HTTP 200, and a "no transfer
+  id" note was wrong.)
 - **Done** = relevant tests pass, `ruff check` and `mypy` clean for touched files, and a
   real-service run recorded for integration changes. Unverified items are marked as such.
 
