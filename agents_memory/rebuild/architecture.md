@@ -36,6 +36,9 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   as another `DownloadSource`.
 - **Catalog sources are swappable too**: MusicBrainz, ListenBrainz and Deezer sit behind a
   generic `CatalogSource` ABC (search, lookup by id/ISRC) where a caller may use any of them.
+- Catalog clients stay thin (user, 2026-10-28, #81): legacy's "pick the canonical release" and
+  "looks like a variant" logic is a decision and moves to core / the catalog service
+  (milestones 5/6); the MusicBrainz response cache is dropped (resolved songs live in the DB).
 - `DownloadSource` and the slskd service land in milestones 5/6; milestone 3 builds the thin
   clients only. Where §2–4 below name `search`/`download` services, read them as the slskd
   backend's internals.
