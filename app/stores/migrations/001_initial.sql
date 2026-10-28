@@ -90,7 +90,7 @@ CREATE TABLE requests (
     query         TEXT,                         -- typed query, or "artist – title"
     track_state   TEXT    NOT NULL DEFAULT 'requested' CHECK (track_state IN (
                       'requested', 'dropped', 'reRequested', 'searching', 'found',
-                      'notFound', 'midDownload', 'notDownloaded', 'badDownload')),
+                      'notFound', 'midDownload', 'downloaded', 'notDownloaded', 'badDownload')),
     created_at    INTEGER NOT NULL,
     last_used_at  INTEGER NOT NULL              -- bumped when a typed Soulseek query repeats
 );

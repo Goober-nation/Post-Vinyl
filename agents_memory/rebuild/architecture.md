@@ -126,7 +126,7 @@ As today (`search`, `downloads`, `musicbrainz` → catalog, `library`, `config`,
 |---|---|
 | `track_state` `requested`/`dropped`/`reRequested` | requests service |
 | `track_state` `searching`/`found`/`notFound` | search service |
-| `track_state` `midDownload`/`notDownloaded`/`badDownload` | download service |
+| `track_state` `midDownload`/`downloaded`/`notDownloaded`/`badDownload` | download service |
 | `file_state` (`downloaded` → … → `indexed`/`missing`/`deleted`) | files service (`tagged` via tagging; `deleted` after an approved delete proposal) |
 | `failTag` | tagging service, in the `tagging` table only |
 | `peers` | download service |
@@ -135,6 +135,14 @@ As today (`search`, `downloads`, `musicbrainz` → catalog, `library`, `config`,
 
 Every transition goes through `core/states.py`, so an illegal jump (e.g. `requested` → `indexed`)
 raises instead of being written.
+
+**State graphs (user, 2026-10-28, #93)**: track: `requested`/`reRequested` → `searching` →
+`found`/`notFound`; `found` → `midDownload` → `downloaded`/`notDownloaded`/`badDownload`
+(`downloaded` added to the CHECK list: the request ends there; `badDownload` = the transfer
+ended badly); `dropped` from any state before the end; every ended state → `reRequested`.
+File: `downloaded` → `verified` → `tagged` → `moved` → `indexed`; `verified` → `moved` when
+tagging failed; any state but `deleted` → `missing`; `moved`/`indexed`/`missing` → `deleted`;
+a replacement file resets any state to `downloaded` (the hand-off trigger, in SQL).
 
 ## 4. End-to-end flow (one song)
 

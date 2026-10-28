@@ -40,7 +40,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from scripts.corpus import normalize as n
+from app.core import normalize as n
 
 SNAPSHOT = Path("tests/fixtures/normalization/songs.json")
 OUT = Path("tests/fixtures/search_test_v2/seeds.json")

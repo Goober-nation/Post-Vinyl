@@ -2,7 +2,7 @@
 
 import pytest
 
-from scripts.corpus import normalize as n
+from app.core import normalize as n
 
 NO_RULES: frozenset[str] = frozenset()
 
@@ -93,3 +93,10 @@ def test_query_names_keeps_full_credit():
     assert q == n.QueryNames(
         "Jaded", "Koe Wetzel", "9 lives", "Koe Wetzel feat. Ella Langley"
     )
+
+
+def test_source_spelling_kept():
+    # MusicBrainz writes U+2010; folding is the matcher's job, not the query's
+    jay = n.query_names("Empire State of Mind", [n.Credit("JAY‐Z")], None)
+    assert jay.artist == "JAY‐Z"
+    assert n.query_names("с тобой", [n.Credit("Би-2")], None).artist == "Би-2"

@@ -21,7 +21,7 @@ Everything else stays as the source writes it: original script (Высоцкий
 ignores case and punctuation and matches accents loosely; folding them for
 comparing files is the matcher's job, not this module's.
 
-Pure and stdlib-only; moves to ``app/core/normalize.py`` once settled.
+Pure and stdlib-only; the corpus scripts import it from here (#89).
 """
 
 from __future__ import annotations
