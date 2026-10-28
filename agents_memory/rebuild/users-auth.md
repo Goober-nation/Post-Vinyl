@@ -32,6 +32,18 @@ header in `app/main.py`). The old `users`/`sessions` tables were dropped in migr
   missing/invalid key raises `SecretKeyError` (refuse to start); a wrong key or altered value
   raises `DecryptError` (never a silent empty value). `generate_key()` is for the setup wizard.
   Dependency: `cryptography>=44`.
+- **Auth service is built** (#87): `app/services/auth.py`, `AuthService` behind
+  `AuthServiceBase`. Service only; the cookie, default-deny middleware, CSRF check and
+  login/logout routes come with the app skeleton (#88) (user, 2026-10-28).
+- **Failed logins: one server-wide cap** (user, 2026-10-28; replaces the per-account
+  10 → 5 min lock and the per-IP limit): **20 failed logins in an hour lock every login until
+  that hour's window ends**. In memory, fixed window; a success doesn't reset it; Navidrome
+  being down doesn't count. Accepted downside: anyone can lock everyone out for up to an hour.
+  Wrong password and unknown user give the same error. The lock only blocks new logins: running
+  sessions keep working (user, 2026-10-28).
+- **Session touch at most hourly** (user, 2026-10-28): `authenticate()` pushes `expires_at` to
+  now + 30 days only when `last_seen_at` is an hour old; expired rows are deleted when met.
+- The stored username is Navidrome's spelling (from its login response), not the typed one.
 - The new app never had HTTP Basic auth, so "remove Basic auth" is only about `legacy/`.
 
 ## Decisions
