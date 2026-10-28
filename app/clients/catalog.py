@@ -29,7 +29,9 @@ class Track:
     source: str  # "musicbrainz", "deezer", …
     id: str  # the source's id for the song (MB: recording MBID)
     title: str
-    artist: str  # credited artist line as displayed, e.g. "A feat. B"
+    # credited artist line as displayed, e.g. "A feat. B" (MusicBrainz);
+    # Deezer gives the main artist only, featured ones only in artist_ids
+    artist: str
     artist_ids: tuple[str, ...]
     duration_s: float | None
     isrcs: tuple[str, ...]  # empty when the call doesn't return them
