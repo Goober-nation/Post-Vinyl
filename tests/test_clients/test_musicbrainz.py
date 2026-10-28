@@ -129,3 +129,110 @@ def test_edition_tracks_keep_disc_and_position(
     client, _ = client_returning(monkeypatch, FakeResp(200, release))
     tracks = client.edition_tracks("rel1")
     assert [(t.disc, t.position) for t in tracks] == [(1, 1), (2, 1)]
+
+
+def test_recording_with_missing_fields() -> None:
+    # MB omits length and artist ids on some recordings; nothing may crash
+    raw = {"id": "r2", "title": "T", "artist-credit": [{"name": "Anon"}]}
+    track = musicbrainz.parse_recording(raw)
+    assert track.duration_s is None and track.artist == "Anon"
+    assert track.artist_ids == () and track.isrcs == () and track.disambiguation == ""
+
+
+def test_browse_stops_on_empty_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    # a count that never gets reached must not loop forever
+    group = {"id": "g", "title": "T"}
+    page1 = {"release-groups": [group], "release-group-count": 5}
+    page2 = {"release-groups": [], "release-group-count": 5}
+    client, calls = client_returning(
+        monkeypatch, FakeResp(200, page1), FakeResp(200, page2)
+    )
+    assert len(client.artist_albums("a1")) == 1 and len(calls) == 2
+
+
+def test_connection_error_is_catalog_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MusicBrainzClient()
+
+    def boom(*args: Any, **kwargs: Any) -> None:
+        raise musicbrainz.requests.ConnectionError("refused")
+
+    monkeypatch.setattr(client._http, "get", boom)
+    with pytest.raises(CatalogError):
+        client.search_artists("x")
+
+
+def test_limiter_spaces_calls(
+    monkeypatch: pytest.MonkeyPatch, no_waiting: list[float]
+) -> None:
+    now = [1000.0]
+    monkeypatch.setattr(musicbrainz.time, "monotonic", lambda: now[0])
+    musicbrainz._wait_turn()
+    now[0] += 0.3
+    musicbrainz._wait_turn()
+    assert no_waiting[-1] == pytest.approx(0.7)
+
+
+def test_limiter_is_shared_by_instances(
+    monkeypatch: pytest.MonkeyPatch, no_waiting: list[float]
+) -> None:
+    monkeypatch.setattr(musicbrainz.time, "monotonic", lambda: 2000.0)
+    first, _ = client_returning(monkeypatch, FakeResp(200, RECORDING))
+    second, _ = client_returning(monkeypatch, FakeResp(200, RECORDING))
+    first.get_track("r1")
+    second.get_track("r1")
+    assert no_waiting == [pytest.approx(1.0)]
+
+
+def test_unknown_isrc_is_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    client, calls = client_returning(monkeypatch, FakeResp(404, {"error": "x"}))
+    with pytest.raises(CatalogNotFound):
+        client.tracks_by_isrc("XX0000000000")
+    assert calls[0][0].endswith("/ws/2/isrc/XX0000000000")
+
+
+def test_search_albums_and_artists(monkeypatch: pytest.MonkeyPatch) -> None:
+    body = {
+        "release-groups": [
+            {
+                "id": "g1",
+                "title": "Dr. Feelgood",
+                "primary-type": "Album",
+                "secondary-types": ["Live"],
+                "first-release-date": "1989-08-28",
+                "artist-credit": CREDIT,
+            }
+        ],
+        "artists": [{"id": "a1", "name": "A", "disambiguation": "US band"}],
+    }
+    client, calls = client_returning(monkeypatch, FakeResp(200, body))
+    [album] = client.search_albums("Dr. Feelgood", "A")
+    [artist] = client.search_artists("A")
+    assert calls[0][1]["query"] == 'releasegroup:"Dr. Feelgood" AND artist:"A"'
+    assert album.secondary_types == ("Live",) and album.artist == "A feat. B"
+    assert artist.disambiguation == "US band"
+
+
+def test_edition_counts_tracks_over_media() -> None:
+    raw = {
+        "id": "e1",
+        "title": "T",
+        "media": [
+            {"format": "CD", "track-count": 12},
+            {"format": None, "track-count": 4},
+        ],
+    }
+    edition = musicbrainz.parse_release(raw)
+    assert edition.formats == ("CD", "") and edition.track_count == 16
+    assert edition.date == "" and edition.status == ""
+
+
+def test_fake_catalog_behaves_like_a_source() -> None:
+    from app.clients.catalog_fake import FakeCatalog
+
+    fake = FakeCatalog()
+    track = musicbrainz.parse_recording(RECORDING)
+    fake.tracks[track.id] = track
+    assert fake.search_tracks("song", "a feat") == [track]
+    assert fake.tracks_by_isrc("USEE10001994") == [track]
+    with pytest.raises(CatalogNotFound):
+        fake.get_track("missing")
