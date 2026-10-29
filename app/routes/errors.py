@@ -14,6 +14,7 @@ from app.clients.catalog import CatalogError, CatalogNotFound
 from app.core.states import IllegalTransition
 from app.services.catalog import CatalogUnavailable
 from app.services.requests import RequestNotFound, SongNotFound, StateChanged
+from app.services.slskd_tab import FileNotInSearch
 from app.services.sources import UnknownSource
 
 STATUS: dict[type[Exception], int] = {
@@ -22,6 +23,7 @@ STATUS: dict[type[Exception], int] = {
     CatalogNotFound: 404,
     RequestNotFound: 404,
     SongNotFound: 404,
+    FileNotInSearch: 404,  # a picked file the search never listed
     IllegalTransition: 409,  # e.g. dropping a request that is already dropped
     StateChanged: 409,
     CatalogError: 502,  # the source failed while browsing

@@ -25,6 +25,7 @@ from app.routes import auth as auth_routes
 from app.routes import catalog as catalog_routes
 from app.routes import errors
 from app.routes import requests as request_routes
+from app.routes import slskd as slskd_routes
 from app.routes import system as system_routes
 from app.services.auth import AuthService, AuthServiceBase
 from app.services.catalog import CatalogService
@@ -38,6 +39,7 @@ from app.services.slskd_download import SlskdDownloader
 from app.services.slskd_gate import SlskdGate
 from app.services.slskd_search import SlskdSearcher
 from app.services.slskd_source import SlskdSource
+from app.services.slskd_tab import SlskdTab
 from app.services.sources import SourcePreferences
 from app.services.tagging import TaggingService
 from app.stores.database import Database
@@ -52,7 +54,8 @@ def build_core(
     mb = MusicBrainzClient()
     catalogs: list[CatalogSource] = [mb, DeezerClient()]
     slskd = SlskdClient(settings.slskd_url, settings.slskd_api_key)
-    searcher = SlskdSearcher(db, slskd, SlskdGate(slskd, settings.slskd))
+    gate = SlskdGate(slskd, settings.slskd)
+    searcher = SlskdSearcher(db, slskd, gate)
     downloader = SlskdDownloader(db, slskd, searcher, settings.slskd)
     dispatch = DownloadDispatch(db, prefs, [SlskdSource(db, searcher, downloader)])
     files = FilesService(db, nd, box, settings.files)
@@ -65,7 +68,11 @@ def build_core(
         settings.workers, dispatch, pipeline, downloader.poll, cleanup.tick
     )
     return Core(
-        CatalogService(db, prefs, catalogs), RequestService(db), dispatch, workers
+        CatalogService(db, prefs, catalogs),
+        RequestService(db),
+        dispatch,
+        SlskdTab(db, slskd, gate, searcher, downloader),
+        workers,
     )
 
 
@@ -97,6 +104,7 @@ def create_app(
     app.include_router(system_routes.router)
     app.include_router(catalog_routes.router)
     app.include_router(request_routes.router)
+    app.include_router(slskd_routes.router)
     errors.register(app)
     return app
 

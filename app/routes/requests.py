@@ -6,12 +6,13 @@ rather than on the next redispatch tick. A user only sees their own requests.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.dependencies import Core, CoreDep, UserDep
 from app.services.dispatch import NotStartable
 from app.services.requests import DEFAULT_PAGE_SIZE
+from app.services.slskd_tab import SearchView
 from app.stores.requests import Request
 
 router = APIRouter(prefix="/api/requests", tags=["requests"])
@@ -92,6 +93,14 @@ def history(
 @router.get("/{request_id}")
 def get(request_id: int, user: UserDep, core: CoreDep) -> RequestOut:
     return out(core.requests.get(user.id, request_id), core)
+
+
+@router.get("/{request_id}/searches")
+def searches(request_id: int, user: UserDep, core: CoreDep) -> list[SearchView]:
+    """The request's slskd searches, files labelled by the matcher."""
+    if core.slskd is None:
+        raise HTTPException(503, "slskd isn't configured")
+    return core.slskd.searches(user.id, request_id)
 
 
 @router.post("/{request_id}/drop")

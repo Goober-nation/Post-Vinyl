@@ -11,6 +11,7 @@ from app.services.auth import AuthServiceBase
 from app.services.catalog import CatalogServiceBase
 from app.services.dispatch import DownloadDispatchBase
 from app.services.requests import RequestServiceBase
+from app.services.slskd_tab import SlskdTabBase
 from app.stores.users import User
 from app.workers.core_loop import CoreLoopWorkers
 
@@ -22,6 +23,7 @@ class Core:
     catalog: CatalogServiceBase
     requests: RequestServiceBase
     dispatch: DownloadDispatchBase
+    slskd: SlskdTabBase | None = None  # None: slskd isn't configured (tests)
     workers: CoreLoopWorkers | None = None
 
 
