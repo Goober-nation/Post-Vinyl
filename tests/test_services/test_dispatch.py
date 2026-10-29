@@ -12,6 +12,9 @@ from pathlib import Path
 
 import pytest
 
+from app.clients.slskd_fake import FakeSlskdClient
+from app.config import SlskdSettings
+from app.core.states import IllegalTransition
 from app.services.dispatch import (
     DownloadDispatch,
     DownloadDispatchBase,
@@ -19,12 +22,16 @@ from app.services.dispatch import (
     NotStartable,
 )
 from app.services.dispatch_fake import FakeDownloadDispatch, FakeRequest
+from app.services.download_source import DownloadSource
 from app.services.download_source_fake import FakeDownloadSource
 from app.services.requests import RequestNotFound
+from app.services.slskd_gate import SlskdGate
+from app.services.slskd_search import SlskdSearcher
+from app.services.slskd_source import SlskdSource
 from app.services.sources import SourcePreferences
 from app.stores.database import Database
-from app.stores.requests import RequestsStore
-from app.stores.songs import SongFields, SongsStore
+from app.stores.requests import Request, RequestsStore
+from app.stores.songs import Song, SongFields, SongsStore
 from app.stores.users import UsersStore
 
 NOW = 1_800_000_000
@@ -199,3 +206,85 @@ def test_configured_source_without_a_backend_is_skipped(tmp_path: Path) -> None:
         db, SourcePreferences(db, CONFIGURED), [FakeDownloadSource(db, "other")]
     )
     assert svc.dispatch(alice, req) == "other"  # slskd listed first but not built
+
+
+def test_resume_redispatches_requests_left_searching(case: Case) -> None:
+    case.set_state(case.req, "searching")  # an app restart left it here
+    assert case.svc.resume() == 1
+    assert case.state(case.req) == "searching"
+    assert case.started() == [("slskd", case.req)]
+
+
+def test_lost_claim_is_reported(real: Real) -> None:
+    _svc, db, _src, alice, req = real
+
+    class AlwaysLoses(FakeDownloadSource):
+        def start(self, request: Request, song: Song) -> bool:
+            return False
+
+    lose = DownloadDispatch(
+        db, SourcePreferences(db, CONFIGURED), [AlwaysLoses(db, "slskd")]
+    )
+    with pytest.raises(NotStartable, match="meanwhile"):
+        lose.dispatch(alice, req)
+
+
+# ------------------------------------------------------------ DownloadSource contract
+
+
+@pytest.fixture(params=["fake", "slskd"])
+def source(
+    request: pytest.FixtureRequest, tmp_path: Path
+) -> tuple[DownloadSource, Database, int, Song]:
+    db = Database(tmp_path / "pv.db")
+    db.migrate()
+    with db.transaction() as conn:
+        alice = UsersStore().upsert_on_login(conn, "alice", "e", False, NOW).id
+        song = SongsStore().create(conn, SongFields("Feather", "Nujabes"))
+        req = RequestsStore().create(conn, alice, "catalog", NOW, song_id=song.id).id
+    if request.param == "fake":
+        return FakeDownloadSource(db, "fake"), db, req, song
+    slskd = FakeSlskdClient()
+    slskd.results["2020"] = []
+    gate = SlskdGate(slskd, SlskdSettings())
+    return SlskdSource(db, Held(SlskdSearcher(db, slskd, gate))), db, req, song
+
+
+class Held(SlskdSearcher):
+    """Never searches: the contract is about claiming, not finding."""
+
+    def __init__(self, inner: SlskdSearcher) -> None:
+        self.inner = inner
+
+    def search(self, request: Request, song: Song) -> bool | None:
+        return None
+
+
+def test_source_contract_claims_once(
+    source: tuple[DownloadSource, Database, int, Song],
+) -> None:
+    src, db, req, song = source
+    with db.transaction() as conn:
+        stale = RequestsStore().get(conn, req)
+    assert stale is not None
+    assert src.start(stale, song) is True
+    assert src.start(stale, song) is False  # stale state: another start won
+    with db.transaction() as conn:
+        now = RequestsStore().get(conn, req)
+    assert now is not None and now.track_state == "searching"
+    src.cancel(req)  # no-op-safe for a request it runs
+    src.cancel(999)  # and for one it doesn't
+    if isinstance(src, SlskdSource):
+        src.stop()
+
+
+def test_source_contract_refuses_a_request_that_cant_start(
+    source: tuple[DownloadSource, Database, int, Song],
+) -> None:
+    src, db, req, song = source
+    with db.transaction() as conn:
+        RequestsStore().set_track_state(conn, req, "found")
+        found = RequestsStore().get(conn, req)
+    assert found is not None
+    with pytest.raises(IllegalTransition):
+        src.start(found, song)

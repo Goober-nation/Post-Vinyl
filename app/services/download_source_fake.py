@@ -25,7 +25,7 @@ class FakeDownloadSource(DownloadSource):
         self.started: list[int] = []  # request ids this source claimed
         self.cancelled: list[int] = []
 
-    def start(self, request: Request, song: Song) -> None:
+    def start(self, request: Request, song: Song) -> bool:
         store = RequestsStore()
         with self._db.transaction(write=True) as conn:
             new = states.start_search(request.track_state)
@@ -33,6 +33,8 @@ class FakeDownloadSource(DownloadSource):
                 conn, request.id, new, expected=request.track_state
             ):
                 self.started.append(request.id)
+                return True
+        return False
 
     def cancel(self, request_id: int) -> None:
         if request_id in self.started:

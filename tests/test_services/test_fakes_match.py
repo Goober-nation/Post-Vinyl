@@ -242,3 +242,14 @@ def test_catalog_query_checks_and_order(cat: Cat) -> None:
     ):
         with pytest.raises(ValueError):
             call()
+
+
+def test_catalog_resolve_stores_normalized_names(cat: Cat) -> None:
+    cat.mb.tracks["m9"] = Track(
+        "musicbrainz", "m9", "Feather", "Nujabes featuring Cise Starr & Akin from CYNE",
+        (), 175.0, (), "",
+        credits=(("Nujabes", " featuring "), ("Cise Starr", " & "), ("Akin from CYNE", "")),
+    )  # fmt: skip
+    song = cat.svc.resolve(cat.user, "musicbrainz", "m9")
+    assert song.artist_name == "Nujabes featuring Cise Starr & Akin from CYNE"
+    assert (song.query_title, song.main_artist) == ("Feather", "Nujabes")

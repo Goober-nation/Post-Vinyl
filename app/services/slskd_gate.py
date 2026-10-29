@@ -13,7 +13,7 @@ Part of the slskd backend. Decided with the user, 2026-10-29:
   runs again.
 - **Empty results are trusted only when confirmed**: before a request ends
   ``notFound``, ``empty_trusted(since)`` must be true. It is when some search
-  returned results after ``since``; otherwise the throttle check search runs
+  after ``since`` returned at least ``throttle_check_min_responses``; otherwise the throttle check search runs
   (``throttle_check_query``, healthy at ``throttle_check_min_responses``). A
   failed check pauses all searching for ``throttle_pause_minutes`` and returns
   False: the caller runs its queries again.
@@ -86,7 +86,12 @@ class SlskdGate:
     ) -> Ran[R]:
         """Run ``query`` once slskd is ready and the rate cap allows it."""
         with self._lock:
-            return self._run(query, run, responses, healthy_at=1)
+            # proof of health needs as many responses as the check (review
+            # 2026-10-29: a throttled account can still return a few)
+            return self._run(
+                query, run, responses,
+                healthy_at=self._settings.throttle_check_min_responses,
+            )  # fmt: skip
 
     def empty_trusted(
         self, since: float, run: Search[R], responses: Callable[[R], int]

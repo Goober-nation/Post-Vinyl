@@ -142,14 +142,27 @@ def test_search_gets_a_live_readiness_check() -> None:
 # ------------------------------------------------------------ trusting empty results
 
 
-def test_empty_is_trusted_when_a_later_search_had_results() -> None:
+def test_empty_is_trusted_when_a_later_search_had_enough_results() -> None:
     g, clock = gate()
-    run, seen = answers(0, 12)
+    run, seen = answers(0, 12, 450)
     empty = g.search("a", run, ident)
     clock.t += 1
-    g.search("b", run, ident)
+    g.search(
+        "b", run, ident
+    )  # 12 responses: a throttled account can still return a few
+    clock.t += 1
+    g.search("c", run, ident)  # 450 ≥ 300: proof of health
     assert g.empty_trusted(empty.started_at, run, ident)
-    assert seen == ["a", "b"]  # no check search needed
+    assert seen == ["a", "b", "c"]  # no check search needed
+
+
+def test_a_few_responses_do_not_prove_health() -> None:
+    g, _ = gate()
+    run, seen = answers(0, 12, 600)
+    since = g.search("a", run, ident).started_at
+    g.search("b", run, ident)
+    assert g.empty_trusted(since, run, ident)
+    assert seen == ["a", "b", "2020"]  # 12 wasn't enough: the check ran
 
 
 def test_untrusted_empty_runs_the_check_and_passes() -> None:

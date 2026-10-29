@@ -102,6 +102,12 @@ class RequestsStore:
             )
         return cur.rowcount == 1
 
+    def in_state(self, conn: sqlite3.Connection, track_state: str) -> list[Request]:
+        rows = conn.execute(
+            "SELECT * FROM requests WHERE track_state = ? ORDER BY id", (track_state,)
+        )
+        return [Request(**r) for r in rows]
+
     def history(
         self, conn: sqlite3.Connection, user_id: int, page: int, page_size: int
     ) -> list[Request]:

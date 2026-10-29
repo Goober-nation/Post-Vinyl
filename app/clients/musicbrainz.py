@@ -53,6 +53,10 @@ def _phrase(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def _parts(credits: list[dict[str, Any]]) -> tuple[tuple[str, str], ...]:
+    return tuple((c.get("name", ""), c.get("joinphrase", "")) for c in credits)
+
+
 def _credit(credits: list[dict[str, Any]]) -> tuple[str, tuple[str, ...]]:
     line = "".join(c.get("name", "") + c.get("joinphrase", "") for c in credits)
     return line, tuple(c["artist"]["id"] for c in credits if c.get("artist"))
@@ -73,6 +77,7 @@ def parse_recording(raw: dict[str, Any], **extra: Any) -> Track:
         duration_s=_seconds(raw.get("length")),
         isrcs=tuple(raw.get("isrcs") or ()),
         disambiguation=raw.get("disambiguation") or "",
+        credits=_parts(raw.get("artist-credit") or []),
         **extra,
     )
 

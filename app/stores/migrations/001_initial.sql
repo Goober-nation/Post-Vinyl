@@ -42,7 +42,11 @@ CREATE TABLE user_settings (
 CREATE TABLE songs (
     id            INTEGER PRIMARY KEY,
     title         TEXT    NOT NULL,
-    artist_name   TEXT    NOT NULL,
+    artist_name   TEXT    NOT NULL,             -- full credit as the catalog writes it
+    -- core/normalize output from the credit parts, for the slskd ladder and matcher
+    -- (#101); NULL for a song with no catalog credit (falls back to title/artist_name)
+    query_title   TEXT,
+    main_artist   TEXT,
     album_title   TEXT,
     track_number  INTEGER,
     disc_number   INTEGER CHECK (disc_number >= 1),   -- NULL = no disc
