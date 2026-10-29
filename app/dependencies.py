@@ -16,6 +16,7 @@ from app.services.downloads import DownloadsServiceBase
 from app.services.library import LibraryServiceBase
 from app.services.queue_pause import QueuePauseBase
 from app.services.requests import RequestServiceBase
+from app.services.settings import InstallSettingsBase, UserSettingsBase
 from app.services.slskd_tab import SlskdTabBase
 from app.stores.users import User
 from app.workers.core_loop import CoreLoopWorkers
@@ -36,6 +37,8 @@ class Core:
     library: LibraryServiceBase | None = None
     admin: AdminServiceBase | None = None
     credentials: CredentialsServiceBase | None = None
+    settings: UserSettingsBase | None = None
+    install: InstallSettingsBase | None = None
     workers: CoreLoopWorkers | None = None
 
 

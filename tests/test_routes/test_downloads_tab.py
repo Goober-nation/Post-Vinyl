@@ -151,3 +151,18 @@ def test_state_follows_the_transfer_and_detail_asks_the_queue_place(env: Env) ->
     assert (
         env.alice.get(f"/api/downloads/{dl}").json()["item"]["state"] == "downloading"
     )
+
+
+def test_the_queue_opens_with_the_users_own_defaults(env: Env) -> None:
+    pick(env.alice, [("alice_peer", TAKK)])
+    env.alice.put("/api/me/settings", json={"changes": {"downloads.state": "failed"}},
+                  headers=SAME)  # fmt: skip
+    assert env.alice.get("/api/downloads").json()["total"] == 0  # default: failed only
+    assert (
+        env.alice.get("/api/downloads", params={"state": ""}).json()["total"] == 1
+    )  # all
+    env.alice.put("/api/me/settings", json={"changes": {"downloads.page_size": 10}},
+                  headers=SAME)  # fmt: skip
+    assert (
+        env.alice.get("/api/downloads", params={"state": ""}).json()["page_size"] == 10
+    )

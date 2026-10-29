@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pytest
@@ -21,6 +21,7 @@ from app.services.dispatch import DownloadDispatch
 from app.services.download_source_fake import FakeDownloadSource
 from app.services.encryption import SecretBox, generate_key
 from app.services.requests import RequestService
+from app.services.settings import UserSettings
 from app.services.sources import SourcePreferences
 from app.stores.database import Database
 
@@ -66,6 +67,7 @@ def make_env(tmp_path: Path, catalogs: list[FakeCatalog]) -> Env:
         CatalogService(db, prefs, list(catalogs)),
         RequestService(db),
         DownloadDispatch(db, prefs, [source]),
+        settings=UserSettings(db, prefs),
     )
     app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ORIGIN), auth, core)
     return Env(logged_in(app, "alice"), logged_in(app, "bob"), catalogs[0], source)
@@ -171,3 +173,37 @@ def test_cart_batch_gives_each_item_its_own_result(env: Env) -> None:
         env.alice.post("/api/requests/batch", json=empty, headers=SAME).status_code
         == 422
     )
+
+
+def test_a_search_shows_as_many_results_as_the_user_asks_for(env: Env) -> None:
+    for i in range(30):
+        env.mb.tracks[f"mb-x{i}"] = replace(FEATHER, id=f"mb-x{i}")
+    assert (
+        len(
+            env.alice.get("/api/catalog/tracks", params={"title": "feather"}).json()[
+                "items"
+            ]
+        )
+        == 25
+    )
+    r = env.alice.put("/api/me/settings", json={"changes": {"catalog.results_per_search": 5}},
+                      headers=SAME)  # fmt: skip
+    assert r.status_code == 200 and r.json()["catalog.results_per_search"] == 5
+    assert (
+        len(
+            env.alice.get("/api/catalog/tracks", params={"title": "feather"}).json()[
+                "items"
+            ]
+        )
+        == 5
+    )
+    assert (
+        len(
+            env.bob.get("/api/catalog/tracks", params={"title": "feather"}).json()[
+                "items"
+            ]
+        )
+        == 25
+    )
+    bad = {"changes": {"catalog.results_per_search": 500}}
+    assert env.alice.put("/api/me/settings", json=bad, headers=SAME).status_code == 422

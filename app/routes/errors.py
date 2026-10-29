@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.clients.catalog import CatalogError, CatalogNotFound
+from app.config import ConfigError
 from app.core.states import IllegalTransition
 from app.services.catalog import CatalogUnavailable
 from app.services.credentials import CredentialCheckUnavailable
@@ -24,6 +25,7 @@ from app.services.tagging import TagFailed
 
 STATUS: dict[type[Exception], int] = {
     ValueError: 422,  # e.g. an empty search
+    ConfigError: 422,  # a setting that doesn't fit its schema
     UnknownSource: 404,  # a catalog source the user hasn't enabled
     CatalogNotFound: 404,
     RequestNotFound: 404,

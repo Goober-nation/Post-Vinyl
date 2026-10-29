@@ -30,6 +30,17 @@ Decisions (user, 2026-10-30):
     marked deleted, Navidrome rescans. A later request downloads the song again.
   - **ListenBrainz token**: checked with ListenBrainz before it's stored; an invalid one is
     refused (422); ListenBrainz down → 503, the old token kept.
+- Settings (user, 2026-10-30, #109):
+  - **Admin settings** (the YAML's sources, slskd and workers sections) are edited through the
+    API **without dropping the YAML's comments**: only the changed `key: value` lines are
+    rewritten (a value written over several lines is refused: edit that by hand). The file is
+    backed up first; the new values apply **at the next restart** (the API says so).
+  - **Folders** (`files`) are shown, not editable: they must match the Docker mounts.
+  - **Per-user settings**: source order and off per kind; how many results a catalog search
+    shows; the downloads tab's default state filter and page size.
+  - **Schema**: per field its key, section, type (int, text, choice, ordered list), min/max/step,
+    choices, default, help and whether it applies now or at restart, generated from the settings
+    dataclasses so it can't drift from the code.
 - Issues: #108 slskd tab, #111 downloads tab, #112 files + admin, #109 settings + `docs/api.md`.
 
 ## Tabs (user's list)
@@ -48,8 +59,7 @@ Decisions (user, 2026-10-30):
   kept apart per source and per batch/playlist, and re-pulls of the exact same source (same
   playlist link, same LB user); user credentials; banned peers and clearing them.
 - **Settings**, per user, with real fields (sliders and the like where they make sense).
-- Design kit: open, decided in milestone 8. Soulbeet uses Dioxus (Rust → WebAssembly) with
-  Tailwind CSS v4, which doesn't carry over to this stack.
+- Stack and design kit: decided, see **Frontend stack** below (user, 2026-10-30).
 
 ## Endpoints
 
@@ -70,7 +80,36 @@ Decisions (user, 2026-10-30):
 | admin | ✅ `GET /api/admin/peers`; `DELETE /api/admin/peers/{username}`; `DELETE /api/admin/peers` | peers with a bad record (#112) |
 | admin | ✅ `GET /api/admin/users` | Navidrome owns the accounts; no secrets (#112) |
 | me | ✅ `GET`/`PUT /api/me/credentials` | write-only; ListenBrainz token checked first (#112) |
-| settings | `GET /api/settings/schema`; `GET`/`PUT /api/me/settings`; `GET`/`PUT /api/admin/settings` | the schema gives type, min/max/step, choices, help; the frontend draws fields from it |
+| settings | ✅ `GET /api/settings/schema`; `GET`/`PUT /api/me/settings`; `GET`/`PUT /api/admin/settings` | #109; install edits keep the YAML's comments and apply at restart. The full contract: `docs/api.md` |
 | recs (m9) | `POST /api/recs/radio {seed}`; `GET`/`PUT /api/recs/auto` | pull schedule, rotation |
 | playlists (m10–11) | `GET /api/playlists`; `POST`/`PUT /api/playlists/{id}`; `POST /api/playlists/import-nsp`; `GET /api/playlists/{id}/nsp` | |
 | imports (m9–11) | `POST /api/imports {source, kind, link\|file}`; `GET /api/imports`; `POST /api/imports/{id}/pull`; `GET /api/imports/formats` | per source and per batch |
+
+## Frontend stack (user, 2026-10-30)
+
+- **TypeScript, no UI framework** (plain DOM; a small render helper if lists get repetitive),
+  **Tailwind CSS v4 + daisyUI 5** for styling and components, built with **Vite**. Chosen over
+  plain JS because a build step is needed for Tailwind anyway, and types catch API drift.
+  daisyUI is CSS-only and themed through CSS variables, so it works without a framework and
+  gives the parts the tabs need (tables, tabs, range sliders, modals, badges, progress, toasts).
+- **API types are generated, not hand-written**: `openapi-typescript` turns FastAPI's
+  `/openapi.json` (dev only) into types, committed with the frontend; regenerate after any API
+  change, so a renamed or dropped field is a compile error. The state strings (`track_state`,
+  `download_state`, `file_state`, matcher labels) come out as unions.
+- **Checks**: `tsc --noEmit` runs with the build (the frontend's mypy).
+- **Build-time only, one container**: a Node stage in the existing multi-stage `Dockerfile`
+  (`node:22-slim`, `npm ci`, `npm run build`) copies the static output into the Python runtime
+  image; Node and `node_modules` never ship. It runs as part of `docker compose up -d --build`
+  (the stage is rebuilt only when `web/` changes; `npm ci` is cached until the package files
+  change). FastAPI serves the files (`StaticFiles`) on the same origin as the API, so the
+  session cookie and the Origin/CSRF check (#88) work unchanged, no CORS.
+- **Development**: `npm run dev` (Vite dev server, live reload) on the host, proxying `/api` to
+  the app; no extra container.
+- **To do when milestone 8 starts**: let the default-deny middleware serve the static files
+  (at least the login page's HTML/JS/CSS) without a session; **drop beets from the
+  `Dockerfile`** (old app's leftover: the comment and the `PATH` note; user, 2026-10-30).
+- Design: tokens first (colors with light + dark, a UI font and a monospace font for paths and
+  peer names, type/spacing/radius scales, compact density for the tables), then the ~15 shared
+  components, then mockups of the hardest screens (slskd tab, downloads queue, settings).
+  Soulbeet (Dioxus fullstack, Rust → WebAssembly, Tailwind v4, WebSocket push) was looked at;
+  only the Tailwind choice carries over.

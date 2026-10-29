@@ -8,11 +8,25 @@ catalog service names them.
 
 from __future__ import annotations
 
+from dataclasses import replace
+from typing import TypeVar
+
 from fastapi import APIRouter
 
 from app.clients.catalog import Album, Artist, Edition, Track
-from app.dependencies import CoreDep, UserDep
+from app.dependencies import Core, CoreDep, UserDep
 from app.services.catalog import Results
+
+T = TypeVar("T")
+
+
+def trimmed(results: Results[T], user_id: int, core: Core) -> Results[T]:
+    """As many results as the user's setting asks for (#109)."""
+    if core.settings is None:
+        return results
+    n = core.settings.get(user_id)["catalog.results_per_search"]
+    return replace(results, items=results.items[:n])
+
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])
 
@@ -21,19 +35,19 @@ router = APIRouter(prefix="/api/catalog", tags=["catalog"])
 def search_tracks(
     title: str, user: UserDep, core: CoreDep, artist: str | None = None
 ) -> Results[Track]:
-    return core.catalog.search_tracks(user.id, title, artist)
+    return trimmed(core.catalog.search_tracks(user.id, title, artist), user.id, core)
 
 
 @router.get("/albums")
 def search_albums(
     title: str, user: UserDep, core: CoreDep, artist: str | None = None
 ) -> Results[Album]:
-    return core.catalog.search_albums(user.id, title, artist)
+    return trimmed(core.catalog.search_albums(user.id, title, artist), user.id, core)
 
 
 @router.get("/artists")
 def search_artists(name: str, user: UserDep, core: CoreDep) -> Results[Artist]:
-    return core.catalog.search_artists(user.id, name)
+    return trimmed(core.catalog.search_artists(user.id, name), user.id, core)
 
 
 @router.get("/{source}/artists/{artist_id}/albums")
