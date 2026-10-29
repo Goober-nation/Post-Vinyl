@@ -8,7 +8,6 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 
 from fastapi import FastAPI
 
@@ -20,16 +19,20 @@ from app.clients.musicbrainz import MusicBrainzClient
 from app.clients.navidrome import NavidromeClient, NavidromeClientBase
 from app.clients.slskd import SlskdClient
 from app.config import Settings
+from app.dependencies import Core
 from app.middleware import make_guard
 from app.routes import auth as auth_routes
+from app.routes import catalog as catalog_routes
+from app.routes import errors
+from app.routes import requests as request_routes
 from app.routes import system as system_routes
 from app.services.auth import AuthService, AuthServiceBase
-from app.services.catalog import CatalogService, CatalogServiceBase
-from app.services.dispatch import DownloadDispatch, DownloadDispatchBase
+from app.services.catalog import CatalogService
+from app.services.dispatch import DownloadDispatch
 from app.services.encryption import SecretBox
 from app.services.files import FilesService
 from app.services.pipeline import FilePipeline
-from app.services.requests import RequestService, RequestServiceBase
+from app.services.requests import RequestService
 from app.services.slskd_cleanup import SlskdCleanup
 from app.services.slskd_download import SlskdDownloader
 from app.services.slskd_gate import SlskdGate
@@ -39,16 +42,6 @@ from app.services.sources import SourcePreferences
 from app.services.tagging import TaggingService
 from app.stores.database import Database
 from app.workers.core_loop import CoreLoopWorkers
-
-
-@dataclass(frozen=True)
-class Core:
-    """The services routes call, plus the workers the app runs (#106)."""
-
-    catalog: CatalogServiceBase
-    requests: RequestServiceBase
-    dispatch: DownloadDispatchBase
-    workers: CoreLoopWorkers | None = None
 
 
 def build_core(
@@ -102,6 +95,9 @@ def create_app(
     app.middleware("http")(make_guard(auth, settings.public_origin, settings.dev))
     app.include_router(auth_routes.router)
     app.include_router(system_routes.router)
+    app.include_router(catalog_routes.router)
+    app.include_router(request_routes.router)
+    errors.register(app)
     return app
 
 
