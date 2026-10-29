@@ -78,13 +78,29 @@ class RequestsStore:
         )
 
     def set_track_state(
-        self, conn: sqlite3.Connection, request_id: int, track_state: str
-    ) -> None:
-        """Plain write; which transitions are allowed is core/states.py (milestone 5)."""
-        conn.execute(
-            "UPDATE requests SET track_state = ? WHERE id = ?",
-            (track_state, request_id),
-        )
+        self,
+        conn: sqlite3.Connection,
+        request_id: int,
+        track_state: str,
+        expected: str | None = None,
+    ) -> bool:
+        """Plain write; which transitions are allowed is core/states.py (milestone 5).
+
+        With ``expected``, only writes while the state is still that one, so a
+        change made meanwhile by another service isn't overwritten; returns
+        whether a row was written.
+        """
+        if expected is None:
+            cur = conn.execute(
+                "UPDATE requests SET track_state = ? WHERE id = ?",
+                (track_state, request_id),
+            )
+        else:
+            cur = conn.execute(
+                "UPDATE requests SET track_state = ? WHERE id = ? AND track_state = ?",
+                (track_state, request_id, expected),
+            )
+        return cur.rowcount == 1
 
     def history(
         self, conn: sqlite3.Connection, user_id: int, page: int, page_size: int
@@ -102,6 +118,15 @@ class RequestsStore:
             "SELECT COUNT(*) FROM requests WHERE user_id = ?", (user_id,)
         ).fetchone()
         return int(row[0])
+
+    def origin_user(self, conn: sqlite3.Connection, origin_id: int) -> int | None:
+        """The user an origin belongs to; None when unknown (or a kind with no user yet)."""
+        row = conn.execute(
+            """SELECT c.user_id FROM origins o
+               JOIN catalog_searches c ON c.id = o.id WHERE o.id = ?""",
+            (origin_id,),
+        ).fetchone()
+        return int(row["user_id"]) if row else None
 
     # ------------------------------------------------------------ catalog searches
 

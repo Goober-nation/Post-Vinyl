@@ -74,6 +74,17 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   pick** (song + the picked source's id; linking to other sources and choosing a release is
   tagging's job). **ListenBrainz** is in the catalog list as the **name → MBID fallback** for
   request sources (Yandex/Postradio give title + artist); typed searches skip it.
+- **Requests service (#96, user 2026-10-29)**: every create is a **new row**, even when the user
+  already has a request for the song; search/download deal with doubles. State changes are
+  written only if the state is unchanged since read (`set_track_state(expected=…)`).
+- **Review fixes (user, 2026-10-29)**: no enabled catalog source → soft error "catalog search
+  is unavailable without sources" (logged; shown as is by the frontend later). Users reorder
+  sources only by moving fixed options in the frontend; a malformed stored preference counts
+  as unset. Paged lists: default 20, max 100. Every service fake must behave like the real
+  service (`tests/test_services/test_fakes_match.py` runs the same scenarios on both).
+  `resolve` returns a song already in the DB without checking its source is still enabled
+  (no call to the source is made; user, 2026-10-29).
+  Transactions that read then write use `Database.transaction(write=True)` (BEGIN IMMEDIATE).
 - User preference storage: setting `sources.<kind>` = `{"order": [...], "off": [...]}`; a source
   new in the config is on and goes after the user's order.
 - Plan each milestone 6+ service with this in mind; the registry lands with the first service

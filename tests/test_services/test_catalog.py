@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import sqlite3
+import threading
+import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -12,7 +16,8 @@ from app.config import ConfigError, load_sources
 from app.services.catalog import CatalogService, CatalogUnavailable
 from app.services.sources import SourcePreferences, UnknownSource
 from app.stores.database import Database
-from app.stores.songs import SongsStore
+from app.stores.requests import RequestsStore
+from app.stores.songs import SongFields, SongsStore
 from app.stores.users import UsersStore
 
 NOW = 1_800_000_000
@@ -105,7 +110,7 @@ def test_all_sources_failing_raises_but_all_empty_is_no_result(setup: Setup) -> 
     with pytest.raises(CatalogUnavailable):
         svc.search_tracks(uid, "Feather")
     prefs.set_for_user(uid, "catalog", [], ["musicbrainz", "deezer"])
-    with pytest.raises(CatalogUnavailable, match="enabled"):
+    with pytest.raises(CatalogUnavailable, match="without sources"):
         svc.search_tracks(uid, "Feather")
 
 
@@ -115,6 +120,66 @@ def test_order_follows_user_preference(setup: Setup) -> None:
     dz.tracks["d1"] = track("deezer", "d1")
     prefs.set_for_user(uid, "catalog", ["deezer"], [])
     assert svc.search_tracks(uid, "Feather").source == "deezer"
+
+
+def test_no_sources_is_a_soft_error_and_writes_no_history(setup: Setup) -> None:
+    svc, prefs, db, uid, _, _ = setup
+    prefs.set_for_user(uid, "catalog", [], ["musicbrainz", "deezer", "listenbrainz"])
+    with pytest.raises(CatalogUnavailable, match="unavailable without sources"):
+        svc.search_tracks(uid, "Feather")
+    with db.transaction() as conn:
+        assert RequestsStore().catalog_history(conn, uid, 1, 10) == []
+
+
+def test_listenbrainz_only_config_cannot_search(tmp_path: Path) -> None:
+    db = Database(tmp_path / "pv.db")
+    db.migrate()
+    with db.transaction() as conn:
+        uid = UsersStore().upsert_on_login(conn, "alice", "enc", False, NOW).id
+    prefs = SourcePreferences(db, {"catalog": ("listenbrainz",)})
+    svc = CatalogService(db, prefs, [FakeCatalog("musicbrainz")])
+    with pytest.raises(CatalogUnavailable, match="unavailable without sources"):
+        svc.search_artists(uid, "Nujabes")
+
+
+@pytest.mark.parametrize(
+    "stored", [["deezer"], "deezer", {"order": "deezer"}, {"order": [], "off": "md"}]
+)
+def test_malformed_stored_preference_means_defaults(
+    setup: Setup, stored: object
+) -> None:
+    _, prefs, db, uid, _, _ = setup
+    with db.transaction() as conn:
+        UsersStore().set_setting(conn, uid, "sources.catalog", stored, NOW)
+    assert prefs.for_user(uid, "catalog") == list(CONFIGURED["catalog"])
+
+
+def test_concurrent_resolve_of_a_new_track_gives_one_song(setup: Setup) -> None:
+    svc, _, db, uid, mb, _ = setup
+    mb.tracks["m1"] = track("musicbrainz", "m1")
+    out: list[object] = []
+    with db.transaction(write=True) as conn:  # another resolve is mid-write
+        SongsStore().find_or_create(
+            conn, SongFields("Feather", "Nujabes"), {"musicbrainz": "m1"}
+        )
+        worker = threading.Thread(
+            target=lambda: out.append(
+                _try(lambda: svc.resolve(uid, "musicbrainz", "m1"))
+            )
+        )
+        worker.start()
+        time.sleep(0.3)
+    worker.join(5)
+    assert not isinstance(out[0], Exception), out[0]
+    with db.transaction() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM songs").fetchone()[0] == 1
+
+
+def _try(call: Callable[[], object]) -> object:
+    try:
+        return call()
+    except sqlite3.Error as e:  # what an unguarded race raises
+        return e
 
 
 # ------------------------------------------------------------ resolve
