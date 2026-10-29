@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from app.clients import musicbrainz
-from app.clients.catalog import CatalogBusy, CatalogError, CatalogNotFound
+from app.clients.catalog import CatalogBusy, CatalogError, CatalogNotFound, ReleaseRef
 from app.clients.musicbrainz import MusicBrainzClient
 
 CREDIT = [
@@ -236,3 +236,33 @@ def test_fake_catalog_behaves_like_a_source() -> None:
     assert fake.tracks_by_isrc("USEE10001994") == [track]
     with pytest.raises(CatalogNotFound):
         fake.get_track("missing")
+
+
+def test_search_hit_keeps_score_date_and_releases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Shape as in a live /recording search response (2026-10-29, #98)."""
+    hit = {
+        **RECORDING,
+        "score": 77,
+        "first-release-date": "2005-11-11",
+        "releases": [
+            {"status": "Official", "release-group": {"primary-type": "Album"}},
+            {
+                "status": "Bootleg",
+                "release-group": {
+                    "primary-type": "Other",
+                    "secondary-types": ["Mixtape/Street"],
+                },
+            },
+            {},
+        ],
+    }
+    client, _ = client_returning(monkeypatch, FakeResp(200, {"recordings": [hit]}))
+    (track,) = client.search_tracks("x")
+    assert track.score == 77 and track.first_release_date == "2005-11-11"
+    assert track.releases == (
+        ReleaseRef("Official", "Album", ()),
+        ReleaseRef("Bootleg", "Other", ("Mixtape/Street",)),
+        ReleaseRef("", "", ()),
+    )

@@ -26,6 +26,7 @@ from app.clients.catalog import (
     CatalogNotFound,
     CatalogSource,
     Edition,
+    ReleaseRef,
     Track,
 )
 
@@ -73,6 +74,25 @@ def parse_recording(raw: dict[str, Any], **extra: Any) -> Track:
         isrcs=tuple(raw.get("isrcs") or ()),
         disambiguation=raw.get("disambiguation") or "",
         **extra,
+    )
+
+
+def parse_search_hit(raw: dict[str, Any]) -> Track:
+    """A recording from /recording search: also its score and releases."""
+    return parse_recording(
+        raw,
+        score=raw.get("score") if isinstance(raw.get("score"), int) else None,
+        first_release_date=raw.get("first-release-date") or "",
+        releases=tuple(
+            ReleaseRef(
+                status=rel.get("status") or "",
+                primary_type=(rel.get("release-group") or {}).get("primary-type") or "",
+                secondary_types=tuple(
+                    (rel.get("release-group") or {}).get("secondary-types") or ()
+                ),
+            )
+            for rel in raw.get("releases") or []
+        ),
     )
 
 
@@ -150,7 +170,7 @@ class MusicBrainzClient(CatalogSource):
         if artist:
             query += f" AND artist:{_phrase(artist)}"
         data = self._get("/recording", query=query, limit=limit)
-        return [parse_recording(r) for r in data["recordings"]]
+        return [parse_search_hit(r) for r in data["recordings"]]
 
     def search_artists(self, name: str, limit: int = 25) -> list[Artist]:
         data = self._get("/artist", query=f"artist:{_phrase(name)}", limit=limit)

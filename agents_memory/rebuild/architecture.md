@@ -85,6 +85,11 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   `resolve` returns a song already in the DB without checking its source is still enabled
   (no call to the source is made; user, 2026-10-29).
   Transactions that read then write use `Database.transaction(write=True)` (BEGIN IMMEDIATE).
+- **Track result order (#98, user 2026-10-29)**: `core/catalog_order.py`, applied to each
+  source's answer (one page of 100): excluded version not in the query last → has an Official
+  plain Album/Single/EP release first → source score (a source with no scores keeps its own
+  order) → earliest first-release date → id. Typed fields are trimmed; an empty search is
+  refused before anything is recorded.
 - User preference storage: setting `sources.<kind>` = `{"order": [...], "off": [...]}`; a source
   new in the config is on and goes after the user's order.
 - Plan each milestone 6+ service with this in mind; the registry lands with the first service

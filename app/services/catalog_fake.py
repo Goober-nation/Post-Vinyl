@@ -5,6 +5,8 @@ set ``enabled`` to the user's sources in order (one list for every user).
 Same rules as ``services/catalog.py``: the first enabled source that answers
 with results wins, errors fall through, no enabled source or all failing
 raises CatalogUnavailable, each distinct (query, kind) gets one origin id,
+typed fields are trimmed and an empty one refused, track hits are ordered by
+``core/catalog_order.py``,
 browse and resolve refuse a source that isn't enabled, and a known pick is
 returned without a catalog call.
 """
@@ -24,9 +26,12 @@ from app.clients.catalog import (
 )
 from app.services.catalog import (
     NO_SOURCES,
+    SEARCH_LIMIT,
     CatalogServiceBase,
     CatalogUnavailable,
     Results,
+    order_tracks,
+    search_query,
 )
 from app.services.sources import UnknownSource
 from app.stores.songs import Song
@@ -74,21 +79,27 @@ class FakeCatalogService(CatalogServiceBase):
     def search_tracks(
         self, user_id: int, title: str, artist: str | None = None
     ) -> Results[Track]:
-        query = f"{artist} – {title}" if artist else title
+        title, artist, query = search_query(title, artist)
         return self._search(
-            user_id, query, "track", lambda c: c.search_tracks(title, artist)
+            user_id,
+            query,
+            "track",
+            lambda c: order_tracks(
+                title, c.search_tracks(title, artist, limit=SEARCH_LIMIT)
+            ),
         )
 
     def search_albums(
         self, user_id: int, title: str, artist: str | None = None
     ) -> Results[Album]:
-        query = f"{artist} – {title}" if artist else title
+        title, artist, query = search_query(title, artist)
         return self._search(
             user_id, query, "album", lambda c: c.search_albums(title, artist)
         )
 
     def search_artists(self, user_id: int, name: str) -> Results[Artist]:
-        return self._search(user_id, name, "artist", lambda c: c.search_artists(name))
+        name, _, query = search_query(name, None)
+        return self._search(user_id, query, "artist", lambda c: c.search_artists(name))
 
     def artist_albums(self, user_id: int, source: str, artist_id: str) -> list[Album]:
         return self._catalog(source).artist_albums(artist_id)

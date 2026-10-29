@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from app.clients.catalog import CatalogBusy, Track
+from app.clients.catalog import CatalogBusy, ReleaseRef, Track
 from app.clients.catalog_fake import FakeCatalog
 from app.core.states import IllegalTransition
 from app.services.catalog import CatalogService, CatalogServiceBase, CatalogUnavailable
@@ -219,3 +219,26 @@ def test_catalog_resolve_and_browse(cat: Cat) -> None:
         cat.svc.resolve(cat.user, "deezer", "d1")
     with pytest.raises(UnknownSource):
         cat.svc.edition_tracks(cat.user, "deezer", "e1")
+
+
+def test_catalog_query_checks_and_order(cat: Cat) -> None:
+    cat.mb.tracks["boot"] = Track(
+        "musicbrainz", "boot", "Feather (N0ms Bootleg)", "Nujabes", (), 206.0, (), "",
+        score=100, releases=(ReleaseRef("Official", "Album", ("Compilation",)),),
+    )  # fmt: skip
+    cat.mb.tracks["studio"] = Track(
+        "musicbrainz", "studio", "Feather", "Nujabes", (), 175.0, (), "",
+        score=77, releases=(ReleaseRef("Official", "Album", ()),),
+    )  # fmt: skip
+    res = cat.svc.search_tracks(cat.user, "  Feather ", "  Nujabes  ")
+    assert [t.id for t in res.items] == ["studio", "boot"]
+    assert (
+        cat.svc.search_tracks(cat.user, "Feather", "Nujabes").origin_id == res.origin_id
+    )
+    for call in (
+        lambda: cat.svc.search_tracks(cat.user, "   "),
+        lambda: cat.svc.search_albums(cat.user, ""),
+        lambda: cat.svc.search_artists(cat.user, " \t "),
+    ):
+        with pytest.raises(ValueError):
+            call()
