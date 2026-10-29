@@ -7,10 +7,13 @@ from typing import Annotated, TypeVar
 
 from fastapi import Depends, HTTPException, Request
 
+from app.services.admin import AdminServiceBase
 from app.services.auth import AuthServiceBase
 from app.services.catalog import CatalogServiceBase
+from app.services.credentials import CredentialsServiceBase
 from app.services.dispatch import DownloadDispatchBase
 from app.services.downloads import DownloadsServiceBase
+from app.services.library import LibraryServiceBase
 from app.services.queue_pause import QueuePauseBase
 from app.services.requests import RequestServiceBase
 from app.services.slskd_tab import SlskdTabBase
@@ -30,6 +33,9 @@ class Core:
     slskd: SlskdTabBase | None = None  # None: slskd isn't configured (tests)
     downloads: DownloadsServiceBase | None = None
     pause: QueuePauseBase | None = None
+    library: LibraryServiceBase | None = None
+    admin: AdminServiceBase | None = None
+    credentials: CredentialsServiceBase | None = None
     workers: CoreLoopWorkers | None = None
 
 

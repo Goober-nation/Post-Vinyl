@@ -167,6 +167,17 @@ class SlskdStore:
             (username, now),
         )
 
+    def peers(self, conn: sqlite3.Connection) -> list[SlskdPeer]:
+        """Every peer with a bad record: banned first, then by failures (#112)."""
+        rows = conn.execute(
+            """SELECT * FROM slskd_peers
+               ORDER BY blocked_at IS NULL, blocked_at DESC, failure_count DESC, username"""
+        )
+        return [SlskdPeer(**r) for r in rows]
+
+    def clear_peers(self, conn: sqlite3.Connection) -> int:
+        return conn.execute("DELETE FROM slskd_peers").rowcount
+
     def clear_peer(self, conn: sqlite3.Connection, username: str) -> None:
         """Back to clean: no row."""
         conn.execute("DELETE FROM slskd_peers WHERE username = ?", (username,))

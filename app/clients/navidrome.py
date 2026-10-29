@@ -108,6 +108,13 @@ class NavidromeClientBase(ABC):
     def get_song(self, session: Session, song_id: str) -> Song: ...
 
     @abstractmethod
+    def list_songs(
+        self, session: Session, query: str, start: int, end: int
+    ) -> tuple[list[Song], int]:
+        """The library, by title; ``query`` matches title, album and artists.
+        Returns rows ``start``..``end`` (exclusive) and the total."""
+
+    @abstractmethod
     def find_song_by_path(self, session: Session, path: str) -> Song | None:
         """The song at exactly ``path`` (relative to its library), or None."""
 
@@ -205,7 +212,9 @@ class NavidromeClient(NavidromeClientBase):
             raise NavidromeError(msg)
         return body
 
-    def _native(self, session: Session, endpoint: str, **params: Any) -> Any:
+    def _native_response(
+        self, session: Session, endpoint: str, **params: Any
+    ) -> requests.Response:
         resp = self._request(
             "GET",
             f"/api{endpoint}",
@@ -215,7 +224,10 @@ class NavidromeClient(NavidromeClientBase):
         refreshed = resp.headers.get(_AUTH_HEADER)
         if refreshed:
             session.jwt = refreshed
-        return resp.json()
+        return resp
+
+    def _native(self, session: Session, endpoint: str, **params: Any) -> Any:
+        return self._native_response(session, endpoint, **params).json()
 
     def login(self, username: str, password: str) -> Session:
         return self._auth_call("/auth/login", username, password)
@@ -232,6 +244,21 @@ class NavidromeClient(NavidromeClientBase):
 
     def get_song(self, session: Session, song_id: str) -> Song:
         return parse_song(self._native(session, f"/song/{song_id}"))
+
+    def list_songs(
+        self, session: Session, query: str, start: int, end: int
+    ) -> tuple[list[Song], int]:
+        # 0.64.2: the "title" filter is full text (title, album, artists);
+        # the total is in X-Total-Count
+        params: dict[str, Any] = {"_start": start, "_end": end, "_sort": "title",
+                                  "_order": "ASC"}  # fmt: skip
+        if query:
+            params["title"] = query
+        resp = self._native_response(session, "/song", **params)
+        rows = resp.json() or []
+        return [parse_song(r) for r in rows], int(
+            resp.headers.get("X-Total-Count", len(rows))
+        )
 
     def find_song_by_path(self, session: Session, path: str) -> Song | None:
         # Navidrome's path filter is a prefix match; keep exact hits only.

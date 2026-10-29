@@ -76,3 +76,15 @@ class FakeNavidromeClient(NavidromeClientBase):
     def find_song_by_path(self, session: Session, path: str) -> Song | None:
         self._check(session)
         return next((s for s in self.songs.values() if s.path == path), None)
+
+    def list_songs(
+        self, session: Session, query: str, start: int, end: int
+    ) -> tuple[list[Song], int]:
+        self._check(session)
+        q = query.lower()
+        hits = sorted(
+            (s for s in self.songs.values()
+             if q in f"{s.title} {s.album} {s.artist}".lower()),
+            key=lambda s: s.title.lower(),
+        )  # fmt: skip
+        return hits[start:end], len(hits)

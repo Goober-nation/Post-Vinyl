@@ -5,6 +5,10 @@ order = priority, left out = off. Each user may reorder them and switch some
 off (user, 2026-10-29), stored as the ``sources.<kind>`` setting:
 ``{"order": [...], "off": [...]}``. A source the user hasn't placed yet (new in
 the config) is on and comes after the ones they placed, in config order.
+
+Every call to an outside service goes through its client and only while that
+source is on for the user the work is for; otherwise it's refused
+(``SourceOff``, user 2026-10-30).
 """
 
 from __future__ import annotations
@@ -18,6 +22,11 @@ from app.stores.users import UsersStore
 
 class UnknownSource(ValueError):
     """A source name the config doesn't list for that kind."""
+
+
+class SourceOff(Exception):
+    """The source is turned off (left out of the config, or off for this user);
+    nothing is sent to it (user, 2026-10-30)."""
 
 
 class SourcePreferences:
@@ -45,6 +54,14 @@ class SourcePreferences:
         ordered = placed + [s for s in configured if s not in placed]
         off = set(off_list)
         return [s for s in ordered if s not in off]
+
+    def is_on(self, user_id: int, kind: str, source: str) -> bool:
+        return source in self.for_user(user_id, kind)
+
+    def require(self, user_id: int, kind: str, source: str) -> None:
+        """Refuse work that would reach ``source`` while it is off."""
+        if not self.is_on(user_id, kind, source):
+            raise SourceOff(f"{source} is turned off")
 
     def set_for_user(
         self, user_id: int, kind: str, order: list[str], off: list[str]

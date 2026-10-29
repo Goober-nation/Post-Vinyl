@@ -25,6 +25,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -50,7 +51,7 @@ from mutagen.mp4 import MP4, MP4Cover, MP4FreeForm
 from mutagen.oggopus import OggOpus
 from mutagen.oggvorbis import OggVorbis
 
-from app.clients.catalog import CatalogError
+from app.clients.catalog import CatalogError, CatalogSource
 from app.clients.coverart import CoverArtClientBase
 from app.clients.listenbrainz import ListenBrainzClientBase, ListenBrainzError
 from app.clients.musicbrainz import (
@@ -63,7 +64,9 @@ from app.config import FilesSettings
 from app.core import states
 from app.core.matcher import DURATION_TOLERANCE_S, norm
 from app.core.release_choice import choose_release
+from app.services.catalog import order_tracks
 from app.services.encryption import SecretBox
+from app.services.sources import SourceOff, SourcePreferences
 from app.stores.database import Database
 from app.stores.files import FilesStore
 from app.stores.requests import RequestsStore
@@ -244,7 +247,35 @@ def write_tags(path: Path, tags: dict[str, Any], cover: bytes | None) -> None:
         raise TagFailed("format")
 
 
+def strip_tags(path: Path) -> None:
+    """Every tag off, cover included (a rename nothing matched, user 2026-10-30)."""
+    audio = mutagen.File(path)
+    if audio is None:
+        raise TagFailed("format")
+    if isinstance(audio, FLAC):
+        audio.clear_pictures()
+    audio.delete()
+    if isinstance(audio, FLAC):
+        audio.save()
+
+
 # ------------------------------------------------------------ the service
+
+
+def fits(found_s: float | None, file_s: float | None) -> bool:
+    """A lookup's length against the file's; unknown on either side passes."""
+    return not found_s or not file_s or abs(found_s - file_s) <= DURATION_TOLERANCE_S
+
+
+@dataclass(frozen=True)
+class Suggestion:
+    """The tag set new names point at (#112); the user accepts or strips."""
+
+    recording_id: str
+    release_id: str
+    via: str  # "listenbrainz" | "musicbrainz"
+    tags: dict[str, Any]
+    has_cover: bool
 
 
 class TaggingServiceBase(ABC):
@@ -263,7 +294,11 @@ class TaggingService(TaggingServiceBase):
         box: SecretBox,
         settings: FilesSettings,
         clock: Callable[[], float] = time.time,
+        search: CatalogSource | None = None,  # MusicBrainz search for renames (#112)
+        sources: SourcePreferences | None = None,  # None: every source on (tests)
     ) -> None:
+        self._search = search
+        self._sources = sources
         self._db = db
         self._mb = musicbrainz
         self._lb = listenbrainz
@@ -278,28 +313,23 @@ class TaggingService(TaggingServiceBase):
             rec = self._files.get(conn, file_id)
             song = SongsStore().get(conn, rec.song_id) if rec else None
             ids = SongsStore().identities(conn, rec.song_id) if rec else {}
+            req = RequestsStore().latest_for_song(conn, rec.song_id) if rec else None
         if rec is None or song is None or rec.file_state != "verified":
             return False
         now = int(self._clock())
         mbid: str | None = None
         release_id: str | None = None
+        requester = req.user_id if req else None
         try:
+            if not self._on(requester, "musicbrainz"):
+                raise TagFailed("musicbrainz_off")
             mbid = ids.get("musicbrainz") or self._lookup(song)
             info = self._mb.recording_info(mbid)
             chosen = choose_release(info.releases)
             if chosen is None:
                 raise TagFailed("no_release")
             release_id = chosen.id
-            cover: bytes | None = None
-            try:
-                release = self._mb.release_info(chosen.id)
-                tags = build_tags(info, release)
-                if release.has_front_cover:
-                    cover = self._caa.front(release.id)
-            except (TagFailed, CatalogError) as e:  # no disc/track details
-                log.info("file %s: release %s details unusable (%s); album only",
-                         rec.id, chosen.id, e)  # fmt: skip
-                tags = build_album_tags(info, chosen)
+            tags, cover = self._build(info, chosen, f"file {rec.id}")
             write_tags(self._downloads / rec.file_location, tags, cover)
         except (TagFailed, CatalogError, ListenBrainzError, mutagen.MutagenError) as e:
             error = str(e) if isinstance(e, TagFailed) else f"{type(e).__name__}: {e}"
@@ -320,11 +350,99 @@ class TaggingService(TaggingServiceBase):
                  tags.get("title"), tags.get("album"))  # fmt: skip
         return True
 
+    def _build(
+        self, info: RecordingInfo, chosen: RecordingRelease, what: str
+    ) -> tuple[dict[str, Any], bytes | None]:
+        """The tag set from a recording and one of its releases, plus its cover."""
+        try:
+            release = self._mb.release_info(chosen.id)
+            tags = build_tags(info, release)
+            cover = self._caa.front(release.id) if release.has_front_cover else None
+        except (TagFailed, CatalogError) as e:  # no disc/track details
+            log.info("%s: release %s details unusable (%s); album only",
+                     what, chosen.id, e)  # fmt: skip
+            return build_album_tags(info, chosen), None
+        return tags, cover
+
+    # ------------------------------------------------------------ renames (#112)
+
+    def _on(self, user_id: int | None, source: str) -> bool:
+        """Whether ``source`` is on for the user the work is for (user, 2026-10-30)."""
+        if self._sources is None:
+            return True
+        return user_id is not None and self._sources.is_on(user_id, "catalog", source)
+
+    def suggest(
+        self, user_id: int, title: str, artist: str, album: str,
+        length_s: float | None, token: str | None,
+    ) -> Suggestion | None:  # fmt: skip
+        """The tag set new names point at, or None. ListenBrainz first (with
+        ``token``, same checks as tagging), MusicBrainz search when there's no
+        token or ListenBrainz finds nothing, mismatches or fails (user,
+        2026-10-30). A typed album picks among the recording's releases. Each
+        service only while it's on for ``user_id``; without MusicBrainz no tag
+        set can be built, so that refuses."""
+        if not self._on(user_id, "musicbrainz"):
+            raise SourceOff("musicbrainz is turned off")
+        mbid, via = None, "listenbrainz"
+        if token and self._on(user_id, "listenbrainz"):
+            try:
+                hit = self._lb.lookup_recording(artist, title, token)
+            except ListenBrainzError as e:
+                log.info("rename lookup at ListenBrainz failed: %s", e)
+                hit = None
+            if (
+                hit
+                and norm(artist) in norm(hit.artist)
+                and fits(hit.length_s, length_s)
+            ):
+                mbid = hit.mbid
+        if mbid is None and self._search is not None:
+            via = "musicbrainz"
+            try:
+                found = self._search.search_tracks(title, artist, limit=100)
+            except CatalogError as e:
+                log.info("rename search at MusicBrainz failed: %s", e)
+                found = []
+            mbid = next(
+                (
+                    t.id
+                    for t in order_tracks(title, found)
+                    if fits(t.duration_s, length_s)
+                ),
+                None,
+            )
+        if mbid is None:
+            return None
+        info = self._mb.recording_info(mbid)
+        same_album = [
+            r for r in info.releases if album and norm(r.title) == norm(album)
+        ]
+        chosen = choose_release(same_album) or choose_release(info.releases)
+        if chosen is None:
+            return None
+        tags, cover = self._build(info, chosen, f"rename suggestion {mbid}")
+        return Suggestion(mbid, chosen.id, via, tags, cover is not None)
+
+    def tags_for(
+        self, user_id: int, recording_id: str, release_id: str
+    ) -> tuple[dict[str, Any], bytes | None]:
+        """A suggestion rebuilt from its ids, so the client never sends tags."""
+        if not self._on(user_id, "musicbrainz"):
+            raise SourceOff("musicbrainz is turned off")
+        info = self._mb.recording_info(recording_id)
+        chosen = next((r for r in info.releases if r.id == release_id), None)
+        if chosen is None:
+            raise TagFailed("release_not_of_recording")
+        return self._build(info, chosen, f"rename {recording_id}")
+
     def _lookup(self, song: Song) -> str:
         """No MBID: ListenBrainz with the requester's token, checked against the song."""
         with self._db.transaction() as conn:
             req = RequestsStore().latest_for_song(conn, song.id)
             user = UsersStore().get(conn, req.user_id) if req else None
+        if not self._on(user.id if user else None, "listenbrainz"):
+            raise TagFailed("listenbrainz_off")
         if user is None or not user.lb_token_enc:
             raise TagFailed("no_listenbrainz_token")
         artist = song.main_artist or song.artist_name

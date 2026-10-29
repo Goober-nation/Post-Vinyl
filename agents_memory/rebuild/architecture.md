@@ -190,6 +190,10 @@ Rules:
   app and benchmark never drift.
 - Clients know nothing about the DB; stores know nothing about HTTP.
 - **No SQL outside `stores/`.** One store per group of tables.
+- **Every lookup or request to an outside service goes through its client, and only while that
+  source is on** (in the config and not switched off by the user the work is for); otherwise
+  it's refused with `SourceOff` (409) and nothing is sent (user, 2026-10-30, #112). Tagging
+  checks the requester's sources, a rename the admin's, slskd work the download owner's.
 - Services receive their clients and stores in the constructor (built once in `main.py`, handed to
   routes through `dependencies.py`), so tests pass fakes.
 

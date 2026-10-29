@@ -71,6 +71,10 @@ class UsersStore:
         ).fetchone()
         return User(**row)
 
+    def all(self, conn: sqlite3.Connection) -> list[User]:
+        rows = conn.execute("SELECT * FROM users ORDER BY username")
+        return [User(**r) for r in rows]
+
     def set_lb_token(
         self, conn: sqlite3.Connection, user_id: int, lb_token_enc: str | None
     ) -> None:

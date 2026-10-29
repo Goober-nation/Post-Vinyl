@@ -26,15 +26,20 @@ from app.routes import auth as auth_routes
 from app.routes import catalog as catalog_routes
 from app.routes import downloads as download_routes
 from app.routes import errors
+from app.routes import library as library_routes
+from app.routes import me as me_routes
 from app.routes import requests as request_routes
 from app.routes import slskd as slskd_routes
 from app.routes import system as system_routes
+from app.services.admin import AdminService
 from app.services.auth import AuthService, AuthServiceBase
 from app.services.catalog import CatalogService
+from app.services.credentials import CredentialsService
 from app.services.dispatch import DownloadDispatch
 from app.services.downloads import DownloadsService
 from app.services.encryption import SecretBox
 from app.services.files import FilesService
+from app.services.library import LibraryService
 from app.services.pipeline import FilePipeline
 from app.services.queue_pause import QueuePause
 from app.services.requests import RequestService
@@ -66,9 +71,11 @@ def build_core(
         db, prefs, [SlskdSource(db, searcher, downloader)], paused=pause.paused
     )
     files = FilesService(db, nd, box, settings.files)
+    lb = ListenBrainzClient()
     tagging = TaggingService(
-        db, mb, ListenBrainzClient(), CoverArtClient(), box, settings.files
-    )
+        db, mb, lb, CoverArtClient(), box, settings.files,
+        search=mb, sources=prefs,
+    )  # fmt: skip
     pipeline = FilePipeline(db, files, tagging, settings.workers)
     cleanup = SlskdCleanup(db, slskd, settings.files)
     workers = CoreLoopWorkers(
@@ -78,9 +85,14 @@ def build_core(
         CatalogService(db, prefs, catalogs),
         RequestService(db),
         dispatch,
-        SlskdTab(db, slskd, gate, searcher, downloader, paused=pause.paused),
-        DownloadsService(db, slskd, downloader),
+        SlskdTab(
+            db, slskd, gate, searcher, downloader, paused=pause.paused, sources=prefs
+        ),
+        DownloadsService(db, slskd, downloader, sources=prefs),
         pause,
+        LibraryService(db, files, tagging, box),
+        AdminService(db),
+        CredentialsService(db, lb, box, prefs),
         workers,
     )
 
@@ -116,6 +128,8 @@ def create_app(
     app.include_router(slskd_routes.router)
     app.include_router(download_routes.router)
     app.include_router(admin_routes.router)
+    app.include_router(library_routes.router)
+    app.include_router(me_routes.router)
     errors.register(app)
     return app
 

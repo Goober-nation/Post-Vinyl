@@ -24,6 +24,7 @@ from app.config import FilesSettings
 from app.core.release_choice import choose_release
 from app.services.encryption import SecretBox, generate_key
 from app.services.files import layout
+from app.services.sources import SourcePreferences
 from app.services.tagging import TagFailed, TaggingService, build_tags, write_tags
 from app.stores.database import Database
 from app.stores.downloads import DownloadsStore
@@ -356,3 +357,51 @@ def test_only_verified_files_are_tagged(tmp_path: Path) -> None:
         FilesStore().set_state(conn, c.fid, "moved", NOW)
     assert not c.svc.tag(c.fid)
     assert c.state_and_rows() == ("moved", [])
+
+
+# ------------------------------------------------------------ sources off (user, 2026-10-30)
+
+
+class Counting(FakeMusicBrainzTags):
+    def __init__(self, base: FakeMusicBrainzTags) -> None:
+        super().__init__()
+        self.recordings, self.releases, self.calls = base.recordings, base.releases, 0
+
+    def recording_info(self, recording_id: str) -> RecordingInfo:
+        self.calls += 1
+        return super().recording_info(recording_id)
+
+
+class CountingLB(FixedLB):
+    calls = 0
+
+    def lookup_recording(
+        self, artist: str, title: str, token: str
+    ) -> RecordingMetadata | None:
+        self.calls += 1
+        return super().lookup_recording(artist, title, token)
+
+
+@pytest.mark.parametrize(
+    ("off", "mbid", "error"),
+    [
+        ("musicbrainz", True, "musicbrainz_off"),
+        ("listenbrainz", False, "listenbrainz_off"),
+    ],
+)
+def test_nothing_is_sent_to_a_source_turned_off_for_the_requester(
+    tmp_path: Path, off: str, mbid: bool, error: str
+) -> None:
+    c = Case(tmp_path, mbid=mbid)
+    prefs = SourcePreferences(c.db, {"catalog": ("musicbrainz", "listenbrainz")})
+    with c.db.transaction() as conn:
+        alice = UsersStore().get_by_username(conn, "alice")
+    assert alice is not None
+    prefs.set_for_user(alice.id, "catalog", [], [off])
+    mb, lb = Counting(c.mb), CountingLB(lb_hit("Nujabes", 175))
+    svc = TaggingService(
+        c.db, mb, lb, c.caa, c.box, c.settings, lambda: NOW, sources=prefs
+    )
+    assert not svc.tag(c.fid)
+    assert c.state_and_rows() == ("verified", [f"failTag:{error}"])
+    assert mb.calls == 0 and lb.calls == 0
