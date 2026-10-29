@@ -80,6 +80,7 @@ def parse_recording(raw: dict[str, Any], **extra: Any) -> Track:
         isrcs=tuple(raw.get("isrcs") or ()),
         disambiguation=raw.get("disambiguation") or "",
         credits=_parts(raw.get("artist-credit") or []),
+        video=bool(raw.get("video")),
         **extra,
     )
 

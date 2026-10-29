@@ -53,6 +53,15 @@ class FakeDownloadDispatch(DownloadDispatchBase):
         self.started.append((self.enabled[0], request_id))
         return self.enabled[0]
 
+    def redispatch_waiting(self) -> int:
+        started = 0
+        for rid, req in self.requests.items():
+            if req.track_state in STARTABLE and req.has_song and self.enabled:
+                req.track_state = "searching"
+                self.started.append((self.enabled[0], rid))
+                started += 1
+        return started
+
     def resume(self) -> int:
         stuck = [r for r in self.requests.values() if r.track_state == "searching"]
         for req in stuck:

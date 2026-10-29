@@ -158,6 +158,16 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   folder. Tags: title, artist, album artist, album, date, original date, track/disc with
   totals, MusicBrainz ids, ISRC when exactly one, Cover Art Archive front cover (not for Ogg).
   The peer's tags are replaced except **ReplayGain and lyrics**. failTag never blocks the file.
+- **Pipeline + upkeep workers (#105, user 2026-10-29)**: `services/pipeline.py` every 10 s
+  (verify → tag → move → **one** Navidrome scan per batch → link); a failed tagging is retried
+  **once after 60 min**, then the file moves untagged. `services/slskd_cleanup.py`: forget
+  handed-off and failed transfers at slskd, delete failed attempts' folders and empty folders;
+  downloads that failed verification are deleted after 24 h (row → `missing`). Hourly missing
+  check; re-dispatch of waiting requests every minute; `dispatch.resume()` at startup.
+  `workers/core_loop.py` starts them all (wired into the app in milestone 7). Advanced YAML
+  `workers` section. Catalog ordering also ranks **music-video recordings** last (live: Björk's
+  "Hyperballad" video won the top spot). Open: MusicBrainz's phrase search misses spelling
+  variants ("Hyperballad" never finds the album track "Hyper‐Ballad").
 - User preference storage: setting `sources.<kind>` = `{"order": [...], "off": [...]}`; a source
   new in the config is on and goes after the user's order.
 - Plan each milestone 6+ service with this in mind; the registry lands with the first service

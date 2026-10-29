@@ -54,6 +54,31 @@ class FilesSettings:
     library_dir: str = "library"
 
 
+@dataclass(frozen=True)
+class WorkersSettings:
+    """How often the background workers run (#105, user 2026-10-29)."""
+
+    pipeline_every_seconds: int = 10
+    retag_after_minutes: int = 60  # one retry of a failed tagging, this long after
+    missing_check_minutes: int = 60
+    redispatch_every_seconds: int = 60
+    cleanup_every_seconds: int = 60
+    unverifiable_keep_hours: int = 24
+
+
+def load_workers(path: Path) -> WorkersSettings:
+    raw = _read(path).get("workers") or {}
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{path}: 'workers' must be a section")
+    unknown = set(raw) - set(vars(WorkersSettings()))
+    if unknown:
+        raise ConfigError(f"{path}: unknown workers settings {sorted(unknown)}")
+    for name, value in raw.items():
+        if type(value) is not int or value < 1:
+            raise ConfigError(f"{path}: workers.{name} must be a positive int")
+    return WorkersSettings(**raw)
+
+
 def load_files(path: Path) -> FilesSettings:
     raw = _read(path).get("files") or {}
     if not isinstance(raw, dict):
@@ -80,6 +105,7 @@ class Settings:
     )
     slskd: SlskdSettings = field(default_factory=SlskdSettings)
     files: FilesSettings = field(default_factory=FilesSettings)
+    workers: WorkersSettings = field(default_factory=WorkersSettings)
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -102,6 +128,7 @@ class Settings:
             sources=load_sources(Path(required("PV_CONFIG_PATH"))),
             slskd=load_slskd(Path(required("PV_CONFIG_PATH"))),
             files=load_files(Path(required("PV_CONFIG_PATH"))),
+            workers=load_workers(Path(required("PV_CONFIG_PATH"))),
         )
 
 

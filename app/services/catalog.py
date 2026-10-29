@@ -80,6 +80,7 @@ def order_tracks(query: str, tracks: list[Track]) -> list[Track]:
                 position,
                 t.first_release_date,
                 t.id,
+                t.video,
             ),
             t,
         )

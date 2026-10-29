@@ -55,6 +55,7 @@ class Track:
     score: int | None = None
     first_release_date: str = ""  # "YYYY[-MM[-DD]]" or ""
     releases: tuple[ReleaseRef, ...] = ()
+    video: bool = False  # MusicBrainz marks music-video recordings
 
 
 @dataclass(frozen=True)

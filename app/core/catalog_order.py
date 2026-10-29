@@ -5,7 +5,10 @@ MusicBrainz's own order is unstable for tied scores and puts e.g. "Feather
 service sorts every source's results with this key, best first:
 
 1. an excluded version (bootleg, live, remix, … the matcher's list) in the
-   title or disambiguation that the typed query doesn't contain goes last;
+   title or disambiguation that the typed query doesn't contain goes last,
+   and so does a **music-video recording** (MusicBrainz's ``video`` flag; live
+   2026-10-29: Björk's "Hyperballad" video recording, only on a 2006 edition,
+   was the top hit and got the song tagged as "Post (2006)");
 2. a recording with an Official release on a plain Album / Single / EP (no
    secondary type such as Compilation, Live, Mixtape/Street) comes first;
 3. higher source score; a source with no scores (Deezer) keeps its own
@@ -45,9 +48,12 @@ def track_key(
     position: int,
     first_release_date: str,
     source_id: str,
+    video: bool = False,
 ) -> tuple[bool, bool, int, bool, str, str]:
     """Sort key: smaller is better; ``position`` is the hit's place in the source's answer."""
-    variant = version_hit(words(f"{title} {disambiguation}"), words(query)) is not None
+    variant = video or (
+        version_hit(words(f"{title} {disambiguation}"), words(query)) is not None
+    )
     return (
         variant,
         not has_studio_release(releases),
