@@ -88,7 +88,7 @@ class FilesStore:
         )
 
     def set_navidrome_id(
-        self, conn: sqlite3.Connection, file_id: int, navidrome_id: str, now: int
+        self, conn: sqlite3.Connection, file_id: int, navidrome_id: str | None, now: int
     ) -> None:
         conn.execute(
             "UPDATE file_management SET navidrome_id = ?, updated_at = ? WHERE id = ?",

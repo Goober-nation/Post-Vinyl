@@ -37,3 +37,13 @@ slskd:
   # A peer is banned after this many failed downloads, for this many days.
   peer_ban_failures: 3
   peer_ban_days: 7
+
+# Folders. Every value is optional; the default is shown.
+files:
+  # The music folder as Post-Vinyl sees it (its container mount).
+  music_dir: /music
+  # Inside music_dir: where slskd saves finished downloads...
+  slskd_downloads_dir: downloads/complete/soulseek
+  # ...and Navidrome's library (Navidrome's music folder must be exactly this
+  # one, so it never indexes half-finished downloads).
+  library_dir: library

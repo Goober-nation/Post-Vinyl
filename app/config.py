@@ -45,6 +45,30 @@ class SlskdSettings:
 
 
 @dataclass(frozen=True)
+class FilesSettings:
+    """Folders from the YAML ``files`` section (#103)."""
+
+    music_dir: str = "/music"  # the music folder as Post-Vinyl sees it
+    # inside music_dir: where slskd saves downloads, and Navidrome's library
+    slskd_downloads_dir: str = "downloads/complete/soulseek"
+    library_dir: str = "library"
+
+
+def load_files(path: Path) -> FilesSettings:
+    raw = _read(path).get("files") or {}
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{path}: 'files' must be a section")
+    defaults = FilesSettings()
+    unknown = set(raw) - set(vars(defaults))
+    if unknown:
+        raise ConfigError(f"{path}: unknown files settings {sorted(unknown)}")
+    for name, value in raw.items():
+        if not isinstance(value, str) or not value.strip():
+            raise ConfigError(f"{path}: files.{name} must be a folder path")
+    return FilesSettings(**raw)
+
+
+@dataclass(frozen=True)
 class Settings:
     db_path: str
     navidrome_url: str
@@ -55,6 +79,7 @@ class Settings:
         default_factory=lambda: dict(KNOWN_SOURCES)
     )
     slskd: SlskdSettings = field(default_factory=SlskdSettings)
+    files: FilesSettings = field(default_factory=FilesSettings)
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -76,6 +101,7 @@ class Settings:
             dev=os.environ.get("PV_DEV", "").strip().lower() in ("1", "true", "yes"),
             sources=load_sources(Path(required("PV_CONFIG_PATH"))),
             slskd=load_slskd(Path(required("PV_CONFIG_PATH"))),
+            files=load_files(Path(required("PV_CONFIG_PATH"))),
         )
 
 

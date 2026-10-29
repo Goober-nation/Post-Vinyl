@@ -38,6 +38,12 @@ class UsersStore:
         row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         return User(**row) if row else None
 
+    def first_admin(self, conn: sqlite3.Connection) -> User | None:
+        row = conn.execute(
+            "SELECT * FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1"
+        ).fetchone()
+        return User(**row) if row else None
+
     def get_by_username(self, conn: sqlite3.Connection, username: str) -> User | None:
         row = conn.execute(
             "SELECT * FROM users WHERE username = ?", (username,)
