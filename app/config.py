@@ -106,6 +106,8 @@ class Settings:
     slskd: SlskdSettings = field(default_factory=SlskdSettings)
     files: FilesSettings = field(default_factory=FilesSettings)
     workers: WorkersSettings = field(default_factory=WorkersSettings)
+    slskd_url: str = ""
+    slskd_api_key: str = ""
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -129,6 +131,8 @@ class Settings:
             slskd=load_slskd(Path(required("PV_CONFIG_PATH"))),
             files=load_files(Path(required("PV_CONFIG_PATH"))),
             workers=load_workers(Path(required("PV_CONFIG_PATH"))),
+            slskd_url=required("PV_SLSKD_URL"),
+            slskd_api_key=required("PV_SLSKD_API_KEY"),
         )
 
 

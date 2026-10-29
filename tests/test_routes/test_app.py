@@ -9,11 +9,15 @@ from fastapi.testclient import TestClient
 
 from app.clients.navidrome_fake import FakeNavidromeClient
 from app.config import ConfigError, Settings
-from app.main import create_app
+from app.main import Core, create_app
 from app.middleware import SESSION_COOKIE
 from app.services.auth import MAX_FAILED_LOGINS, AuthService
+from app.services.catalog_fake import FakeCatalogService
+from app.services.dispatch_fake import FakeDownloadDispatch
 from app.services.encryption import SecretBox, generate_key
+from app.services.requests_fake import FakeRequestService
 from app.stores.database import Database
+from app.workers.core_loop import CoreLoopWorkers
 
 ORIGIN = "https://testserver"
 SAME = {"Origin": ORIGIN}
@@ -108,6 +112,8 @@ def test_settings_refuse_missing_or_bad_values(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setenv("PV_NAVIDROME_URL", "http://nd:4533")
     monkeypatch.setenv("PV_PUBLIC_ORIGIN", "https://music.example/")
     monkeypatch.setenv("PV_CONFIG_PATH", "config/post-vinyl.example.yaml")
+    monkeypatch.setenv("PV_SLSKD_URL", "http://slskd:5030")
+    monkeypatch.setenv("PV_SLSKD_API_KEY", "key")
     assert Settings.from_env().public_origin == "https://music.example"
     monkeypatch.setenv("PV_PUBLIC_ORIGIN", "https://music.example/app")
     with pytest.raises(ConfigError):
@@ -116,3 +122,28 @@ def test_settings_refuse_missing_or_bad_values(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.delenv("PV_NAVIDROME_URL")
     with pytest.raises(ConfigError, match="PV_NAVIDROME_URL"):
         Settings.from_env()
+
+
+class RecordingWorkers(CoreLoopWorkers):
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def start(self) -> None:
+        self.calls.append("start")
+
+    def stop(self) -> None:
+        self.calls.append("stop")
+
+
+def test_lifespan_starts_and_stops_core_workers(tmp_path: Path) -> None:
+    db = Database(tmp_path / "pv.db")
+    db.migrate()
+    auth = AuthService(db, FakeNavidromeClient({}), SecretBox(generate_key()))
+    workers = RecordingWorkers()
+    core = Core(
+        FakeCatalogService(), FakeRequestService(), FakeDownloadDispatch(), workers
+    )
+    app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ORIGIN), auth, core)
+    with TestClient(app, base_url=ORIGIN):
+        assert workers.calls == ["start"]
+    assert workers.calls == ["start", "stop"]

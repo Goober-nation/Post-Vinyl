@@ -41,7 +41,6 @@ MusicBrainz / ListenBrainz / Deezer / Cover Art Archive. Versions: `work-plan.md
   L0 with hundreds of helpful peers.
 - [ ] **A real `notFound`** with the throttle check confirming the empty results.
 - [ ] **A crashing search** → released to `requested`, retried once, then `notFound`.
-- [ ] **`dispatch.resume()` after a real app restart** (requests left `searching`).
 - [ ] **slskd refusing a query** (4xx while ready) → treated as a crash, not a lost parent.
 - [ ] **A cancelled search that never ends** at slskd → the 30 s deadline.
 
@@ -81,8 +80,6 @@ MusicBrainz / ListenBrainz / Deezer / Cover Art Archive. Versions: `work-plan.md
 - [ ] **The one-hour retag and moving untagged after a second failure.**
 - [ ] **Re-dispatching requests that waited for a download source** (one turned back on).
 - [ ] **Navidrome not listing a moved file yet** → linked on a later tick.
-- [ ] **`CoreLoopWorkers` inside the running app** (the app wiring is milestone 7; the live
-  run started the workers from a test).
 
 ## Across the loop
 - [ ] **Several users at once** (per-user source preferences, requests and LB tokens ran
