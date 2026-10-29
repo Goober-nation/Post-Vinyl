@@ -288,3 +288,12 @@ def test_source_contract_refuses_a_request_that_cant_start(
     assert found is not None
     with pytest.raises(IllegalTransition):
         src.start(found, song)
+
+
+def test_redispatch_waiting_starts_requests_left_waiting(case: Case) -> None:
+    case.set_enabled([])
+    assert case.svc.dispatch(case.alice, case.req) is None  # no source on: waits
+    case.set_enabled(["slskd"])
+    assert case.svc.redispatch_waiting() == 1
+    assert case.state(case.req) == "searching"
+    assert case.svc.redispatch_waiting() == 0  # nothing waiting now

@@ -81,3 +81,18 @@ def test_studio_release_needs_official_plain_type() -> None:
     assert not has_studio_release([("Official", "Album", ("Live",))])
     assert not has_studio_release([("Official", "Other", ())])
     assert not has_studio_release([])
+
+
+def test_music_video_recording_goes_last() -> None:
+    """Björk – Hyperballad (MusicBrainz, 2026-10-29): the video recording (score 100,
+    only on a 2006 edition) was the top hit; the album track must win."""
+    hits = [
+        ("video", "Hyperballad", "music video", [STUDIO], 100, "2006-07-10", True),
+        ("album", "Hyperballad", "", [STUDIO], 100, "1995-06-05", False),
+    ]
+    ordered = sorted(
+        hits,
+        key=lambda h: track_key("Hyperballad", h[1], h[2], h[3], h[4], hits.index(h),
+                                h[5], h[0], video=h[6]),
+    )  # fmt: skip
+    assert [h[0] for h in ordered] == ["album", "video"]

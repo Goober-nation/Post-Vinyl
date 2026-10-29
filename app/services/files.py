@@ -123,8 +123,20 @@ class FilesServiceBase(ABC):
     def move(self, file_id: int) -> bool: ...
 
     @abstractmethod
-    def index(self, file_id: int) -> bool:
-        """Scan and link; False while Navidrome doesn't list the file yet."""
+    def index(self, file_id: int, scan: bool = True) -> bool:
+        """(Scan and) link; False while Navidrome doesn't list the file yet."""
+
+    @abstractmethod
+    def scan(self) -> None:
+        """One Navidrome scan, waited for (the pipeline batches its moves)."""
+
+    @abstractmethod
+    def discard_unverifiable(self, file_id: int, older_than_s: int) -> bool:
+        """Delete a download that failed verification long enough ago."""
+
+    @abstractmethod
+    def check_missing(self, file_id: int) -> bool:
+        """Mark the file ``missing`` when it vanished; True when it did."""
 
 
 class FilesService(FilesServiceBase):
@@ -253,12 +265,13 @@ class FilesService(FilesServiceBase):
 
     # ------------------------------------------------------------ index
 
-    def index(self, file_id: int) -> bool:
+    def index(self, file_id: int, scan: bool = True) -> bool:
         rec, _ = self._get(file_id)
         if rec.file_state != "moved":
             return False
         library_rel = str(Path(rec.file_location).relative_to(Path(self._library.name)))
-        self._scan()
+        if scan:
+            self.scan()
         song = self._call(lambda s: self._nd.find_song_by_path(s, library_rel))
         if song is None:
             log.info("file %s: Navidrome doesn't list %s yet", rec.id, library_rel)
@@ -267,7 +280,7 @@ class FilesService(FilesServiceBase):
             self._files.set_navidrome_id(conn, rec.id, song.id, self._now())
         return self._move_state(rec, states.file_indexed("moved"))
 
-    def _scan(self) -> None:
+    def scan(self) -> None:
         status = self._call(lambda s: self._nd.start_scan(s))
         waited = 0.0
         while status.scanning and waited < SCAN_WAIT_S:
@@ -276,6 +289,49 @@ class FilesService(FilesServiceBase):
             status = self._call(lambda s: self._nd.scan_status(s))
         if status.error:
             log.warning("Navidrome scan error: %s", status.error)
+
+    # ------------------------------------------------------------ cleanup
+
+    def discard_unverifiable(self, file_id: int, older_than_s: int) -> bool:
+        """A download that failed verification ``older_than_s`` ago is deleted from
+        the downloads folder (user, 2026-10-29); its row becomes ``missing``, the
+        verification code stays as the reason."""
+        rec, _ = self._get(file_id)
+        if rec.file_state != "downloaded" or rec.verification in (None, "success"):
+            return False
+        if self._now() - rec.updated_at < older_than_s:
+            return False
+        path = self._source_path(rec)
+        if path.resolve().is_relative_to(self._downloads.resolve()) and path.is_file():
+            path.unlink()
+        if self._move_state(rec, states.file_missing("downloaded")):
+            log.info("file %s: deleted the unverifiable download (%s)", rec.id,
+                     rec.verification)  # fmt: skip
+            return True
+        return False
+
+    # ------------------------------------------------------------ missing
+
+    def check_missing(self, file_id: int) -> bool:
+        """Before indexing: the file is gone from disk. Indexed: Navidrome no longer
+        knows the id or reports the file missing (deleted outside Post-Vinyl)."""
+        rec, _ = self._get(file_id)
+        if rec.file_state in ("missing", "deleted"):
+            return False
+        if rec.file_state == "indexed":
+            try:
+                nd = self._call(lambda s: self._nd.get_song(s, rec.navidrome_id or ""))
+                gone = nd.missing
+            except NavidromeNotFound:
+                gone = True
+        else:
+            gone = not self._source_path(rec).is_file()
+        if not gone:
+            return False
+        if self._move_state(rec, states.file_missing(rec.file_state)):
+            log.warning("file %s is missing (%s)", rec.id, rec.file_location)
+            return True
+        return False
 
     # ------------------------------------------------------------ Navidrome login
 

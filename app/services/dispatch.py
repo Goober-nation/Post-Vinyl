@@ -54,6 +54,11 @@ class DownloadDispatchBase(ABC):
     def status(self, user_id: int, request_id: int) -> DownloadStatus: ...
 
     @abstractmethod
+    def redispatch_waiting(self) -> int:
+        """Start requests still ``requested``/``reRequested`` (e.g. no download
+        source was on); returns how many went to a source."""
+
+    @abstractmethod
     def resume(self) -> int:
         """At startup: re-dispatch requests a previous run left ``searching``."""
 
@@ -90,6 +95,20 @@ class DownloadDispatch(DownloadDispatchBase):
         if not source.start(req, song):
             raise NotStartable(f"request {request_id} was started meanwhile")
         return source.source
+
+    def redispatch_waiting(self) -> int:
+        with self._db.transaction() as conn:
+            waiting = [*self._requests.in_state(conn, "requested"),
+                       *self._requests.in_state(conn, "reRequested")]  # fmt: skip
+        started = 0
+        for req in waiting:
+            if req.song_id is None:
+                continue  # a typed Soulseek search: started by hand, not here
+            try:
+                started += self.dispatch(req.user_id, req.id) is not None
+            except NotStartable:
+                pass  # moved meanwhile
+        return started
 
     def resume(self) -> int:
         """At startup: requests left ``searching`` by the last run go back to

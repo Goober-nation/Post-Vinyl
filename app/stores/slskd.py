@@ -130,6 +130,12 @@ class SlskdStore:
         ).fetchone()
         return SlskdAttempt(**row) if row else None
 
+    def ended_attempts(self, conn: sqlite3.Connection) -> list[SlskdAttempt]:
+        rows = conn.execute(
+            "SELECT * FROM slskd_attempts WHERE outcome IS NOT NULL ORDER BY id"
+        )
+        return [SlskdAttempt(**r) for r in rows]
+
     def running_attempts(self, conn: sqlite3.Connection) -> list[SlskdAttempt]:
         rows = conn.execute(
             "SELECT * FROM slskd_attempts WHERE outcome IS NULL ORDER BY id"

@@ -47,3 +47,19 @@ files:
   # ...and Navidrome's library (Navidrome's music folder must be exactly this
   # one, so it never indexes half-finished downloads).
   library_dir: library
+
+# Advanced: how often the background workers run. Every value is optional.
+workers:
+  # Downloaded files: verify, tag, move into the library, then one Navidrome scan.
+  pipeline_every_seconds: 10
+  # A failed tagging is tried once more, this long after (MusicBrainz may have
+  # been down); after that the file moves untagged.
+  retag_after_minutes: 60
+  # Files deleted outside Post-Vinyl are marked missing.
+  missing_check_minutes: 60
+  # Requests still waiting (e.g. no download source was on) are started again.
+  redispatch_every_seconds: 60
+  # Finished and failed transfers are cleared at slskd, leftovers deleted.
+  cleanup_every_seconds: 60
+  # Downloads that failed verification are deleted after this long.
+  unverifiable_keep_hours: 24

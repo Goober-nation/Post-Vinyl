@@ -266,3 +266,10 @@ def test_search_hit_keeps_score_date_and_releases(
         ReleaseRef("Bootleg", "Other", ("Mixtape/Street",)),
         ReleaseRef("", "", ()),
     )
+
+
+def test_search_hit_keeps_the_video_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    hits = [{**RECORDING, "video": True}, {**RECORDING, "id": "r2"}]
+    client, _ = client_returning(monkeypatch, FakeResp(200, {"recordings": hits}))
+    video, plain = client.search_tracks("x")
+    assert video.video is True and plain.video is False
