@@ -63,16 +63,15 @@ header in `app/main.py`). The old `users`/`sessions` tables were dropped in migr
   it suboptimal and prefers setup through the app or a setup CLI script; decided in milestone 6,
   see `work-plan.md`, "To decide in milestone 6"). An empty Navidrome lets
   anyone who reaches it call `createAdmin`, so the deployment sets
-  `ND_DEVAUTOCREATEADMINPASSWORD` and Navidrome creates its admin on first start. Post-Vinyl
-  never calls `createAdmin`; the first admin is simply the first Navidrome admin to log in
-  (`is_admin` is copied). Checked in the v0.64.2 source (`server/initial_setup.go`):
-  - it runs only during Navidrome's initial setup (a fresh data folder), creating user
-    `admin` with that password if missing;
-  - **it logs the password in plain text** at warn level, so change the admin password
-    in Navidrome after the first start (the log then shows a dead password);
-  - it is labelled a dev option: pin the Navidrome image and re-check it on upgrades.
-  - **To do in milestone 7 (wiring):** add it to `docker-compose.yml` from `.env`, pin the
-    Navidrome image (it's `:latest` today), and verify on a throwaway Navidrome.
+  ~~`ND_DEVAUTOCREATEADMINPASSWORD`~~ **dropped** (user, 2026-10-29, #97). **Decided: a one-off
+  setup run** that works the same in bash, PowerShell and the macOS terminal:
+  1. `docker compose -f docker-compose.yml -f docker-compose.setup.yml run --rm setup`: the
+     setup override removes every published port (`ports: !reset []`, Compose ≥ 2.24), so
+     Navidrome runs only on the internal network; the command asks for the admin username and
+     password (hidden, `getpass`), refuses if Navidrome already has users, calls
+     `createAdmin`, writes the PV admin row, exits.
+  2. `docker compose down`, then 3. `docker compose up -d` (normal stack, ports published).
+  No password in `.env`, logs or shell history. No web setup page.
 - The new app never had HTTP Basic auth, so "remove Basic auth" is only about `legacy/`.
 
 ## Decisions

@@ -29,6 +29,10 @@ class NavidromeError(Exception):
     """A Navidrome call failed: connection error, timeout or unexpected status."""
 
 
+class NavidromeUnreachable(NavidromeError):
+    """No answer at all: connection refused, DNS failure or timeout."""
+
+
 class NavidromeAuthError(NavidromeError):
     """Wrong credentials, or an expired/revoked session: log in again."""
 
@@ -158,7 +162,7 @@ class NavidromeClient(NavidromeClientBase):
                 method, self._base + path, timeout=self._timeout, **kwargs
             )
         except requests.RequestException as e:
-            raise NavidromeError(f"{method} {path}: {e}") from e
+            raise NavidromeUnreachable(f"{method} {path}: {e}") from e
         error = {
             401: NavidromeAuthError,
             403: NavidromeForbidden,
