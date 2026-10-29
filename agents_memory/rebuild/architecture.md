@@ -90,6 +90,13 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   plain Album/Single/EP release first → source score (a source with no scores keeps its own
   order) → earliest first-release date → id. Typed fields are trimmed; an empty search is
   refused before anything is recorded.
+- **DownloadSource + dispatch (#99, 2026-10-29)**: `DownloadSource` = `start(request, song)` +
+  `cancel(request_id)`. `start` returns at once (work on the source's own thread); the source
+  claims the request with its guarded `requested`/`reRequested` → `searching` write, so a
+  second dispatch does nothing; it owns the track state from there and writes its `downloads`
+  rows. `services/dispatch.py` hands a request to the user's first enabled download source
+  (none → the request waits, nothing written), cancels through every source, and reads status
+  from what the source wrote. Falling back to the next source after `notFound` is not built.
 - User preference storage: setting `sources.<kind>` = `{"order": [...], "off": [...]}`; a source
   new in the config is on and goes after the user's order.
 - Plan each milestone 6+ service with this in mind; the registry lands with the first service
