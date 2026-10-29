@@ -4,7 +4,8 @@ uvicorn[standard]>=0.32.0
 requests>=2.32.0
 python-dotenv>=1.0.0
 cryptography>=44.0.0  # Fernet for per-user secrets
-toml>=0.10.2
+toml>=0.10.2  # scripts/corpus
+pyyaml>=6.0  # every config file is YAML (user, 2026-10-29)
 
 # Database
 # (SQLite is built-in, no dependency needed)
@@ -20,6 +21,7 @@ ruff>=0.7.0
 # Type checking
 mypy>=1.13.0
 types-requests>=2.32.0
+types-PyYAML>=6.0
 
 # Audio metadata (for future MBID extraction)
 mutagen>=1.47.0
