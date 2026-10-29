@@ -39,10 +39,11 @@ class SourcePreferences:
         """The user's enabled sources of ``kind``, most preferred first."""
         configured = self.configured(kind)
         with self._db.transaction() as conn:
-            pref = self._users.get_setting(conn, user_id, f"sources.{kind}") or {}
-        placed = [s for s in pref.get("order", []) if s in configured]
+            pref = self._users.get_setting(conn, user_id, f"sources.{kind}")
+        order, off_list = _parse(pref)
+        placed = [s for s in order if s in configured]
         ordered = placed + [s for s in configured if s not in placed]
-        off = set(pref.get("off", []))
+        off = set(off_list)
         return [s for s in ordered if s not in off]
 
     def set_for_user(
@@ -52,7 +53,7 @@ class SourcePreferences:
         bad = [s for s in [*order, *off] if s not in configured]
         if bad:
             raise UnknownSource(f"{kind} sources not in the config: {bad}")
-        with self._db.transaction() as conn:
+        with self._db.transaction(write=True) as conn:
             self._users.set_setting(
                 conn,
                 user_id,
@@ -60,3 +61,19 @@ class SourcePreferences:
                 {"order": list(dict.fromkeys(order)), "off": sorted(set(off))},
                 int(self._clock()),
             )
+
+
+def _parse(pref: object) -> tuple[list[str], list[str]]:
+    """``(order, off)`` from the stored value; anything malformed counts as unset.
+
+    Only ``set_for_user`` writes it (the frontend moves fixed options around),
+    but a value read on every search must never crash it.
+    """
+    if not isinstance(pref, dict):
+        return [], []
+    order, off = pref.get("order"), pref.get("off")
+    if not (isinstance(order, list) and all(isinstance(s, str) for s in order)):
+        return [], []
+    if not (isinstance(off, list) and all(isinstance(s, str) for s in off)):
+        return [], []
+    return order, off

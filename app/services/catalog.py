@@ -42,7 +42,10 @@ T = TypeVar("T")
 
 
 class CatalogUnavailable(Exception):
-    """Every catalog source the user has failed (or none is enabled)."""
+    """Every catalog source the user has failed, or none is enabled."""
+
+
+NO_SOURCES = "catalog search is unavailable without sources"
 
 
 @dataclass(frozen=True)
@@ -118,11 +121,14 @@ class CatalogService(CatalogServiceBase):
         kind: str,
         call: Callable[[CatalogSource], list[T]],
     ) -> Results[T]:
-        with self._db.transaction() as conn:
+        catalogs = self._user_catalogs(user_id)
+        if not catalogs:  # user, 2026-10-29: a soft error, shown as is
+            log.warning("user %s: %s", user_id, NO_SOURCES)
+            raise CatalogUnavailable(NO_SOURCES)
+        with self._db.transaction(write=True) as conn:
             origin = self._requests.record_catalog_search(
                 conn, user_id, query, kind, int(self._clock())
             )
-        catalogs = self._user_catalogs(user_id)
         answered = False
         for catalog in catalogs:
             try:
@@ -133,10 +139,8 @@ class CatalogService(CatalogServiceBase):
             answered = True
             if items:
                 return Results(catalog.source, items, origin.id)
-        if catalogs and not answered:
+        if not answered:
             raise CatalogUnavailable(f"no catalog source answered the {kind} search")
-        if not catalogs:
-            raise CatalogUnavailable("no catalog source is enabled")
         return Results(None, [], origin.id)
 
     def search_tracks(
@@ -178,5 +182,5 @@ class CatalogService(CatalogServiceBase):
             artist_name=track.artist,
             duration_s=round(track.duration_s) if track.duration_s else None,
         )
-        with self._db.transaction() as conn:
+        with self._db.transaction(write=True) as conn:
             return self._songs.find_or_create(conn, fields, {source: track.id})

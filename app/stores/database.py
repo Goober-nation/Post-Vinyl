@@ -31,11 +31,18 @@ class Database:
         return conn
 
     @contextmanager
-    def transaction(self) -> Iterator[sqlite3.Connection]:
-        """A connection whose work is committed on success, rolled back on error."""
+    def transaction(self, write: bool = False) -> Iterator[sqlite3.Connection]:
+        """A connection whose work is committed on success, rolled back on error.
+
+        ``write`` takes the write lock up front (BEGIN IMMEDIATE): a
+        transaction that reads and then writes waits for other writers instead
+        of failing with "database is locked" when one committed meanwhile.
+        """
         conn = self.connect()
         try:
             with conn:
+                if write:
+                    conn.execute("BEGIN IMMEDIATE")
                 yield conn
         finally:
             conn.close()
