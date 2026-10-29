@@ -97,6 +97,14 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   rows. `services/dispatch.py` hands a request to the user's first enabled download source
   (none → the request waits, nothing written), cancels through every source, and reads status
   from what the source wrote. Falling back to the next source after `notFound` is not built.
+- **slskd gate (#100, user 2026-10-29)**: `services/slskd_gate.py`, in memory. One search at a
+  time, ≤ `searches_per_minute` (4) starts in any 60 s. Not ready (logged out / no parent) →
+  wait with no limit. Parent lost during a search → result dropped, same query again. **Empty
+  results need confirming before `notFound`**: trusted if any search came back with results
+  since; otherwise the throttle check search runs (`"2020"`, healthy ≥ 300); a failed check
+  pauses searching 10 min and the caller reruns its queries. Advanced values in the YAML
+  `slskd` section. (Replaces the "5 zero results in a row" trigger: with a 3-query ladder a
+  request could end `notFound` on untrusted zeros before 5 accumulated.)
 - User preference storage: setting `sources.<kind>` = `{"order": [...], "off": [...]}`; a source
   new in the config is on and goes after the user's order.
 - Plan each milestone 6+ service with this in mind; the registry lands with the first service

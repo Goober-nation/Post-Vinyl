@@ -16,3 +16,16 @@ sources:
   # What else may start a request besides a user's own pick.
   # Possible values: postradio, yandex (not built yet; listing them does nothing)
   request: []
+
+# Advanced: how Post-Vinyl uses slskd. Every value is optional; the default is shown.
+slskd:
+  # Searches started per minute, at most. Searching faster gets the Soulseek
+  # account throttled (results go near-empty while slskd looks healthy).
+  searches_per_minute: 4
+  # Before a request is given up as "not found", empty results must be trusted:
+  # if no search has come back with results since, this check search runs.
+  # It counts as healthy at this many responses or more.
+  throttle_check_query: "2020"
+  throttle_check_min_responses: 300
+  # A failed check pauses all searching this long, then checks again.
+  throttle_pause_minutes: 10

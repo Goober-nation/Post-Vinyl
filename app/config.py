@@ -30,6 +30,16 @@ class ConfigError(Exception):
 
 
 @dataclass(frozen=True)
+class SlskdSettings:
+    """Advanced slskd values from the YAML ``slskd`` section (#100, user 2026-10-29)."""
+
+    searches_per_minute: int = 4  # live 2026-10-27: 4/min held, ~5-6/min got throttled
+    throttle_check_query: str = "2020"  # healthy ≈ 600 responses (research run)
+    throttle_check_min_responses: int = 300
+    throttle_pause_minutes: int = 10
+
+
+@dataclass(frozen=True)
 class Settings:
     db_path: str
     navidrome_url: str
@@ -39,6 +49,7 @@ class Settings:
     sources: dict[str, tuple[str, ...]] = field(
         default_factory=lambda: dict(KNOWN_SOURCES)
     )
+    slskd: SlskdSettings = field(default_factory=SlskdSettings)
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -59,16 +70,39 @@ class Settings:
             public_origin=origin,
             dev=os.environ.get("PV_DEV", "").strip().lower() in ("1", "true", "yes"),
             sources=load_sources(Path(required("PV_CONFIG_PATH"))),
+            slskd=load_slskd(Path(required("PV_CONFIG_PATH"))),
         )
 
 
-def load_sources(path: Path) -> dict[str, tuple[str, ...]]:
-    """The ``sources`` lists from the YAML config, checked against KNOWN_SOURCES."""
+def _read(path: Path) -> dict[str, Any]:
     try:
         data: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as e:
         raise ConfigError(f"can't read config {path}: {e}") from e
-    raw = (data or {}).get("sources") if isinstance(data, dict) else None
+    return data if isinstance(data, dict) else {}
+
+
+def load_slskd(path: Path) -> SlskdSettings:
+    """The optional ``slskd`` section; a value left out keeps its default."""
+    raw = _read(path).get("slskd") or {}
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{path}: 'slskd' must be a section")
+    defaults = SlskdSettings()
+    unknown = set(raw) - set(vars(defaults))
+    if unknown:
+        raise ConfigError(f"{path}: unknown slskd settings {sorted(unknown)}")
+    for name, value in raw.items():
+        want = type(getattr(defaults, name))
+        if type(value) is not want or (want is int and value < 1) or value == "":
+            raise ConfigError(
+                f"{path}: slskd.{name} must be a positive {want.__name__}"
+            )
+    return SlskdSettings(**raw)
+
+
+def load_sources(path: Path) -> dict[str, tuple[str, ...]]:
+    """The ``sources`` lists from the YAML config, checked against KNOWN_SOURCES."""
+    raw = _read(path).get("sources")
     if not isinstance(raw, dict):
         raise ConfigError(f"{path}: missing 'sources' section")
     unknown_kinds = set(raw) - set(KNOWN_SOURCES)
