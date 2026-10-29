@@ -5,7 +5,8 @@ Part of the slskd backend. ``start`` takes a ``found`` request: it writes the
 ``midDownload`` and queues the best candidate. ``poll`` (the download monitor
 calls it every few seconds) follows each running attempt:
 
-- queued longer than ``queue_wait_seconds`` (15 s) → ``noStart``;
+- queued longer than ``queue_wait_seconds`` (15 s) → ``noStart``, except a
+  file picked in the slskd tab, which waits as long as the peer queues it;
 - downloading → ``core/stall.py`` decides ``noStart`` / ``tooSlow``;
 - slskd ends it: succeeded → ``completed``, otherwise ``failed``.
 
@@ -106,9 +107,11 @@ class SlskdDownloader:
 
     # ------------------------------------------------------------ start
 
-    def start(self, request_id: int) -> bool:
+    def start(self, request_id: int, pinned: Candidate | None = None) -> bool:
         """A ``found`` request: row first, then the first candidate. False when
-        the request moved meanwhile (e.g. dropped)."""
+        the request moved meanwhile (e.g. dropped). ``pinned``: a file the user
+        picked (#108), tried first; the request has no searches of its own, so
+        there is no other candidate after it."""
         with self._lock, self._db.transaction(write=True) as conn:
             req = self._requests.get(conn, request_id)
             if req is None or req.track_state != "found":
@@ -117,7 +120,7 @@ class SlskdDownloader:
             self._requests.set_track_state(
                 conn, request_id, states.start_download("found"), expected="found"
             )
-        self._next(row.id, request_id)
+        self._next(row.id, request_id, pinned)
         return True
 
     def _candidates(self, download_id: int, request_id: int) -> list[Candidate]:
@@ -134,14 +137,20 @@ class SlskdDownloader:
             if c.username not in tried and c.username not in blocked
         ]
 
-    def _next(self, download_id: int, request_id: int) -> None:
+    def _next(
+        self, download_id: int, request_id: int, pinned: Candidate | None = None
+    ) -> None:
         """Queue the next candidate, or end the download when none is left."""
         while True:
             with self._db.transaction() as conn:
                 attempts = self._store.attempts_for_download(conn, download_id)
             if len(attempts) >= self._settings.candidates_per_download:
                 return self._give_up(download_id, request_id, attempts)
-            cands = self._candidates(download_id, request_id)
+            cands = (
+                [pinned]
+                if pinned and not attempts
+                else self._candidates(download_id, request_id)
+            )
             if not cands:
                 return self._give_up(download_id, request_id, attempts)
             cand = cands[0]
@@ -267,7 +276,10 @@ class SlskdDownloader:
                      transfer.exception)  # fmt: skip
             outcome = "failed"
         elif phase == "queued" and not watch.samples:
-            if now - watch.seen_at > self._settings.queue_wait_seconds:
+            # a file the user picked waits in the peer's queue as long as it
+            # takes: it has no other candidate (user, 2026-10-30, #108)
+            picked = req.source == "slskd" and req.query is None
+            if not picked and now - watch.seen_at > self._settings.queue_wait_seconds:
                 outcome = "noStart"
         elif phase == "downloading" or watch.samples:
             watch.samples.append((now, transfer.bytes_transferred))

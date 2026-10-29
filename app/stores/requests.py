@@ -72,6 +72,30 @@ class RequestsStore:
         ).fetchone()
         return Request(**row)
 
+    def create_pick(
+        self, conn: sqlite3.Connection, user_id: int, song_id: int, now: int
+    ) -> Request:
+        """A file picked from a typed Soulseek search (#108): its own request,
+        ``source='slskd'`` with no query (so the typed-query index skips it)."""
+        row = conn.execute(
+            """INSERT INTO requests (user_id, song_id, source, created_at, last_used_at)
+               VALUES (?, ?, 'slskd', ?, ?) RETURNING *""",
+            (user_id, song_id, now, now),
+        ).fetchone()
+        return Request(**row)
+
+    def slskd_queries(
+        self, conn: sqlite3.Connection, user_id: int, limit: int
+    ) -> list[Request]:
+        """A user's typed Soulseek searches, most recently used first."""
+        rows = conn.execute(
+            """SELECT * FROM requests
+               WHERE user_id = ? AND source = 'slskd' AND query IS NOT NULL
+               ORDER BY last_used_at DESC, id DESC LIMIT ?""",
+            (user_id, limit),
+        )
+        return [Request(**r) for r in rows]
+
     def set_song(self, conn: sqlite3.Connection, request_id: int, song_id: int) -> None:
         conn.execute(
             "UPDATE requests SET song_id = ? WHERE id = ?", (song_id, request_id)

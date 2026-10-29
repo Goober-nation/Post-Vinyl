@@ -180,10 +180,18 @@ class SlskdSearcher:
 
     # ------------------------------------------------------------ one query
 
-    def run_query(self, query: str, still_ready: Callable[[], bool]) -> SearchState:
-        """One slskd search with the stable-count exit; read by the gate."""
+    def run_query(
+        self,
+        query: str,
+        still_ready: Callable[[], bool],
+        on_start: Callable[[str], None] | None = None,
+    ) -> SearchState:
+        """One slskd search with the stable-count exit; read by the gate.
+        ``on_start`` gets slskd's search id as soon as there is one."""
         try:
             search_id = self._client.start_search(query, RESPONSE_CAP, TIMEOUT_S)
+            if on_start is not None:
+                on_start(search_id)
             started = self._clock()
             last_count, last_change = -1, started
             while True:

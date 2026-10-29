@@ -141,7 +141,10 @@ def test_lifespan_starts_and_stops_core_workers(tmp_path: Path) -> None:
     auth = AuthService(db, FakeNavidromeClient({}), SecretBox(generate_key()))
     workers = RecordingWorkers()
     core = Core(
-        FakeCatalogService(), FakeRequestService(), FakeDownloadDispatch(), workers
+        FakeCatalogService(),
+        FakeRequestService(),
+        FakeDownloadDispatch(),
+        workers=workers,
     )
     app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ORIGIN), auth, core)
     with TestClient(app, base_url=ORIGIN):
