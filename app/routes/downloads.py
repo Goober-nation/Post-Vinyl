@@ -19,12 +19,17 @@ router = APIRouter(prefix="/api/downloads", tags=["downloads"])
 def queue(
     user: UserDep,
     core: CoreDep,
-    state: str | None = None,
+    state: str | None = None,  # not given: the user's default (#109); "" = all
     everyone: bool = False,  # admins: every user's downloads
     page: int = 1,
-    page_size: int = DEFAULT_PAGE_SIZE,
+    page_size: int | None = None,  # not given: the user's default
 ) -> QueuePage:
     svc = need(core.downloads, "downloads")
+    mine = core.settings.get(user.id) if core.settings else {}
+    if state is None:
+        state = mine.get("downloads.state", "")
+    page_size = page_size or mine.get("downloads.page_size", DEFAULT_PAGE_SIZE)
+    state = state or None
     return svc.page(user.id, bool(user.is_admin), everyone=everyone, state=state,
                     page=page, page_size=page_size)  # fmt: skip
 

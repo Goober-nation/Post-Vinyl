@@ -29,6 +29,7 @@ from app.routes import errors
 from app.routes import library as library_routes
 from app.routes import me as me_routes
 from app.routes import requests as request_routes
+from app.routes import settings as settings_routes
 from app.routes import slskd as slskd_routes
 from app.routes import system as system_routes
 from app.services.admin import AdminService
@@ -43,6 +44,7 @@ from app.services.library import LibraryService
 from app.services.pipeline import FilePipeline
 from app.services.queue_pause import QueuePause
 from app.services.requests import RequestService
+from app.services.settings import InstallSettings, UserSettings
 from app.services.slskd_cleanup import SlskdCleanup
 from app.services.slskd_download import SlskdDownloader
 from app.services.slskd_gate import SlskdGate
@@ -93,6 +95,8 @@ def build_core(
         LibraryService(db, files, tagging, box),
         AdminService(db),
         CredentialsService(db, lb, box, prefs),
+        UserSettings(db, prefs),
+        InstallSettings(settings),
         workers,
     )
 
@@ -130,6 +134,7 @@ def create_app(
     app.include_router(admin_routes.router)
     app.include_router(library_routes.router)
     app.include_router(me_routes.router)
+    app.include_router(settings_routes.router)
     errors.register(app)
     return app
 

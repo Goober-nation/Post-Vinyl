@@ -21,6 +21,7 @@ from app.services.downloads import DownloadsService
 from app.services.encryption import SecretBox, generate_key
 from app.services.queue_pause import QueuePause
 from app.services.requests import RequestService
+from app.services.settings import UserSettings
 from app.services.slskd_download import SlskdDownloader
 from app.services.slskd_gate import SlskdGate
 from app.services.slskd_search import SlskdSearcher
@@ -95,6 +96,7 @@ def make_env(tmp_path: Path, slskd: FakeSlskdClient) -> Env:
         tab,
         DownloadsService(db, slskd, downloader, sources=prefs),
         pause,
+        settings=UserSettings(db, prefs),
     )
     app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ORIGIN), auth, core)
     return Env(

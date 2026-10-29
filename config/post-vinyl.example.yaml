@@ -1,5 +1,8 @@
 # Post-Vinyl settings. Copy to post-vinyl.yaml and point PV_CONFIG_PATH at it.
 # Secrets never go here; they stay in .env.
+# Admins can also change these in the app's settings: it rewrites only the lines
+# that changed (comments stay), keeps a backup next to this file, and the new
+# values apply when Post-Vinyl restarts. Keep each value on one line for that.
 
 # Which sources this install uses, per kind. The list order is the order they
 # are tried; a source left out is off. Each user can switch listed sources off
@@ -31,6 +34,7 @@ slskd:
   throttle_pause_minutes: 10
   # A peer that keeps a download queued longer than this is skipped (counts as
   # a failure for that peer). Ranking puts peers with a free upload slot first.
+  # Files picked by hand in the slskd tab wait in the peer's queue as long as it takes.
   queue_wait_seconds: 15
   # Peers tried for one download before it is given up.
   candidates_per_download: 5
@@ -57,7 +61,8 @@ workers:
   retag_after_minutes: 60
   # Files deleted outside Post-Vinyl are marked missing.
   missing_check_minutes: 60
-  # Requests still waiting (e.g. no download source was on) are started again.
+  # Requests still waiting (e.g. no download source was on, or the queue was
+  # paused) are started again.
   redispatch_every_seconds: 60
   # Finished and failed transfers are cleared at slskd, leftovers deleted.
   cleanup_every_seconds: 60
