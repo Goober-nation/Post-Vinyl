@@ -13,6 +13,8 @@ from fastapi.responses import JSONResponse
 from app.clients.catalog import CatalogError, CatalogNotFound
 from app.core.states import IllegalTransition
 from app.services.catalog import CatalogUnavailable
+from app.services.downloads import AdminOnly, DownloadNotFound, NotRunning
+from app.services.queue_pause import QueuePaused
 from app.services.requests import RequestNotFound, SongNotFound, StateChanged
 from app.services.slskd_tab import FileNotInSearch
 from app.services.sources import UnknownSource
@@ -26,6 +28,10 @@ STATUS: dict[type[Exception], int] = {
     FileNotInSearch: 404,  # a picked file the search never listed
     IllegalTransition: 409,  # e.g. dropping a request that is already dropped
     StateChanged: 409,
+    QueuePaused: 409,  # an admin paused the queue
+    NotRunning: 409,  # next peer on a download that isn't running
+    DownloadNotFound: 404,
+    AdminOnly: 403,
     CatalogError: 502,  # the source failed while browsing
     CatalogUnavailable: 503,  # no source answered, or none enabled
 }
@@ -40,3 +46,8 @@ def register(app: FastAPI) -> None:
             return JSONResponse({"detail": str(e)}, status_code=status)
 
         app.add_exception_handler(error, handler)
+
+
+def status_for(e: Exception) -> int | None:
+    """The status ``register`` would answer for ``e``, the most specific class first."""
+    return next((STATUS[c] for c in type(e).__mro__ if c in STATUS), None)

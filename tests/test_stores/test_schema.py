@@ -12,15 +12,16 @@ from pathlib import Path
 
 import pytest
 
-from app.stores.database import Database
+from app.stores.database import MIGRATIONS_DIR, Database
 
 NOW = 1_800_000_000
+LATEST = len(list(MIGRATIONS_DIR.glob("[0-9][0-9][0-9]_*.sql")))
 
 
 @pytest.fixture
 def db(tmp_path: Path) -> Database:
     database = Database(tmp_path / "pv.db")
-    assert database.migrate() == 1
+    assert database.migrate() == LATEST
     return database
 
 
@@ -77,9 +78,9 @@ def complete(c: sqlite3.Connection, download: int, location: str) -> None:
 
 
 def test_migrate_is_idempotent(db: Database) -> None:
-    assert db.migrate() == 1
+    assert db.migrate() == LATEST
     with db.transaction() as c:
-        assert c.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert c.execute("PRAGMA user_version").fetchone()[0] == LATEST
 
 
 def test_foreign_keys_enforced(conn: sqlite3.Connection) -> None:
@@ -323,3 +324,40 @@ def test_every_foreign_key_column_is_indexed(conn: sqlite3.Connection) -> None:
             if fk[3] not in indexed_first | pk:
                 missing.append(f"{table}.{fk[3]}")
     assert missing == []
+
+
+def test_002_keeps_attempts_and_their_id_counter_and_allows_skipped(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "m"
+    first.mkdir()
+    (first / "001_initial.sql").write_text(
+        (MIGRATIONS_DIR / "001_initial.sql").read_text(encoding="utf-8")
+    )
+    db = Database(tmp_path / "pv.db")
+    assert db.migrate(first) == 1
+    c = db.connect()
+    request = add_request(c, add_user(c), add_song(c))
+    download = add_download(c, request)
+    c.execute("INSERT INTO slskd_searches (id, request_id, query, strategy, created_at)"
+              " VALUES ('s1', ?, 'q', 'L0', ?)", (request, NOW))  # fmt: skip
+    insert = (
+        "INSERT INTO slskd_attempts (download_id, search_id, rank, username, filename,"
+        " size, outcome, started_at, ended_at) VALUES (?, 's1', 0, 'peer', 'f', 1, ?, ?, ?)"
+    )
+    for _ in range(3):
+        c.execute(insert, (download, "failed", NOW, NOW))
+    c.execute("DELETE FROM slskd_attempts WHERE id = 3")  # its folder may still exist
+    c.commit()
+    c.close()
+    assert db.migrate() == LATEST
+    c = db.connect()
+    assert [r[0] for r in c.execute("SELECT id FROM slskd_attempts ORDER BY id")] == [
+        1,
+        2,
+    ]
+    new = c.execute(insert, (download, "skipped", NOW, NOW)).lastrowid
+    assert new == 4  # id 3 is never handed out again
+    with pytest.raises(sqlite3.IntegrityError):
+        c.execute(insert, (download, "bogus", NOW, NOW))
+    c.close()

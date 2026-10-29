@@ -21,8 +21,10 @@ from app.clients.slskd import SlskdClient
 from app.config import Settings
 from app.dependencies import Core
 from app.middleware import make_guard
+from app.routes import admin as admin_routes
 from app.routes import auth as auth_routes
 from app.routes import catalog as catalog_routes
+from app.routes import downloads as download_routes
 from app.routes import errors
 from app.routes import requests as request_routes
 from app.routes import slskd as slskd_routes
@@ -30,9 +32,11 @@ from app.routes import system as system_routes
 from app.services.auth import AuthService, AuthServiceBase
 from app.services.catalog import CatalogService
 from app.services.dispatch import DownloadDispatch
+from app.services.downloads import DownloadsService
 from app.services.encryption import SecretBox
 from app.services.files import FilesService
 from app.services.pipeline import FilePipeline
+from app.services.queue_pause import QueuePause
 from app.services.requests import RequestService
 from app.services.slskd_cleanup import SlskdCleanup
 from app.services.slskd_download import SlskdDownloader
@@ -54,10 +58,13 @@ def build_core(
     mb = MusicBrainzClient()
     catalogs: list[CatalogSource] = [mb, DeezerClient()]
     slskd = SlskdClient(settings.slskd_url, settings.slskd_api_key)
-    gate = SlskdGate(slskd, settings.slskd)
+    pause = QueuePause(db)
+    gate = SlskdGate(slskd, settings.slskd, paused=pause.paused)
     searcher = SlskdSearcher(db, slskd, gate)
     downloader = SlskdDownloader(db, slskd, searcher, settings.slskd)
-    dispatch = DownloadDispatch(db, prefs, [SlskdSource(db, searcher, downloader)])
+    dispatch = DownloadDispatch(
+        db, prefs, [SlskdSource(db, searcher, downloader)], paused=pause.paused
+    )
     files = FilesService(db, nd, box, settings.files)
     tagging = TaggingService(
         db, mb, ListenBrainzClient(), CoverArtClient(), box, settings.files
@@ -71,7 +78,9 @@ def build_core(
         CatalogService(db, prefs, catalogs),
         RequestService(db),
         dispatch,
-        SlskdTab(db, slskd, gate, searcher, downloader),
+        SlskdTab(db, slskd, gate, searcher, downloader, paused=pause.paused),
+        DownloadsService(db, slskd, downloader),
+        pause,
         workers,
     )
 
@@ -105,11 +114,30 @@ def create_app(
     app.include_router(catalog_routes.router)
     app.include_router(request_routes.router)
     app.include_router(slskd_routes.router)
+    app.include_router(download_routes.router)
+    app.include_router(admin_routes.router)
     errors.register(app)
     return app
 
 
+POLLED = ("/api/downloads", "/api/slskd/searches", "/api/requests")
+
+
+class QuietPolls(logging.Filter):
+    """Successful (200) polls of the tabs stay out of the access log (#111, user
+    2026-10-30); every other request, and every failed poll, is logged."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) == 5:  # uvicorn's access line
+            _, method, path, _, status = args
+            if method == "GET" and status == 200 and str(path).startswith(POLLED):
+                return False
+        return True
+
+
 def create_app_from_env() -> FastAPI:
+    logging.getLogger("uvicorn.access").addFilter(QuietPolls())
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )

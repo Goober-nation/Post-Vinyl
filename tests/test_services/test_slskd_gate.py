@@ -250,3 +250,13 @@ def test_bad_slskd_values_refuse(tmp_path: Path, text: str) -> None:
     p.write_text(text)
     with pytest.raises(ConfigError):
         load_slskd(p)
+
+
+def test_no_search_starts_while_the_queue_is_paused() -> None:
+    clock = Clock()
+    paused = [True, True, True, False]  # resumed after three checks
+    gate = SlskdGate(Slskd(), SETTINGS, clock, clock.sleep,
+                     paused=lambda: paused.pop(0) if len(paused) > 1 else paused[0])  # fmt: skip
+    run, seen = answers(400)
+    gate.search("q", run, lambda n: n)
+    assert seen == ["q"] and clock.slept[:3] == [5, 5, 5]

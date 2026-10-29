@@ -87,6 +87,7 @@ class Transfer:
     bytes_transferred: int
     average_speed: int  # bytes/s
     exception: str | None  # slskd's reason for a failed or rejected transfer
+    place_in_queue: int | None = None  # the peer's queue; 0.26.2 PlaceInQueue (#111)
 
 
 @dataclass(frozen=True)
@@ -137,6 +138,11 @@ class SlskdClientBase(ABC):
 
     @abstractmethod
     def get_download(self, username: str, transfer_id: str) -> Transfer: ...
+
+    @abstractmethod
+    def place_in_queue(self, username: str, transfer_id: str) -> int:
+        """Asks the peer where the transfer is in its queue (a Soulseek message,
+        so not for polling); slskd also stores the answer on the transfer."""
 
     @abstractmethod
     def cancel_download(
@@ -195,6 +201,7 @@ def parse_transfer(raw: dict[str, Any]) -> Transfer:
         bytes_transferred=raw.get("bytesTransferred", 0),
         average_speed=int(raw.get("averageSpeed") or 0),
         exception=raw.get("exception"),
+        place_in_queue=raw.get("placeInQueue"),
     )
 
 
@@ -290,6 +297,11 @@ class SlskdClient(SlskdClientBase):
     def get_download(self, username: str, transfer_id: str) -> Transfer:
         path = f"/transfers/downloads/{quote(username, safe='')}/{transfer_id}"
         return parse_transfer({"username": username, **self._call("GET", path)})
+
+    def place_in_queue(self, username: str, transfer_id: str) -> int:
+        # 0.26.2 answers a bare number (its docs say Transfer; the code returns the int)
+        path = f"/transfers/downloads/{quote(username, safe='')}/{transfer_id}/position"
+        return int(self._call("GET", path))
 
     def cancel_download(
         self, username: str, transfer_id: str, forget: bool = False

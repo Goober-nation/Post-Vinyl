@@ -3,17 +3,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, TypeVar
 
 from fastapi import Depends, HTTPException, Request
 
 from app.services.auth import AuthServiceBase
 from app.services.catalog import CatalogServiceBase
 from app.services.dispatch import DownloadDispatchBase
+from app.services.downloads import DownloadsServiceBase
+from app.services.queue_pause import QueuePauseBase
 from app.services.requests import RequestServiceBase
 from app.services.slskd_tab import SlskdTabBase
 from app.stores.users import User
 from app.workers.core_loop import CoreLoopWorkers
+
+T = TypeVar("T")
 
 
 @dataclass(frozen=True)
@@ -24,7 +28,16 @@ class Core:
     requests: RequestServiceBase
     dispatch: DownloadDispatchBase
     slskd: SlskdTabBase | None = None  # None: slskd isn't configured (tests)
+    downloads: DownloadsServiceBase | None = None
+    pause: QueuePauseBase | None = None
     workers: CoreLoopWorkers | None = None
+
+
+def need(service: T | None, what: str) -> T:
+    """A service this app was built without (tests) → 503."""
+    if service is None:
+        raise HTTPException(503, f"{what} isn't configured")
+    return service
 
 
 def get_auth(request: Request) -> AuthServiceBase:
@@ -45,6 +58,14 @@ def get_core(request: Request) -> Core:
     return core
 
 
+def admin_user(request: Request) -> User:
+    user = current_user(request)
+    if not user.is_admin:
+        raise HTTPException(403, "admins only")
+    return user
+
+
 AuthDep = Annotated[AuthServiceBase, Depends(get_auth)]
 UserDep = Annotated[User, Depends(current_user)]
+AdminDep = Annotated[User, Depends(admin_user)]
 CoreDep = Annotated[Core, Depends(get_core)]

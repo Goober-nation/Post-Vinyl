@@ -27,6 +27,7 @@ class FakeSlskdClient(SlskdClientBase):
         self.transfers: dict[str, Transfer] = {}
         self.offline_peers: set[str] = set()
         self.destinations: list[str | None] = []
+        self.places: dict[str, int] = {}  # transfer id → the peer's queue position
 
     def app_state(self) -> AppState:
         return self.state
@@ -94,6 +95,12 @@ class FakeSlskdClient(SlskdClientBase):
         if transfer is None or transfer.username != username:
             raise SlskdNotFound(f"GET /transfers/downloads/{transfer_id}: HTTP 404")
         return transfer
+
+    def place_in_queue(self, username: str, transfer_id: str) -> int:
+        transfer = self.get_download(username, transfer_id)
+        place = self.places.get(transfer_id, 0)
+        self.transfers[transfer_id] = replace(transfer, place_in_queue=place)
+        return place
 
     def cancel_download(
         self, username: str, transfer_id: str, forget: bool = False

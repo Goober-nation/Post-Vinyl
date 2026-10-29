@@ -18,6 +18,9 @@ Part of the slskd backend. Decided with the user, 2026-10-29:
   failed check pauses all searching for ``throttle_pause_minutes`` and returns
   False: the caller runs its queries again.
 
+- **Queue paused** (``paused()``, an admin's choice, #111) → no search
+  starts until it's resumed (checked every 5 s).
+
 State lives in memory (one app, one slskd); a restart starts fresh.
 """
 
@@ -63,9 +66,11 @@ class SlskdGate:
         settings: SlskdSettings,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
+        paused: Callable[[], bool] = lambda: False,
     ) -> None:
         self._client = client
         self._settings = settings
+        self._paused = paused
         self._clock = clock
         self._sleep = sleep
         self._lock = threading.Lock()  # one search at a time
@@ -149,6 +154,8 @@ class SlskdGate:
             return Ran(result, started)
 
     def _wait_turn(self) -> None:
+        while self._paused():
+            self._sleep(READY_CHECK_EVERY_S)
         while (wait := self._paused_until - self._clock()) > 0:
             self._sleep(wait)
         cap = self._settings.searches_per_minute

@@ -17,7 +17,9 @@ from app.main import create_app
 from app.services.auth import AuthService
 from app.services.catalog_fake import FakeCatalogService
 from app.services.dispatch import DownloadDispatch
+from app.services.downloads import DownloadsService
 from app.services.encryption import SecretBox, generate_key
+from app.services.queue_pause import QueuePause
 from app.services.requests import RequestService
 from app.services.slskd_download import SlskdDownloader
 from app.services.slskd_gate import SlskdGate
@@ -67,6 +69,7 @@ class Env:
     db: Database
     clock: Clock
     downloader: SlskdDownloader
+    pause: QueuePause
 
 
 def make_env(tmp_path: Path, slskd: FakeSlskdClient) -> Env:
@@ -75,22 +78,27 @@ def make_env(tmp_path: Path, slskd: FakeSlskdClient) -> Env:
     nd = FakeNavidromeClient({"alice": ("pw", True), "bob": ("pw", False)})
     auth = AuthService(db, nd, SecretBox(generate_key()))
     clock, cfg = Clock(), SlskdSettings()
-    gate = SlskdGate(slskd, cfg, clock, clock.sleep)
+    pause = QueuePause(db)
+    gate = SlskdGate(slskd, cfg, clock, clock.sleep, paused=pause.paused)
     searcher = SlskdSearcher(db, slskd, gate, clock, clock.sleep)
     downloader = SlskdDownloader(db, slskd, searcher, cfg, clock)
     tab = SlskdTab(
-        db, slskd, gate, searcher, downloader, run_in_background=lambda fn: fn()
-    )
+        db, slskd, gate, searcher, downloader, run_in_background=lambda fn: fn(),
+        paused=pause.paused,
+    )  # fmt: skip
     core = Core(
         FakeCatalogService(),
         RequestService(db),
-        DownloadDispatch(db, SourcePreferences(db, {}), []),
+        DownloadDispatch(db, SourcePreferences(db, {}), [], paused=pause.paused),
         tab,
+        DownloadsService(db, slskd, downloader),
+        pause,
     )
     app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ORIGIN), auth, core)
     return Env(
-        logged_in(app, "alice"), logged_in(app, "bob"), slskd, db, clock, downloader
-    )
+        logged_in(app, "alice"), logged_in(app, "bob"), slskd, db, clock, downloader,
+        pause,
+    )  # fmt: skip
 
 
 @pytest.fixture
