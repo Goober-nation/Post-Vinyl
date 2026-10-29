@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from app.clients.slskd import SlskdClientBase, SlskdError
 from app.services.requests import DEFAULT_PAGE_SIZE, clamp_page
 from app.services.slskd_download import SlskdDownloader
+from app.services.sources import SourcePreferences
 from app.stores.database import Database
 from app.stores.downloads import DownloadsStore, QueueRow
 from app.stores.slskd import SlskdAttempt, SlskdStore
@@ -114,8 +115,13 @@ def view(a: SlskdAttempt) -> AttemptView:
 
 class DownloadsService(DownloadsServiceBase):
     def __init__(
-        self, db: Database, client: SlskdClientBase, downloader: SlskdDownloader
+        self,
+        db: Database,
+        client: SlskdClientBase,
+        downloader: SlskdDownloader,
+        sources: SourcePreferences | None = None,  # None: slskd always on (tests)
     ) -> None:
+        self._sources = sources
         self._db = db
         self._client = client
         self._downloader = downloader
@@ -191,6 +197,8 @@ class DownloadsService(DownloadsServiceBase):
         self, user_id: int, is_admin: bool, download_id: int
     ) -> DownloadDetail:
         row = self._owned(user_id, is_admin, download_id)
+        if self._sources is not None:  # the next peer is new work at slskd
+            self._sources.require(row.user_id, "download", row.source)
         if row.source != "slskd" or not self._downloader.next_peer(row.id):
             raise NotRunning(f"download {download_id} has no running attempt")
         return self.get(user_id, is_admin, download_id)

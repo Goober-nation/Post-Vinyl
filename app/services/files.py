@@ -40,6 +40,7 @@ from app.clients.navidrome import (
     NavidromeNotFound,
     Session,
 )
+from app.clients.navidrome import Song as LibrarySong
 from app.config import FilesSettings
 from app.core import states
 from app.core.matcher import DURATION_TOLERANCE_S
@@ -55,6 +56,10 @@ SCAN_WAIT_S = 120
 SCAN_POLL_S = 2
 MAX_SEGMENT = 120  # characters per folder/file name
 _UNSAFE = re.compile(r"[\x00-\x1f/\\]")
+
+
+class LibraryFileNotFound(LookupError):
+    """No such library song, or its file isn't inside the library."""
 
 
 class NoAdmin(Exception):
@@ -332,6 +337,93 @@ class FilesService(FilesServiceBase):
             log.warning("file %s is missing (%s)", rec.id, rec.file_location)
             return True
         return False
+
+    # ------------------------------------------------------------ library (#112)
+
+    def library_page(
+        self, query: str, start: int, end: int
+    ) -> tuple[list[LibrarySong], int]:
+        """The whole library as Navidrome indexes it (user, 2026-10-30)."""
+        page: tuple[list[LibrarySong], int] = self._call(
+            lambda s: self._nd.list_songs(s, query, start, end)
+        )
+        return page
+
+    def records(self, navidrome_ids: list[str]) -> dict[str, FileRecord]:
+        with self._db.transaction() as conn:
+            return self._files.by_navidrome_ids(conn, navidrome_ids)
+
+    def library_song(self, navidrome_id: str) -> LibrarySong:
+        try:
+            song: LibrarySong = self._call(lambda s: self._nd.get_song(s, navidrome_id))
+        except NavidromeNotFound as e:
+            raise LibraryFileNotFound(f"no library song {navidrome_id}") from e
+        return song
+
+    def library_path(self, song: LibrarySong) -> Path:
+        """Our path for a library song; never anything outside the library."""
+        ours = (self._library / song.path).resolve()
+        if not ours.is_relative_to(self._library.resolve()) or not ours.is_file():
+            raise LibraryFileNotFound(f"{song.path} isn't a file in the library")
+        return ours
+
+    def re_place(
+        self, navidrome_id: str, title: str, artist: str
+    ) -> LibrarySong | None:
+        """After a rename: move the file to where its tags put it (untagged:
+        ``<artist>/<title>``), rescan, relink our record. Never overwrites."""
+        song = self.library_song(navidrome_id)
+        src = self.library_path(song)
+        audio = mutagen.File(src, easy=True)
+        tags = audio.tags if audio else None
+        names = Song(0, title, artist, title, artist, None, None, None, None, None)
+        ext = src.suffix.lstrip(".").lower() or "audio"
+        target = self._library / layout(tags, names, ext, bool(_first(tags, "title")))
+        if target.resolve() != src:
+            target = free_path(target)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(src, target)
+            self._prune(src.parent)
+            log.info("library %s renamed: %s -> %s", navidrome_id, song.path,
+                     target.relative_to(self._library))  # fmt: skip
+        self.scan()
+        rel = str(target.relative_to(self._library))
+        new: LibrarySong | None = self._call(
+            lambda s: self._nd.find_song_by_path(s, rel)
+        )
+        with self._db.transaction(write=True) as conn:
+            rec = self._files.by_navidrome_ids(conn, [navidrome_id]).get(navidrome_id)
+            if rec is not None:
+                loc = str(target.relative_to(self._music))
+                self._files.set_location(conn, rec.id, loc, self._now())
+                self._files.set_navidrome_id(conn, rec.id, new.id if new else None,
+                                             self._now())  # fmt: skip
+        return new
+
+    def delete_library_file(self, navidrome_id: str) -> None:
+        """Remove the file (inside the library only), mark our record deleted,
+        rescan (user, 2026-10-30). A later request downloads the song again."""
+        song = self.library_song(navidrome_id)
+        path = self.library_path(song)
+        path.unlink()
+        self._prune(path.parent)
+        with self._db.transaction(write=True) as conn:
+            rec = self._files.by_navidrome_ids(conn, [navidrome_id]).get(navidrome_id)
+            if rec is not None and rec.file_state in ("moved", "indexed", "missing"):
+                self._files.set_state(conn, rec.id, states.file_deleted(rec.file_state),
+                                      self._now())  # fmt: skip
+        log.info("library %s deleted: %s", navidrome_id, song.path)
+        self.scan()
+
+    def _prune(self, folder: Path) -> None:
+        """Remove folders left empty, up to (not including) the library."""
+        root = self._library.resolve()
+        folder = folder.resolve()
+        while (
+            folder != root and folder.is_relative_to(root) and not any(folder.iterdir())
+        ):
+            folder.rmdir()
+            folder = folder.parent
 
     # ------------------------------------------------------------ Navidrome login
 

@@ -13,11 +13,14 @@ from fastapi.responses import JSONResponse
 from app.clients.catalog import CatalogError, CatalogNotFound
 from app.core.states import IllegalTransition
 from app.services.catalog import CatalogUnavailable
+from app.services.credentials import CredentialCheckUnavailable
 from app.services.downloads import AdminOnly, DownloadNotFound, NotRunning
+from app.services.files import LibraryFileNotFound, NoAdmin
 from app.services.queue_pause import QueuePaused
 from app.services.requests import RequestNotFound, SongNotFound, StateChanged
 from app.services.slskd_tab import FileNotInSearch
-from app.services.sources import UnknownSource
+from app.services.sources import SourceOff, UnknownSource
+from app.services.tagging import TagFailed
 
 STATUS: dict[type[Exception], int] = {
     ValueError: 422,  # e.g. an empty search
@@ -32,8 +35,13 @@ STATUS: dict[type[Exception], int] = {
     NotRunning: 409,  # next peer on a download that isn't running
     DownloadNotFound: 404,
     AdminOnly: 403,
+    LibraryFileNotFound: 404,  # no such library song, or its file isn't in the library
+    TagFailed: 422,  # e.g. a release that isn't one of the recording's
+    CredentialCheckUnavailable: 503,  # ListenBrainz can't check a token now
+    NoAdmin: 503,  # no Post-Vinyl admin to reach Navidrome as (setup not run)
     CatalogError: 502,  # the source failed while browsing
     CatalogUnavailable: 503,  # no source answered, or none enabled
+    SourceOff: 409,  # the source this needs is turned off
 }
 
 

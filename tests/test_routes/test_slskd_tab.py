@@ -70,6 +70,7 @@ class Env:
     clock: Clock
     downloader: SlskdDownloader
     pause: QueuePause
+    prefs: SourcePreferences
 
 
 def make_env(tmp_path: Path, slskd: FakeSlskdClient) -> Env:
@@ -79,25 +80,26 @@ def make_env(tmp_path: Path, slskd: FakeSlskdClient) -> Env:
     auth = AuthService(db, nd, SecretBox(generate_key()))
     clock, cfg = Clock(), SlskdSettings()
     pause = QueuePause(db)
+    prefs = SourcePreferences(db, {"download": ("slskd",)})
     gate = SlskdGate(slskd, cfg, clock, clock.sleep, paused=pause.paused)
     searcher = SlskdSearcher(db, slskd, gate, clock, clock.sleep)
     downloader = SlskdDownloader(db, slskd, searcher, cfg, clock)
     tab = SlskdTab(
         db, slskd, gate, searcher, downloader, run_in_background=lambda fn: fn(),
-        paused=pause.paused,
+        paused=pause.paused, sources=prefs,
     )  # fmt: skip
     core = Core(
         FakeCatalogService(),
         RequestService(db),
         DownloadDispatch(db, SourcePreferences(db, {}), [], paused=pause.paused),
         tab,
-        DownloadsService(db, slskd, downloader),
+        DownloadsService(db, slskd, downloader, sources=prefs),
         pause,
     )
     app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ORIGIN), auth, core)
     return Env(
         logged_in(app, "alice"), logged_in(app, "bob"), slskd, db, clock, downloader,
-        pause,
+        pause, prefs,
     )  # fmt: skip
 
 
@@ -292,3 +294,32 @@ def test_a_picked_file_waits_in_the_peers_queue_without_a_limit(env: Env) -> Non
     with env.db.transaction() as conn:
         [attempt] = SlskdStore().running_attempts(conn)
     assert attempt.outcome is None and attempt.filename == TAKK
+
+
+def test_nothing_reaches_slskd_while_it_is_off_for_the_user(env: Env) -> None:
+    rid = typed(env.alice)
+    alice_dl_files = [{"username": "alice_peer", "filename": TAKK}]
+    env.alice.post("/api/slskd/downloads", json={"request_id": rid, "files": alice_dl_files},
+                   headers=SAME)  # fmt: skip
+    dl = env.alice.get("/api/downloads").json()["items"][0]["id"]
+    with env.db.transaction() as conn:
+        alice = UsersStore().get_by_username(conn, "alice")
+    assert alice is not None
+    env.prefs.set_for_user(alice.id, "download", [], ["slskd"])
+    searches = len(env.slskd.searches)
+    r = env.alice.post("/api/slskd/searches", json={"query": "other"}, headers=SAME)
+    assert r.status_code == 409 and "slskd is turned off" in r.text
+    r = env.alice.post("/api/slskd/downloads", json={"request_id": rid, "files": alice_dl_files},
+                       headers=SAME)  # fmt: skip
+    assert r.status_code == 409
+    assert (
+        env.alice.post(f"/api/downloads/{dl}/next-peer", headers=SAME).status_code
+        == 409
+    )
+    assert len(env.slskd.searches) == searches  # nothing was sent
+    assert (
+        env.bob.post(
+            "/api/slskd/searches", json={"query": "x"}, headers=SAME
+        ).status_code
+        == 202
+    )

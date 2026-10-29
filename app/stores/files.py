@@ -55,6 +55,20 @@ class FilesStore:
         ).fetchone()
         return FileRecord(**row) if row else None
 
+    def by_navidrome_ids(
+        self, conn: sqlite3.Connection, navidrome_ids: list[str]
+    ) -> dict[str, FileRecord]:
+        """Our records for library songs, by Navidrome id (#112); a hand-added
+        song has none."""
+        if not navidrome_ids:
+            return {}
+        marks = ",".join("?" * len(navidrome_ids))
+        rows = conn.execute(
+            f"SELECT * FROM file_management WHERE navidrome_id IN ({marks})",
+            navidrome_ids,
+        )
+        return {r["navidrome_id"]: FileRecord(**r) for r in rows}
+
     def in_state(self, conn: sqlite3.Connection, file_state: str) -> list[FileRecord]:
         rows = conn.execute(
             "SELECT * FROM file_management WHERE file_state = ? ORDER BY id",

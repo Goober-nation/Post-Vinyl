@@ -36,6 +36,7 @@ from app.services.requests import RequestNotFound
 from app.services.slskd_download import SlskdDownloader
 from app.services.slskd_gate import SlskdGate
 from app.services.slskd_search import Candidate, SlskdSearcher, matcher_song
+from app.services.sources import SourcePreferences
 from app.stores.database import Database
 from app.stores.requests import Request, RequestsStore
 from app.stores.slskd import SlskdSearch, SlskdStore
@@ -174,8 +175,10 @@ class SlskdTab(SlskdTabBase):
         clock: Callable[[], float] = time.time,
         run_in_background: Callable[[Callable[[], None]], None] | None = None,
         paused: Callable[[], bool] = lambda: False,
+        sources: SourcePreferences | None = None,  # None: slskd always on (tests)
     ) -> None:
         self._paused = paused
+        self._sources = sources
         self._db = db
         self._client = client
         self._gate = gate
@@ -207,10 +210,16 @@ class SlskdTab(SlskdTabBase):
 
     # ------------------------------------------------------------ typed search
 
+    def _require_slskd(self, user_id: int) -> None:
+        """Nothing goes to slskd while it's off for the user (user, 2026-10-30)."""
+        if self._sources is not None:
+            self._sources.require(user_id, "download", "slskd")
+
     def search(self, user_id: int, query: str) -> Request:
         query = " ".join(query.split())
         if not query:
             raise ValueError("empty search")
+        self._require_slskd(user_id)
         with self._db.transaction(write=True) as conn:
             req = self._requests.record_slskd_query(conn, user_id, query, self._now())
             old = req.track_state
@@ -333,6 +342,7 @@ class SlskdTab(SlskdTabBase):
             raise ValueError("files can only be picked from a typed Soulseek search")
         if not picks:
             raise ValueError("no files picked")
+        self._require_slskd(user_id)
         if self._paused():
             raise QueuePaused("the queue is paused; picks wait until it's resumed")
         found = [
