@@ -26,6 +26,7 @@ class FakeSlskdClient(SlskdClientBase):
         self.cancelled: list[str] = []
         self.transfers: dict[str, Transfer] = {}
         self.offline_peers: set[str] = set()
+        self.destinations: list[str | None] = []
 
     def app_state(self) -> AppState:
         return self.state
@@ -64,9 +65,11 @@ class FakeSlskdClient(SlskdClientBase):
         username: str,
         files: list[tuple[str, int]],
         search_id: str | None = None,
+        destination: str | None = None,
     ) -> QueueResult:
         if username in self.offline_peers:
             raise SlskdNotFound(f"User {username} appears to be offline")
+        self.destinations.append(destination)
         queued = []
         for filename, size in files:
             transfer_id = f"fake-transfer-{len(self.transfers) + 1}"

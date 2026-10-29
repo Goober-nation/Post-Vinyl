@@ -128,6 +128,17 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   bitrate (VBR flag ignored); then size. FLACs have no `bitRate`, so the earlier "then
   bitrate" rule tied every FLAC.
   `DownloadSource.start` returns whether it claimed; dispatch raises `NotStartable` if not.
+- **slskd download (#102, user 2026-10-29)**: `services/slskd_download.py` + the
+  `download_monitor` worker (polls every 2 s). `downloads` row first, then queue. A candidate
+  that keeps us **queued > 15 s** is `noStart` (`queue_wait_seconds`); downloading → stall rule.
+  **Every failure counts** toward the ban (3 → 7 days; expiry checked lazily on lookup); a
+  completed download clears the peer. ≤ 5 candidates per download, same row. With none left
+  the request ends **by its last attempt**: never started → `notDownloaded`, started and broke
+  → `badDownload`. Each attempt saves into its own folder `post-vinyl/<download>/<attempt>`,
+  sent as slskd's batch `options.destination` (0.26.1: takes precedence over slskd's own
+  subdirectory pattern; the transfer API returns no local path), so `file_location` =
+  that folder + slskd's sanitized base name. The test slskd reaches Soulseek through its own
+  `soulseek.connection.proxy` (local, gitignored config).
 - User preference storage: setting `sources.<kind>` = `{"order": [...], "off": [...]}`; a source
   new in the config is on and goes after the user's order.
 - Plan each milestone 6+ service with this in mind; the registry lands with the first service

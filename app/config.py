@@ -37,6 +37,11 @@ class SlskdSettings:
     throttle_check_query: str = "2020"  # healthy ≈ 600 responses (research run)
     throttle_check_min_responses: int = 300
     throttle_pause_minutes: int = 10
+    # downloads (#102, user 2026-10-29)
+    queue_wait_seconds: int = 15  # a candidate that keeps us queued longer is skipped
+    candidates_per_download: int = 5
+    peer_ban_failures: int = 3
+    peer_ban_days: int = 7
 
 
 @dataclass(frozen=True)
