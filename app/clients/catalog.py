@@ -45,6 +45,9 @@ class Track:
     duration_s: float | None
     isrcs: tuple[str, ...]  # empty when the call doesn't return them
     disambiguation: str  # e.g. "live", "radio edit"; "" when none
+    # the credit as parts: (name, join phrase after it), e.g. (("A", " feat. "),
+    # ("B", "")); core/normalize picks the main artist from them
+    credits: tuple[tuple[str, str], ...] = ()
     # only from edition_tracks(): disc number and track number on that disc
     disc: int | None = None
     position: int | None = None

@@ -23,7 +23,8 @@ _ENDED = ("notFound", "notDownloaded", "badDownload", "dropped", "downloaded")
 TRACK_TRANSITIONS: dict[str, frozenset[str]] = {
     "requested": frozenset({"searching", "dropped"}),
     "reRequested": frozenset({"searching", "dropped"}),
-    "searching": frozenset({"found", "notFound", "dropped"}),
+    # → requested: released after a crash or an app restart (user, 2026-10-29)
+    "searching": frozenset({"found", "notFound", "dropped", "requested"}),
     "found": frozenset({"midDownload", "dropped"}),
     "midDownload": frozenset({"downloaded", "notDownloaded", "badDownload", "dropped"}),
     **{s: frozenset({"reRequested"}) for s in _ENDED},
@@ -75,6 +76,11 @@ def re_request(old: str) -> str:  # requests service
 
 def start_search(old: str) -> str:  # search service
     return track(old, "searching")
+
+
+def release(old: str) -> str:  # download source / dispatch: crash or restart
+    """``searching`` → ``requested``: the work stopped before a result."""
+    return track(old, "requested")
 
 
 def search_done(old: str, *, found: bool) -> str:  # search service

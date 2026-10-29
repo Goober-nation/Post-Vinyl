@@ -69,6 +69,8 @@ def parse_track(raw: dict[str, Any]) -> Track:
         duration_s=float(raw["duration"]) if raw.get("duration") else None,
         isrcs=(raw["isrc"],) if raw.get("isrc") else (),
         disambiguation=raw.get("title_version") or "",
+        # `artist` is the main artist only (featured ones are in contributors)
+        credits=(((raw.get("artist") or {}).get("name", ""), ""),),
         disc=raw.get("disk_number"),
         position=raw.get("track_position"),
     )

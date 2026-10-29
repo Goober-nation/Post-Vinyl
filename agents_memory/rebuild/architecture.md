@@ -105,6 +105,29 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   pauses searching 10 min and the caller reruns its queries. Advanced values in the YAML
   `slskd` section. (Replaces the "5 zero results in a row" trigger: with a 3-query ladder a
   request could end `notFound` on untrusted zeros before 5 accumulated.)
+- **slskd search (#101, user 2026-10-29)**: `services/slskd_search.py` + `slskd_source.py`
+  (claims the request, one worker thread, FIFO). `songs.query_title` / `songs.main_artist` hold
+  `core/normalize` output computed at `resolve` from the catalog's credit parts (the joined
+  credit line can't be split back reliably; with it the matcher rejected real files as
+  `no_artist`). Added to `001_initial.sql` directly: nothing from the rebuild is deployed. A
+  helpful peer's file: lossless first, then bitrate, then size. Candidates are never stored;
+  `candidates()` re-reads the request's slskd searches by id.
+- **Loop review fixes (user, 2026-10-29)**: **cancel = drop** (the request stays as `dropped`
+  history; the search checks the state before every query, including the first). New
+  transition **`searching` → `requested`** (`states.release`): a crashed search is released
+  and re-queued **once**, a second crash ends it `notFound` (in memory); `dispatch.resume()`
+  at startup releases and re-dispatches every `searching` row. An slskd error while slskd is
+  still ready is a crash, not a lost parent; a cancelled search must end within 30 s. A
+  search proves slskd healthy only with ≥ `throttle_check_min_responses` (300). An endless
+  throttle keeps retrying with a warning per lap (a throttle hits every request alike).
+  **File pick (checked against slskd 0.26.1's own web UI, user 2026-10-29)**: the extension
+  comes from the file name (`getFileName(f.filename)`; the API's `extension` is mostly empty:
+  512 of 825 live files). Lossless = bit depth + sample rate reported (slskd's
+  `formatAttributes` rule) or a lossless suffix. Order: lossless before lossy; lossless
+  **16/44.1 (CD) first**, then unknown format, then hi-res by depth × rate; lossy by highest
+  bitrate (VBR flag ignored); then size. FLACs have no `bitRate`, so the earlier "then
+  bitrate" rule tied every FLAC.
+  `DownloadSource.start` returns whether it claimed; dispatch raises `NotStartable` if not.
 - User preference storage: setting `sources.<kind>` = `{"order": [...], "off": [...]}`; a source
   new in the config is on and goes after the user's order.
 - Plan each milestone 6+ service with this in mind; the registry lands with the first service

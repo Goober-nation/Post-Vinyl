@@ -101,3 +101,11 @@ def test_unknown_state_raises():
 @pytest.mark.parametrize("old", sorted(s.FILE_STATES))
 def test_replace_resets_any_state(old):
     assert s.file_replaced(old) == "downloaded"
+
+
+def test_release_only_from_searching() -> None:
+    """Crash or app restart (user, 2026-10-29): searching goes back to requested."""
+    assert s.release("searching") == "requested"
+    for old in ("requested", "found", "midDownload", "downloaded"):
+        with pytest.raises(s.IllegalTransition):
+            s.release(old)

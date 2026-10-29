@@ -24,6 +24,7 @@ from app.clients.catalog import (
     Edition,
     Track,
 )
+from app.core.normalize import credits_from_joined, query_names
 from app.services.catalog import (
     NO_SOURCES,
     SEARCH_LIMIT,
@@ -115,8 +116,12 @@ class FakeCatalogService(CatalogServiceBase):
             return self.songs[(source, track_id)]
         t = self._catalog(source).get_track(track_id)
         duration = round(t.duration_s) if t.duration_s else None
-        song = Song(
-            len(self.songs) + 1, t.title, t.artist, None, None, None, None, duration
+        names = query_names(
+            t.title, credits_from_joined(t.credits or ((t.artist, ""),)), None
         )
+        song = Song(
+            len(self.songs) + 1, t.title, t.artist, names.track, names.artist,
+            None, None, None, None, duration,
+        )  # fmt: skip
         self.songs[(source, t.id)] = song
         return song

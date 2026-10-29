@@ -32,6 +32,7 @@ from app.clients.catalog import (
     Track,
 )
 from app.core.catalog_order import track_key
+from app.core.normalize import credits_from_joined, query_names
 from app.services.sources import SourcePreferences, UnknownSource
 from app.stores.database import Database
 from app.stores.requests import RequestsStore
@@ -222,9 +223,16 @@ class CatalogService(CatalogServiceBase):
         if known:
             return known
         track = self._catalog(user_id, source).get_track(track_id)
+        names = query_names(
+            track.title,
+            credits_from_joined(track.credits or ((track.artist, ""),)),
+            None,
+        )
         fields = SongFields(
             title=track.title,
             artist_name=track.artist,
+            query_title=names.track,
+            main_artist=names.artist,
             duration_s=round(track.duration_s) if track.duration_s else None,
         )
         with self._db.transaction(write=True) as conn:

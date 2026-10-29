@@ -11,6 +11,8 @@ class Song:
     id: int
     title: str
     artist_name: str
+    query_title: str | None
+    main_artist: str | None
     album_title: str | None
     track_number: int | None
     disc_number: int | None
@@ -24,6 +26,8 @@ class SongFields:
 
     title: str
     artist_name: str
+    query_title: str | None = None
+    main_artist: str | None = None
     album_title: str | None = None
     track_number: int | None = None
     disc_number: int | None = None
@@ -59,12 +63,15 @@ class SongsStore:
     def create(self, conn: sqlite3.Connection, fields: SongFields) -> Song:
         """A song with no identities (a Soulseek-tab file that matched nothing)."""
         row = conn.execute(
-            """INSERT INTO songs (title, artist_name, album_title, track_number,
-                                  disc_number, disc_count, duration_s)
-               VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *""",
+            """INSERT INTO songs (title, artist_name, query_title, main_artist,
+                                  album_title, track_number, disc_number, disc_count,
+                                  duration_s)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *""",
             (
                 fields.title,
                 fields.artist_name,
+                fields.query_title,
+                fields.main_artist,
                 fields.album_title,
                 fields.track_number,
                 fields.disc_number,

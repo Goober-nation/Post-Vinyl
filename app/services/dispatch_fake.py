@@ -53,6 +53,16 @@ class FakeDownloadDispatch(DownloadDispatchBase):
         self.started.append((self.enabled[0], request_id))
         return self.enabled[0]
 
+    def resume(self) -> int:
+        stuck = [r for r in self.requests.values() if r.track_state == "searching"]
+        for req in stuck:
+            req.track_state = "requested"
+            if self.enabled and req.has_song:
+                req.track_state = "searching"
+                self.started.append((self.enabled[0], next(
+                    k for k, v in self.requests.items() if v is req)))  # fmt: skip
+        return len(stuck)
+
     def cancel(self, user_id: int, request_id: int) -> None:
         self._get(user_id, request_id)
         self.cancelled.append(request_id)

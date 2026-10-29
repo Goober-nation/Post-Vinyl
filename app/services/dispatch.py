@@ -15,6 +15,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from app.core import states
 from app.services.download_source import DownloadSource
 from app.services.requests import RequestNotFound
 from app.services.sources import SourcePreferences
@@ -47,10 +48,14 @@ class DownloadDispatchBase(ABC):
 
     @abstractmethod
     def cancel(self, user_id: int, request_id: int) -> None:
-        """Ask every source to stop work on the request."""
+        """Ask every source to stop work on the request (after it was dropped)."""
 
     @abstractmethod
     def status(self, user_id: int, request_id: int) -> DownloadStatus: ...
+
+    @abstractmethod
+    def resume(self) -> int:
+        """At startup: re-dispatch requests a previous run left ``searching``."""
 
 
 class DownloadDispatch(DownloadDispatchBase):
@@ -82,8 +87,25 @@ class DownloadDispatch(DownloadDispatchBase):
         if source is None:
             log.info("request %s waits: no download source enabled", request_id)
             return None
-        source.start(req, song)
+        if not source.start(req, song):
+            raise NotStartable(f"request {request_id} was started meanwhile")
         return source.source
+
+    def resume(self) -> int:
+        """At startup: requests left ``searching`` by the last run go back to
+        ``requested`` and are dispatched again; returns how many."""
+        with self._db.transaction(write=True) as conn:
+            stuck = self._requests.in_state(conn, "searching")
+            for req in stuck:
+                self._requests.set_track_state(
+                    conn, req.id, states.release(req.track_state), expected="searching"
+                )
+        for req in stuck:
+            try:
+                self.dispatch(req.user_id, req.id)
+            except NotStartable as e:
+                log.info("request %s not resumed: %s", req.id, e)
+        return len(stuck)
 
     def _owned(self, user_id: int, request_id: int) -> None:
         with self._db.transaction() as conn:
