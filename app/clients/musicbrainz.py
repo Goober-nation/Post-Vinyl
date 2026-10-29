@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import threading
 import time
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Any
 
 import requests
@@ -127,7 +129,124 @@ def parse_release(raw: dict[str, Any]) -> Edition:
     )
 
 
-class MusicBrainzClient(CatalogSource):
+# ------------------------------------------------------------ for tagging (#104)
+# Shapes checked live 2026-10-29 (Nujabes – Feather, release Modal Soul):
+# /recording/{id}?inc=releases+release-groups+artist-credits+isrcs lists every
+# release with its status, date and release group; /release/{id}?inc=recordings+
+# artist-credits+release-groups+media+isrcs has every medium with its tracks (track
+# id, number, position, recording id) and ``cover-art-archive.front``.
+
+
+@dataclass(frozen=True)
+class RecordingRelease:
+    id: str
+    title: str
+    date: str  # "YYYY[-MM[-DD]]" or ""
+    status: str  # "Official", "Bootleg", … or ""
+    country: str
+    group_id: str
+    primary_type: str  # "Album", "EP", "Single", …
+    secondary_types: tuple[str, ...]  # "Compilation", "Live", …
+
+
+@dataclass(frozen=True)
+class RecordingInfo:
+    id: str
+    title: str
+    credits: tuple[tuple[str, str], ...]  # (name, join phrase)
+    artist_ids: tuple[str, ...]
+    length_s: float | None
+    isrcs: tuple[str, ...]
+    releases: tuple[RecordingRelease, ...]
+
+
+@dataclass(frozen=True)
+class ReleaseTrack:
+    id: str  # the release track's own MBID
+    recording_id: str
+    number: str  # as printed, e.g. "4" or "A1"
+    position: int
+    disc: int  # medium position
+
+
+@dataclass(frozen=True)
+class ReleaseInfo:
+    id: str
+    title: str
+    date: str
+    group_id: str
+    group_first_date: str
+    artist: str  # album artist credit line
+    artist_ids: tuple[str, ...]
+    tracks_per_disc: dict[int, int]
+    tracks: tuple[ReleaseTrack, ...]
+    has_front_cover: bool
+
+
+class MusicBrainzTagSourceBase(ABC):
+    @abstractmethod
+    def recording_info(self, recording_id: str) -> RecordingInfo: ...
+
+    @abstractmethod
+    def release_info(self, release_id: str) -> ReleaseInfo: ...
+
+
+def parse_recording_info(raw: dict[str, Any]) -> RecordingInfo:
+    _, artist_ids = _credit(raw.get("artist-credit") or [])
+    return RecordingInfo(
+        id=raw["id"],
+        title=raw.get("title", ""),
+        credits=_parts(raw.get("artist-credit") or []),
+        artist_ids=artist_ids,
+        length_s=_seconds(raw.get("length")),
+        isrcs=tuple(raw.get("isrcs") or ()),
+        releases=tuple(
+            RecordingRelease(
+                id=r["id"],
+                title=r.get("title", ""),
+                date=r.get("date") or "",
+                status=r.get("status") or "",
+                country=r.get("country") or "",
+                group_id=(r.get("release-group") or {}).get("id", ""),
+                primary_type=(r.get("release-group") or {}).get("primary-type") or "",
+                secondary_types=tuple(
+                    (r.get("release-group") or {}).get("secondary-types") or ()
+                ),
+            )
+            for r in raw.get("releases") or []
+        ),
+    )
+
+
+def parse_release_info(raw: dict[str, Any]) -> ReleaseInfo:
+    artist, artist_ids = _credit(raw.get("artist-credit") or [])
+    media = raw.get("media") or []
+    group = raw.get("release-group") or {}
+    return ReleaseInfo(
+        id=raw["id"],
+        title=raw.get("title", ""),
+        date=raw.get("date") or "",
+        group_id=group.get("id", ""),
+        group_first_date=group.get("first-release-date") or "",
+        artist=artist,
+        artist_ids=artist_ids,
+        tracks_per_disc={m["position"]: m.get("track-count", 0) for m in media},
+        tracks=tuple(
+            ReleaseTrack(
+                id=t["id"],
+                recording_id=(t.get("recording") or {}).get("id", ""),
+                number=t.get("number") or "",
+                position=t.get("position") or 0,
+                disc=m["position"],
+            )
+            for m in media
+            for t in m.get("tracks") or []
+        ),
+        has_front_cover=bool((raw.get("cover-art-archive") or {}).get("front")),
+    )
+
+
+class MusicBrainzClient(CatalogSource, MusicBrainzTagSourceBase):
     source = "musicbrainz"
 
     def __init__(
@@ -201,6 +320,14 @@ class MusicBrainzClient(CatalogSource):
     def get_track(self, track_id: str) -> Track:
         data = self._get(f"/recording/{track_id}", inc="artist-credits+isrcs")
         return parse_recording(data)
+
+    def recording_info(self, recording_id: str) -> RecordingInfo:
+        inc = "releases+release-groups+artist-credits+isrcs"
+        return parse_recording_info(self._get(f"/recording/{recording_id}", inc=inc))
+
+    def release_info(self, release_id: str) -> ReleaseInfo:
+        inc = "recordings+artist-credits+release-groups+media+isrcs"
+        return parse_release_info(self._get(f"/release/{release_id}", inc=inc))
 
     def tracks_by_isrc(self, isrc: str) -> list[Track]:
         data = self._get(f"/isrc/{isrc}", inc="artist-credits+isrcs")
