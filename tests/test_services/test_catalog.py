@@ -13,7 +13,7 @@ import pytest
 from app.clients.catalog import CatalogBusy, CatalogError, Track
 from app.clients.catalog_fake import FakeCatalog
 from app.config import ConfigError, load_sources
-from app.services.catalog import CatalogService, CatalogUnavailable
+from app.services.catalog import SEARCH_LIMIT, CatalogService, CatalogUnavailable
 from app.services.sources import SourcePreferences, UnknownSource
 from app.stores.database import Database
 from app.stores.requests import RequestsStore
@@ -180,6 +180,34 @@ def _try(call: Callable[[], object]) -> object:
         return call()
     except sqlite3.Error as e:  # what an unguarded race raises
         return e
+
+
+def test_empty_search_is_refused_and_not_recorded(setup: Setup) -> None:
+    svc, _, db, uid, _, _ = setup
+    with pytest.raises(ValueError):
+        svc.search_tracks(uid, "  ", "Nujabes")
+    with db.transaction() as conn:
+        assert RequestsStore().catalog_history(conn, uid, 1, 10) == []
+
+
+class Recording(FakeCatalog):
+    def __init__(self, source: str) -> None:
+        super().__init__(source)
+        self.limits: list[int] = []
+
+    def search_tracks(
+        self, title: str, artist: str | None = None, limit: int = 25
+    ) -> list[Track]:
+        self.limits.append(limit)
+        return super().search_tracks(title, artist, limit)
+
+
+def test_search_asks_for_a_full_page(setup: Setup) -> None:
+    svc, _, _, uid, _, _ = setup
+    rec = Recording("musicbrainz")
+    svc._catalogs["musicbrainz"] = rec
+    svc.search_tracks(uid, "Feather")
+    assert rec.limits == [SEARCH_LIMIT]
 
 
 # ------------------------------------------------------------ resolve

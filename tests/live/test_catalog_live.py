@@ -41,7 +41,11 @@ def test_search_resolve_and_user_order(
     svc, prefs, db, uid = setup
     res = svc.search_tracks(uid, "Feather", "Nujabes")
     assert res.source == "musicbrainz" and res.items
+    for t in res.items:
+        print(" ", t.score, t.title, [(r.status, r.primary_type) for r in t.releases])
     pick = res.items[0]
+    # #98: the studio recording first, the "N0ms Bootleg" last (MB scores it 100)
+    assert pick.title == "Feather" and "Bootleg" in res.items[-1].title
     song = svc.resolve(uid, "musicbrainz", pick.id)
     with db.transaction() as conn:
         assert SongsStore().identities(conn, song.id) == {"musicbrainz": pick.id}

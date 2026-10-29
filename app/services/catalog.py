@@ -31,6 +31,7 @@ from app.clients.catalog import (
     Edition,
     Track,
 )
+from app.core.catalog_order import track_key
 from app.services.sources import SourcePreferences, UnknownSource
 from app.stores.database import Database
 from app.stores.requests import RequestsStore
@@ -46,6 +47,44 @@ class CatalogUnavailable(Exception):
 
 
 NO_SOURCES = "catalog search is unavailable without sources"
+SEARCH_LIMIT = (
+    100  # MusicBrainz's maximum per search; we order the hits ourselves (#98)
+)
+
+
+def clean(text: str | None) -> str:
+    """A typed search field with its whitespace trimmed and collapsed."""
+    return " ".join((text or "").split())
+
+
+def search_query(title: str, artist: str | None) -> tuple[str, str | None, str]:
+    """``(title, artist or None, history text)``; ValueError for an empty title."""
+    title, artist_clean = clean(title), clean(artist)
+    if not title:
+        raise ValueError("empty search")
+    query = f"{artist_clean} – {title}" if artist_clean else title
+    return title, artist_clean or None, query
+
+
+def order_tracks(query: str, tracks: list[Track]) -> list[Track]:
+    """Best first, by ``core/catalog_order.py``."""
+    keyed = [
+        (
+            track_key(
+                query,
+                t.title,
+                t.disambiguation,
+                [(r.status, r.primary_type, r.secondary_types) for r in t.releases],
+                t.score,
+                position,
+                t.first_release_date,
+                t.id,
+            ),
+            t,
+        )
+        for position, t in enumerate(tracks)
+    ]
+    return [t for _, t in sorted(keyed, key=lambda kt: kt[0])]
 
 
 @dataclass(frozen=True)
@@ -146,21 +185,27 @@ class CatalogService(CatalogServiceBase):
     def search_tracks(
         self, user_id: int, title: str, artist: str | None = None
     ) -> Results[Track]:
-        query = f"{artist} – {title}" if artist else title
+        title, artist, query = search_query(title, artist)
         return self._search(
-            user_id, query, "track", lambda c: c.search_tracks(title, artist)
+            user_id,
+            query,
+            "track",
+            lambda c: order_tracks(
+                title, c.search_tracks(title, artist, limit=SEARCH_LIMIT)
+            ),
         )
 
     def search_albums(
         self, user_id: int, title: str, artist: str | None = None
     ) -> Results[Album]:
-        query = f"{artist} – {title}" if artist else title
+        title, artist, query = search_query(title, artist)
         return self._search(
             user_id, query, "album", lambda c: c.search_albums(title, artist)
         )
 
     def search_artists(self, user_id: int, name: str) -> Results[Artist]:
-        return self._search(user_id, name, "artist", lambda c: c.search_artists(name))
+        name, _, query = search_query(name, None)
+        return self._search(user_id, query, "artist", lambda c: c.search_artists(name))
 
     def artist_albums(self, user_id: int, source: str, artist_id: str) -> list[Album]:
         return self._catalog(user_id, source).artist_albums(artist_id)

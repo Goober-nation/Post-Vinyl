@@ -25,6 +25,15 @@ class CatalogBusy(CatalogError):
 
 
 @dataclass(frozen=True)
+class ReleaseRef:
+    """A release a search hit appears on (MusicBrainz); plain data for ordering."""
+
+    status: str  # "Official", "Bootleg", … ("" when unknown)
+    primary_type: str  # release group's "Album", "Single", … ("" when unknown)
+    secondary_types: tuple[str, ...]  # "Compilation", "Live", "Mixtape/Street", …
+
+
+@dataclass(frozen=True)
 class Track:
     source: str  # "musicbrainz", "deezer", …
     id: str  # the source's id for the song (MB: recording MBID)
@@ -39,6 +48,10 @@ class Track:
     # only from edition_tracks(): disc number and track number on that disc
     disc: int | None = None
     position: int | None = None
+    # only from searches, where the source gives them (MusicBrainz)
+    score: int | None = None
+    first_release_date: str = ""  # "YYYY[-MM[-DD]]" or ""
+    releases: tuple[ReleaseRef, ...] = ()
 
 
 @dataclass(frozen=True)
