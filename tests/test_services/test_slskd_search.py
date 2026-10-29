@@ -440,3 +440,30 @@ def test_stop_gives_up_when_slskd_never_ends_the_search() -> None:
     s, _ = searcher(NeverEnds([5]))
     with pytest.raises(SlskdError, match="didn't end"):
         s.run_query("q", lambda: True)
+
+
+class LateResponses(Scripted):
+    """slskd 0.26.2 (#110): a cancelled search is complete at once, but its
+    responses read as [] for the first reads after the cancel."""
+
+    def __init__(self, counts: list[int], empty_reads: int) -> None:
+        super().__init__(counts)
+        self.results["q"] = [peer("alice")]
+        self.empty_reads = empty_reads
+
+    def get_search(self, search_id: str) -> SearchState:
+        return replace(super().get_search(search_id), response_count=1)
+
+    def get_responses(self, search_id: str) -> list[PeerResponse]:
+        if self.empty_reads:
+            self.empty_reads -= 1
+            return []
+        return super().get_responses(search_id)
+
+
+def test_stop_waits_for_responses_slskd_stores_late() -> None:
+    slskd = LateResponses([0, 5, 5, 5, 5, 5, 5, 5], empty_reads=2)
+    s, clock = searcher(slskd)
+    sid = s.run_query("q", lambda: True).id
+    assert slskd.empty_reads == 0 and len(slskd.get_responses(sid)) == 1
+    assert clock.t - 1000 == 2 * 5 + 2 * 0.5  # stable exit, then two empty reads
