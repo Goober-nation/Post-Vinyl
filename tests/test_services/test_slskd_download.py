@@ -300,7 +300,7 @@ def test_local_name_follows_slskd(remote: str, name: str) -> None:
 def test_transfer_phases() -> None:
     assert transfer_phase("Completed, Succeeded") == "done"
     for s in ("Completed, Cancelled", "Completed, TimedOut", "Completed, Errored",
-              "Completed, Rejected", "Completed, Failed"):  # fmt: skip
+              "Completed, Rejected", "Completed, Failed", "Completed, Aborted"):  # fmt: skip
         assert transfer_phase(s) == "failed"
     assert transfer_phase("InProgress") == "downloading"
     for s in ("Requested", "Queued, Remotely", "Queued, Locally", "Initializing"):

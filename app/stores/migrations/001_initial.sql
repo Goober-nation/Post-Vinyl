@@ -181,7 +181,9 @@ CREATE TABLE file_management (
 CREATE INDEX idx_file_management_state     ON file_management(file_state);
 CREATE INDEX idx_file_management_navidrome ON file_management(navidrome_id);
 
--- hand-off: a completed download becomes (or replaces) its song's current file
+-- hand-off: a completed download becomes (or replaces) its song's current file.
+-- On a replacement navidrome_id is kept (user, 2026-10-29, #103): it is the only
+-- way to find the old library file, which the files service then deletes.
 CREATE TRIGGER downloads_completed_handoff
 AFTER UPDATE OF state ON downloads
 FOR EACH ROW WHEN NEW.state = 'completed' AND OLD.state IS NOT 'completed'
@@ -196,7 +198,6 @@ BEGIN
         file_location = excluded.file_location,
         file_state = 'downloaded',
         verification = NULL,
-        navidrome_id = NULL,
         downloaded_at = excluded.downloaded_at,
         updated_at = excluded.updated_at;
 END;

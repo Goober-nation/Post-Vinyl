@@ -218,7 +218,8 @@ def test_redownload_replaces_the_songs_file(conn: sqlite3.Connection) -> None:
     complete(conn, second, "new.flac")
     [row] = conn.execute("SELECT * FROM file_management").fetchall()
     assert row["file_location"] == "new.flac" and row["file_state"] == "downloaded"
-    assert row["navidrome_id"] is None and row["verification"] is None
+    # navidrome_id stays: the files service finds and deletes the old copy by it (#103)
+    assert row["navidrome_id"] == "nd1" and row["verification"] is None
 
 
 def test_request_without_song_does_not_hand_off(conn: sqlite3.Connection) -> None:

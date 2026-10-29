@@ -136,3 +136,16 @@ live calls (zero trust for legacy, AGENTS.md). What later milestones need to kno
   Navidrome lets anyone who reaches it call `createAdmin`, for example by keeping Navidrome
   unpublished until setup is done. **Decided 2026-10-29 (#97)**: one-off setup run with
   Navidrome unpublished, see `users-auth.md`.
+
+## Versions at play (user, 2026-10-29)
+**No pinning**: images stay on `:latest` and are upgraded whenever a new release is out; a
+break is wanted (it shows what changed) rather than silent drift to an old version. Every API
+claim in the code was checked against the source of the version listed here. The README (later)
+lists these as "known to work; revert to them if an upgrade breaks something".
+
+| App | Version during the rebuild | Checked / tested |
+|---|---|---|
+| slskd | 0.26.1 → **0.26.2** (test stack upgraded 2026-10-29; the server ran 0.26.0) | 0.26.1 source (batch destination, `GetFileNameSafely`, web UI `formatAttributes`); 0.26.1→0.26.2 diff: only access levels of application/debug/logs/options/server endpoints and uploads changed. Live on 0.26.2 (2026-10-29): search test passed, downloads completed (run stopped after a couple, user); new transfer state seen: `Completed, Aborted` (handled as failed). API keys default to the **read-only** role |
+| Navidrome | **0.64.2** (latest) | live: same path keeps the same song id on replacement |
+| MusicBrainz / Deezer / ListenBrainz | hosted APIs, no version | live calls |
+| Python | 3.12 (test image `post-vinyl-test`, `python:3.12-slim`) | full suite |

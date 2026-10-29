@@ -139,6 +139,16 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   subdirectory pattern; the transfer API returns no local path), so `file_location` =
   that folder + slskd's sanitized base name. The test slskd reaches Soulseek through its own
   `soulseek.connection.proxy` (local, gitignored config).
+- **Files service (#103, user 2026-10-29)**: layout `library/<Artist>/<Album> (<Year>)/[Disc N/]<NN>
+  <Title>.<ext>` from the file's tags once tagging wrote them; untagged → `<Artist>/<Title>.<ext>`
+  from the song's normalized names (a peer's own tags are never trusted). **Never overwrite**
+  (" (2)", " (3)"…). The hand-off trigger now **keeps `navidrome_id`** on a replacement, so the
+  files service finds the old copy in Navidrome and deletes it (inside the library only) before
+  moving the new one. **Navidrome's music folder is the library only** (`ND_MUSICFOLDER=/music/library`;
+  test stack switched, the server's compose left alone for now). Navidrome is reached as the
+  first PV admin with their stored (encrypted) Navidrome password. A file failing verification
+  (not_found / not_audio / duration) keeps the code in `verification` and stays `downloaded`.
+  Folders are the YAML `files` section.
 - User preference storage: setting `sources.<kind>` = `{"order": [...], "off": [...]}`; a source
   new in the config is on and goes after the user's order.
 - Plan each milestone 6+ service with this in mind; the registry lands with the first service
