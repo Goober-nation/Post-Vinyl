@@ -149,6 +149,15 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   first PV admin with their stored (encrypted) Navidrome password. A file failing verification
   (not_found / not_audio / duration) keeps the code in `verification` and stays `downloaded`.
   Folders are the YAML `files` section.
+- **Tagging (#104, user 2026-10-29)**: recording from `song_identity` (MBID) or ListenBrainz's
+  name lookup with the **requester's** token (accepted when our main artist is in LB's credit
+  and the length is within ±6 s). Release: `core/release_choice.py`, earliest **official plain
+  album**, then EP, then single (fallback: earliest official of any kind); the **earliest
+  edition's** own disc/track layout is kept (a 1992 2×LP gives "Disc 1"). When the release's
+  disc/track details can't be had, tag the album anyway, no numbers, so it lands in the album
+  folder. Tags: title, artist, album artist, album, date, original date, track/disc with
+  totals, MusicBrainz ids, ISRC when exactly one, Cover Art Archive front cover (not for Ogg).
+  The peer's tags are replaced except **ReplayGain and lyrics**. failTag never blocks the file.
 - User preference storage: setting `sources.<kind>` = `{"order": [...], "off": [...]}`; a source
   new in the config is on and goes after the user's order.
 - Plan each milestone 6+ service with this in mind; the registry lands with the first service

@@ -102,6 +102,13 @@ class RequestsStore:
             )
         return cur.rowcount == 1
 
+    def latest_for_song(self, conn: sqlite3.Connection, song_id: int) -> Request | None:
+        row = conn.execute(
+            "SELECT * FROM requests WHERE song_id = ? ORDER BY last_used_at DESC, id DESC LIMIT 1",
+            (song_id,),
+        ).fetchone()
+        return Request(**row) if row else None
+
     def in_state(self, conn: sqlite3.Connection, track_state: str) -> list[Request]:
         rows = conn.execute(
             "SELECT * FROM requests WHERE track_state = ? ORDER BY id", (track_state,)
