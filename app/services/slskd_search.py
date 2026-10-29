@@ -211,10 +211,15 @@ class SlskdSearcher:
             raise ParentLost from e
 
     def _stop(self, search_id: str) -> SearchState:
-        """Cancel, then wait until slskd has stored the responses."""
+        """Cancel, then wait until slskd has stored the responses. slskd 0.26.2
+        reports a cancelled search complete while its responses still read as
+        ``[]`` for up to ~0.5 s (live 2026-10-29, #110), so wait for those too."""
         self._client.cancel_search(search_id)
         deadline = self._clock() + STOP_DEADLINE_S
-        while not (state := self._client.get_search(search_id)).is_complete:
+        while not (
+            (state := self._client.get_search(search_id)).is_complete
+            and (not state.response_count or self._client.get_responses(search_id))
+        ):
             if self._clock() >= deadline:
                 raise SlskdError(f"search {search_id} didn't end after cancel")
             self._sleep(0.5)

@@ -84,7 +84,9 @@ live calls (zero trust for legacy, AGENTS.md). What later milestones need to kno
   did), with the failures listed in the body; the response carries the transfer ids. A file the
   peer doesn't have is accepted (201) and fails later in the transfer state; the reason is in
   `Transfer.exception` (e.g. "Banned", "Overwhelmed"). Search responses are stored only when a
-  search ends, so the backend waits for the end or cancels first. `searchTimeout` is
+  search ends, so the backend waits for the end or cancels first. **0.26.2** (#110, live 2026-10-29): after cancelling a
+  running search it reads complete at once but its responses are `[]` for up to ~0.5 s, so
+  `_stop` also waits for non-empty responses when `response_count > 0`. `searchTimeout` is
   milliseconds and counts from the last response. 429 = another start/queue call is still
   running (one at a time); 409 on a search start = not logged in.
 - **Navidrome 0.64.2**: Subsonic errors come as HTTP 200 with `status: failed` (legacy's scan

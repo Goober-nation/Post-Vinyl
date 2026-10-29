@@ -110,8 +110,9 @@ class SlskdClientBase(ABC):
     @abstractmethod
     def get_responses(self, search_id: str) -> list[PeerResponse]:
         """Every response of the search. slskd stores them only when the search
-        ends (on its own or via cancel_search), so this is ``[]`` while it runs;
-        after that it can be re-read at any time."""
+        ends (on its own or via cancel_search), so this is ``[]`` while it runs
+        and, after a cancel, for up to ~0.5 s more (0.26.2, #110); after that
+        it can be re-read at any time."""
 
     @abstractmethod
     def cancel_search(self, search_id: str) -> None:
