@@ -107,6 +107,7 @@ def test_settings_refuse_missing_or_bad_values(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setenv("PV_DB_PATH", "pv.db")
     monkeypatch.setenv("PV_NAVIDROME_URL", "http://nd:4533")
     monkeypatch.setenv("PV_PUBLIC_ORIGIN", "https://music.example/")
+    monkeypatch.setenv("PV_CONFIG_PATH", "config/post-vinyl.example.yaml")
     assert Settings.from_env().public_origin == "https://music.example"
     monkeypatch.setenv("PV_PUBLIC_ORIGIN", "https://music.example/app")
     with pytest.raises(ConfigError):

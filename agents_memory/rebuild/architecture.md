@@ -46,6 +46,39 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   clients only. Where §2–4 below name `search`/`download` services, read them as the slskd
   backend's internals.
 
+## Source switches (user, 2026-10-29)
+- Applies to **every kind of source**: catalog (`CatalogSource`: MusicBrainz, ListenBrainz,
+  Deezer), download (`DownloadSource`: slskd, later backends) and request sources (Postradio
+  recs, Yandex playlists).
+- **Two levels, no admin UI**: the global config file in the app folder has one ordered list
+  per kind (catalog, download, request sources). **A source missing from the list is off; the
+  list order is the priority order** (user, 2026-10-29). Each user may switch off any listed
+  source and **reorder** them for themselves in `user_settings`; a user can never add a source
+  the config doesn't list.
+- **Adding or swapping a source = a new class behind the existing ABC + a name in the config
+  list**; no service, core or route code names a concrete source. Services get a registry of
+  enabled sources (built in `main.py` from config) and ask it per user ("enabled sources for
+  user X, in their order"). With MusicBrainz off, the first enabled catalog source is canonical
+  (user, 2026-10-29).
+- **The config file documents its allowed values**: each source list carries a comment naming
+  every possible source; adding a source updates that comment in the same change. Startup
+  rejects an unknown source name with a clear error.
+- **Turning a source off never deletes data**: songs, identities, requests and files it
+  produced stay; it just isn't asked any more. A request whose only download source is off
+  waits (stays in its state) rather than failing.
+- **Every config file is YAML** (user, 2026-10-29): `config/post-vinyl.yaml` at
+  `PV_CONFIG_PATH`, documented by `config/post-vinyl.example.yaml`; secrets stay in `.env`.
+  The env-only startup values move into it with the config redesign.
+- **Catalog service (#95, user 2026-10-29)**: a typed search goes to the user's catalog sources in
+  order and the **first source that answers with results** is shown; `resolve` stores **only the
+  pick** (song + the picked source's id; linking to other sources and choosing a release is
+  tagging's job). **ListenBrainz** is in the catalog list as the **name → MBID fallback** for
+  request sources (Yandex/Postradio give title + artist); typed searches skip it.
+- User preference storage: setting `sources.<kind>` = `{"order": [...], "off": [...]}`; a source
+  new in the config is on and goes after the user's order.
+- Plan each milestone 6+ service with this in mind; the registry lands with the first service
+  that needs it (catalog, #95).
+
 ## 1. Layers and dependency direction
 
 ```

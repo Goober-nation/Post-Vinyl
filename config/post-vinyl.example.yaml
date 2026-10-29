@@ -1,0 +1,18 @@
+# Post-Vinyl settings. Copy to post-vinyl.yaml and point PV_CONFIG_PATH at it.
+# Secrets never go here; they stay in .env.
+
+# Which sources this install uses, per kind. The list order is the order they
+# are tried; a source left out is off. Each user can switch listed sources off
+# and reorder them for themselves, but can't add one that isn't listed here.
+sources:
+  # Song catalogs, for typed searches and browsing.
+  # Possible values: musicbrainz, deezer, listenbrainz
+  #   listenbrainz only maps an artist + title to a MusicBrainz id (needs the
+  #   user's ListenBrainz token); typed searches skip it.
+  catalog: [musicbrainz, deezer, listenbrainz]
+  # Where files are downloaded from.
+  # Possible values: slskd
+  download: [slskd]
+  # What else may start a request besides a user's own pick.
+  # Possible values: postradio, yandex (not built yet; listing them does nothing)
+  request: []
