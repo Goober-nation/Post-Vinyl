@@ -134,4 +134,5 @@ live calls (zero trust for legacy, AGENTS.md). What later milestones need to kno
   text. The user's preference: **setup through the app**; failing that, a **setup CLI script**
   that creates the Navidrome admin. Whatever is picked has to close the window where an empty
   Navidrome lets anyone who reaches it call `createAdmin`, for example by keeping Navidrome
-  unpublished until setup is done.
+  unpublished until setup is done. **Decided 2026-10-29 (#97)**: one-off setup run with
+  Navidrome unpublished, see `users-auth.md`.

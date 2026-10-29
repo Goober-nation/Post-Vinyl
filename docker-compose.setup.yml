@@ -1,0 +1,34 @@
+# First-run setup (#97): creates the first Navidrome admin while Navidrome has
+# no published port, so nobody else can reach its createAdmin. Same commands
+# in bash, PowerShell and the macOS terminal:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.setup.yml run --rm setup
+#   docker compose down
+#   docker compose up -d
+#
+# Needs Docker Compose 2.24 or newer (for !reset). PV_SECRET_KEY comes from .env.
+
+services:
+  navidrome:
+    ports: !reset []
+
+  slskd:
+    ports: !reset []
+
+  postvinyl:
+    ports: !reset []
+
+  setup:
+    build: .
+    command: ["python", "-m", "app.setup"]
+    # shares Navidrome's network namespace: reaches it on localhost, works with
+    # any base compose file whatever its network is called
+    network_mode: "service:navidrome"
+    depends_on:
+      - navidrome
+    environment:
+      - PV_DB_PATH=/app/data/post-vinyl.db
+      - PV_NAVIDROME_URL=http://localhost:4533
+      - PV_SECRET_KEY=${PV_SECRET_KEY}
+    volumes:
+      - ${PV_DATA_DIR:-./app_data}:/app/data
