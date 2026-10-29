@@ -73,6 +73,10 @@ class SlskdGate:
         self._paused_until = 0.0
         self._last_healthy = -math.inf  # when a search last came back with results
 
+    @property
+    def ban_days(self) -> int:
+        return self._settings.peer_ban_days
+
     def ready(self) -> bool:
         try:
             state = self._client.app_state()

@@ -29,3 +29,11 @@ slskd:
   throttle_check_min_responses: 300
   # A failed check pauses all searching this long, then checks again.
   throttle_pause_minutes: 10
+  # A peer that keeps a download queued longer than this is skipped (counts as
+  # a failure for that peer). Ranking puts peers with a free upload slot first.
+  queue_wait_seconds: 15
+  # Peers tried for one download before it is given up.
+  candidates_per_download: 5
+  # A peer is banned after this many failed downloads, for this many days.
+  peer_ban_failures: 3
+  peer_ban_days: 7

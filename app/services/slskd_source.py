@@ -2,8 +2,10 @@
 
 ``start`` claims the request (``searching``) and queues it; one worker thread
 takes requests in order and runs the search (searches run one at a time
-anyway, user 2026-10-29). Cancelling is dropping: the search sees the request
-moved before its next query and stops.
+anyway, user 2026-10-29), then hands a ``found`` one to the downloader, whose
+attempts the download monitor follows. Cancelling is dropping: the search sees
+the request moved before its next query and stops; the monitor cancels a
+running transfer of a dropped request.
 
 A search that crashes releases the request back to ``requested`` and queues
 it again once; a second crash ends it ``notFound`` with the error logged
@@ -19,6 +21,7 @@ import threading
 
 from app.core import states
 from app.services.download_source import DownloadSource
+from app.services.slskd_download import SlskdDownloader
 from app.services.slskd_search import SlskdSearcher
 from app.stores.database import Database
 from app.stores.requests import Request, RequestsStore
@@ -32,9 +35,15 @@ MAX_CRASHES = 2  # per request, counted in memory
 class SlskdSource(DownloadSource):
     source = "slskd"
 
-    def __init__(self, db: Database, searcher: SlskdSearcher) -> None:
+    def __init__(
+        self,
+        db: Database,
+        searcher: SlskdSearcher,
+        downloader: SlskdDownloader | None = None,
+    ) -> None:
         self._db = db
         self._searcher = searcher
+        self._downloader = downloader  # None: search only (tests)
         self._requests = RequestsStore()
         self._queue: queue.Queue[tuple[Request, Song] | None] = queue.Queue()
         self._crashes: dict[int, int] = {}
@@ -75,6 +84,8 @@ class SlskdSource(DownloadSource):
             try:
                 found = self._searcher.search(request, song)
                 log.info("request %s search done: found=%s", request.id, found)
+                if found and self._downloader is not None:
+                    self._downloader.start(request.id)
             except Exception:  # any error: one bad request must not end the worker
                 log.exception("request %s search failed", request.id)
                 self._crashed(request, song)

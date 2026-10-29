@@ -165,8 +165,27 @@ class SlskdStore:
         """Back to clean: no row."""
         conn.execute("DELETE FROM slskd_peers WHERE username = ?", (username,))
 
-    def blocked_usernames(self, conn: sqlite3.Connection) -> set[str]:
+    def blocked_usernames(
+        self, conn: sqlite3.Connection, banned_since: int | None = None
+    ) -> set[str]:
+        """Blocked peers; with ``banned_since``, older bans are deleted first
+        (ban expiry is checked lazily on lookup, core-db-redesign.md)."""
+        if banned_since is not None:
+            conn.execute(
+                "DELETE FROM slskd_peers WHERE blocked_at IS NOT NULL AND blocked_at < ?",
+                (banned_since,),
+            )
         rows = conn.execute(
             "SELECT username FROM slskd_peers WHERE blocked_at IS NOT NULL"
         )
         return {r["username"] for r in rows}
+
+    def running_for_download(
+        self, conn: sqlite3.Connection, download_id: int
+    ) -> SlskdAttempt | None:
+        row = conn.execute(
+            """SELECT * FROM slskd_attempts WHERE download_id = ? AND outcome IS NULL
+               ORDER BY id DESC LIMIT 1""",
+            (download_id,),
+        ).fetchone()
+        return SlskdAttempt(**row) if row else None

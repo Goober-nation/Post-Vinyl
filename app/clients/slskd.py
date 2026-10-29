@@ -123,9 +123,13 @@ class SlskdClientBase(ABC):
         username: str,
         files: list[tuple[str, int]],
         search_id: str | None = None,
+        destination: str | None = None,
     ) -> QueueResult:
         """Queue (filename, size) files from one peer. A file the peer doesn't
-        have is still accepted here and fails later in the transfer state."""
+        have is still accepted here and fails later in the transfer state.
+        ``destination``: folder under slskd's downloads dir to save into; it takes
+        precedence over slskd's own subdirectory pattern (0.26.1 source,
+        ``DeriveDestination``)."""
 
     @abstractmethod
     def list_downloads(self) -> list[Transfer]: ...
@@ -252,12 +256,15 @@ class SlskdClient(SlskdClientBase):
         username: str,
         files: list[tuple[str, int]],
         search_id: str | None = None,
+        destination: str | None = None,
     ) -> QueueResult:
-        body = {
+        body: dict[str, Any] = {
             "username": username,
             "searchId": search_id,
             "files": [{"filename": name, "size": size} for name, size in files],
         }
+        if destination:
+            body["options"] = {"destination": destination}
         # 201 all queued, 207 some failed, 200 all failed; the body lists both
         data = self._call(
             "POST", "/transfers/downloads/batches", _QUEUE_TIMEOUT_S, json=body

@@ -173,6 +173,10 @@ class SlskdSearcher:
         self._wall = wall_clock
         self._requests = RequestsStore()
         self._store = SlskdStore()
+        self._ban_days = gate.ban_days
+
+    def _ban_cutoff(self) -> int:
+        return int(self._wall()) - self._ban_days * 86_400
 
     # ------------------------------------------------------------ one query
 
@@ -241,7 +245,7 @@ class SlskdSearcher:
                     self._store.add_search(
                         conn, ran.result.id, request.id, query, shape, int(self._wall())
                     )
-                    blocked = self._store.blocked_usernames(conn)
+                    blocked = self._store.blocked_usernames(conn, self._ban_cutoff())
                 peers = helpful(
                     self._client.get_responses(ran.result.id), target, ran.result.id,
                     blocked,
@@ -288,7 +292,7 @@ class SlskdSearcher:
         """Helpful peers from every search of the request, re-read from slskd."""
         with self._db.transaction() as conn:
             searches = self._store.searches_for_request(conn, request_id)
-            blocked = self._store.blocked_usernames(conn)
+            blocked = self._store.blocked_usernames(conn, self._ban_cutoff())
         target = matcher_song(song)
         return pool(
             helpful(self._client.get_responses(s.id), target, s.id, blocked)
