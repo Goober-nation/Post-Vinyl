@@ -16,7 +16,9 @@ the next untried, unbanned candidate on the **same** downloads row, up to
 ``candidates_per_download``. With none left the request ends by its last
 attempt: never started (``noStart``, or failed with no bytes) →
 ``notDownloaded``; started and broke → ``badDownload`` (user, 2026-10-29). A
-completed download clears the peer's record.
+completed download clears the peer's record. ``next_peer`` (the user skips
+the running attempt, #111) ends it as ``skipped``: the peer isn't blamed, and
+the next candidate is queued like after a failure.
 
 Each attempt saves into its own folder, ``post-vinyl/<download>/<attempt>``,
 passed to slskd as the batch destination, so ``file_location`` is known
@@ -181,6 +183,7 @@ class SlskdDownloader:
                 continue
             with self._db.transaction(write=True) as conn:
                 self._store.set_transfer_id(conn, attempt.id, transfer.id)
+                self._downloads.set_state(conn, download_id, "queued")  # a new peer
             self._watch[attempt.id] = _Watch(self._clock())
             log.info("download %s: attempt %s queued from %s (rank %s)", download_id,
                      attempt.id, cand.username, attempt.rank)  # fmt: skip
@@ -195,6 +198,8 @@ class SlskdDownloader:
             self._store.end_attempt(conn, attempt.id, outcome, self._now())
             if outcome == "completed":
                 self._store.clear_peer(conn, attempt.username)
+                return
+            if outcome == "skipped":  # the user's choice, not the peer's fault
                 return
             failures = self._store.record_peer_failure(conn, attempt.username)
             if failures >= self._settings.peer_ban_failures:
@@ -232,6 +237,28 @@ class SlskdDownloader:
             )
         except SlskdError as e:
             log.info("cancelling transfer %s failed: %s", attempt.transfer_id, e)
+
+    def next_peer(self, download_id: int) -> bool:
+        """Skip the running attempt and queue the next candidate (#111).
+        False when the download isn't running."""
+        with self._lock:
+            with self._db.transaction() as conn:
+                download = self._downloads.get(conn, download_id)
+                running = self._store.running_for_download(conn, download_id)
+                req = (
+                    self._requests.get(conn, download.request_id) if download else None
+                )
+            if download is None or running is None or req is None:
+                return False
+            if req.track_state != "midDownload":
+                return False
+            if running.transfer_id:
+                self._cancel(running)
+            self._end(running, "skipped")
+            log.info("download %s: attempt %s skipped by the user", download_id,
+                     running.id)  # fmt: skip
+            self._next(download_id, req.id)
+        return True
 
     # ------------------------------------------------------------ polling
 
@@ -282,6 +309,9 @@ class SlskdDownloader:
             if not picked and now - watch.seen_at > self._settings.queue_wait_seconds:
                 outcome = "noStart"
         elif phase == "downloading" or watch.samples:
+            if download.state == "queued":  # bytes flow: the tab shows it (#111)
+                with self._db.transaction(write=True) as conn:
+                    self._downloads.set_state(conn, download.id, "downloading")
             watch.samples.append((now, transfer.bytes_transferred))
             outcome = stall_outcome(watch.samples, now)
         if outcome is None:

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.core import states
@@ -69,8 +70,10 @@ class DownloadDispatch(DownloadDispatchBase):
         db: Database,
         sources: SourcePreferences,
         download_sources: list[DownloadSource],
+        paused: Callable[[], bool] = lambda: False,
     ) -> None:
         self._db = db
+        self._paused = paused
         self._prefs = sources
         self._sources = {s.source: s for s in download_sources}
         self._requests = RequestsStore()
@@ -87,6 +90,9 @@ class DownloadDispatch(DownloadDispatchBase):
             raise NotStartable(f"request {request_id} is {req.track_state}")
         if song is None:
             raise NotStartable(f"request {request_id} has no song")
+        if self._paused():  # an admin paused the queue (#111): wait, redispatch resumes
+            log.debug("request %s waits: the queue is paused", request_id)
+            return None
         names = self._prefs.for_user(user_id, "download")
         source = next((self._sources[n] for n in names if n in self._sources), None)
         if source is None:

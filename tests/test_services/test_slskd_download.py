@@ -320,3 +320,27 @@ def test_monitor_keeps_polling_after_an_error() -> None:
     m.start()
     assert done.wait(2)
     m.stop()
+
+
+# ------------------------------------------------------------ next peer (#111)
+
+
+def test_next_peer_skips_without_blaming_and_queues_the_next(tmp_path: Path) -> None:
+    c = build(tmp_path, PEERS, peer_ban_failures=1)  # one failure would ban
+    c.dl.start(c.req)
+    c.transfer("InProgress", 1_000)
+    assert c.dl.next_peer(c.download().id)
+    first, second = c.attempts()
+    assert first.outcome == "skipped" and second.username == "p1"
+    assert c.slskd.transfers[first.transfer_id or ""].state == "Completed, Cancelled"
+    with c.db.transaction() as conn:
+        assert SlskdStore().get_peer(conn, "p0") is None  # not blamed, not banned
+    assert c.state() == "midDownload"
+
+
+def test_next_peer_on_the_last_candidate_ends_the_request(tmp_path: Path) -> None:
+    c = build(tmp_path, PEERS[:1])
+    c.dl.start(c.req)
+    assert c.dl.next_peer(c.download().id)
+    assert c.state() == "notDownloaded" and c.download().state == "failed"
+    assert not c.dl.next_peer(c.download().id)  # nothing running any more

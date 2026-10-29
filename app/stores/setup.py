@@ -1,4 +1,4 @@
-"""First-run setup progress, as key/value (#86)."""
+"""App-wide key/value state (#86): first-run setup progress, the queue pause (#111)."""
 
 from __future__ import annotations
 

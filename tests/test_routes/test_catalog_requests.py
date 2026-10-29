@@ -147,3 +147,27 @@ def test_catalog_and_requests_need_a_session(env: Env, tmp_path: Path) -> None:
     anon = TestClient(env.alice.app, base_url=ORIGIN)
     assert anon.get("/api/catalog/tracks", params={"title": "x"}).status_code == 401
     assert anon.get("/api/requests").status_code == 401
+
+
+def test_cart_batch_gives_each_item_its_own_result(env: Env) -> None:
+    found = env.alice.get("/api/catalog/tracks", params={"title": "feather"}).json()
+    items = [
+        {"source": "musicbrainz", "track_id": "mb-1", "origin_id": found["origin_id"]},
+        {"source": "musicbrainz", "track_id": "nope"},
+        {"source": "deezer", "track_id": "mb-1"},  # a source the user hasn't enabled
+    ]
+    r = env.alice.post("/api/requests/batch", json={"items": items}, headers=SAME)
+    assert r.status_code == 207
+    assert [(x["status"], x["request"] is not None) for x in r.json()] == [
+        (201, True), (404, False), (404, False),
+    ]  # fmt: skip
+    assert env.source.started == [r.json()[0]["request"]["id"]]
+    big = {"items": [items[0]] * 101}
+    assert (
+        env.alice.post("/api/requests/batch", json=big, headers=SAME).status_code == 422
+    )
+    empty = {"items": []}
+    assert (
+        env.alice.post("/api/requests/batch", json=empty, headers=SAME).status_code
+        == 422
+    )

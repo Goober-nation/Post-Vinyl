@@ -7,15 +7,17 @@ rather than on the next redispatch tick. A user only sees their own requests.
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.dependencies import Core, CoreDep, UserDep
+from app.routes.errors import status_for
 from app.services.dispatch import NotStartable
 from app.services.requests import DEFAULT_PAGE_SIZE
 from app.services.slskd_tab import SearchView
 from app.stores.requests import Request
 
 router = APIRouter(prefix="/api/requests", tags=["requests"])
+MAX_CART = 100
 
 
 class NewRequest(BaseModel):
@@ -75,6 +77,43 @@ def create(body: NewRequest, user: UserDep, core: CoreDep) -> RequestOut:
     req = core.requests.create(user.id, song.id, "catalog", body.origin_id)
     start(core, req)
     return out(req, core)
+
+
+class CartItem(BaseModel):
+    source: str
+    track_id: str
+    origin_id: int | None = None
+
+
+class Cart(BaseModel):
+    items: list[CartItem] = Field(min_length=1, max_length=MAX_CART)
+
+
+class CartResult(BaseModel):
+    source: str
+    track_id: str
+    request: RequestOut | None = None
+    status: int  # 201, or the status this item alone would have got
+    error: str | None = None
+
+
+@router.post("/batch", status_code=207)
+def batch(body: Cart, user: UserDep, core: CoreDep) -> list[CartResult]:
+    """The browser's cart in one call (#111): each item like ``POST /api/requests``,
+    each with its own result, so one bad item doesn't stop the rest."""
+    out_items = []
+    for item in body.items:
+        try:
+            r = create(NewRequest(**item.model_dump()), user, core)
+            out_items.append(CartResult(source=item.source, track_id=item.track_id,
+                                        request=r, status=201))  # fmt: skip
+        except Exception as e:
+            status = status_for(e)
+            if status is None:
+                raise
+            out_items.append(CartResult(source=item.source, track_id=item.track_id,
+                                        status=status, error=str(e)))  # fmt: skip
+    return out_items
 
 
 @router.get("")

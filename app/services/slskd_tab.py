@@ -13,7 +13,8 @@ excluded versions are marked, against the query's own words.
 
 A picked file becomes its own request and song (user, 2026-10-30), with the
 names from its path (``core/file_song.py``), queued as exactly that file:
-the peer and file are checked against the search's stored responses first.
+the peer and file are checked against the search's stored responses first. While the queue is paused (#111) picks
+are refused; a typed search waits in the gate.
 Owns ``searching`` / ``found`` / ``notFound`` for typed and picked requests.
 """
 
@@ -30,6 +31,7 @@ from app.clients.slskd import PeerFile, PeerResponse, SlskdClientBase, SlskdErro
 from app.core import matcher, states
 from app.core.file_song import names_from_path
 from app.core.normalize import credits_from_joined, query_names
+from app.services.queue_pause import QueuePaused
 from app.services.requests import RequestNotFound
 from app.services.slskd_download import SlskdDownloader
 from app.services.slskd_gate import SlskdGate
@@ -171,7 +173,9 @@ class SlskdTab(SlskdTabBase):
         downloader: SlskdDownloader,
         clock: Callable[[], float] = time.time,
         run_in_background: Callable[[Callable[[], None]], None] | None = None,
+        paused: Callable[[], bool] = lambda: False,
     ) -> None:
+        self._paused = paused
         self._db = db
         self._client = client
         self._gate = gate
@@ -329,6 +333,8 @@ class SlskdTab(SlskdTabBase):
             raise ValueError("files can only be picked from a typed Soulseek search")
         if not picks:
             raise ValueError("no files picked")
+        if self._paused():
+            raise QueuePaused("the queue is paused; picks wait until it's resumed")
         found = [
             self._find(request_id, p) for p in picks
         ]  # all checked before any write
