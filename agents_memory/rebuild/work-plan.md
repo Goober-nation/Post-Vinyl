@@ -137,6 +137,10 @@ live calls (zero trust for legacy, AGENTS.md). What later milestones need to kno
   unpublished until setup is done. **Decided 2026-10-29 (#97)**: one-off setup run with
   Navidrome unpublished, see `users-auth.md`.
 
+## Unit-tested only
+Everything from milestone 6 that has unit tests but no live run yet is listed in
+`unverified-live.md` (2026-10-29); milestone 7's validation works through it.
+
 ## Versions at play (user, 2026-10-29)
 **No pinning**: images stay on `:latest` and are upgraded whenever a new release is out; a
 break is wanted (it shows what changed) rather than silent drift to an old version. Every API
