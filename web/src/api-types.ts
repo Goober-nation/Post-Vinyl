@@ -174,6 +174,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/{source}/covers/{cover_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cover
+         * @description A catalog result's cover by its ``cover_id``, from the source's own image
+         *     lookup (#127); never stored; 404 when there is none.
+         */
+        get: operations["cover_api_catalog__source__covers__cover_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/requests": {
         parameters: {
             query?: never;
@@ -704,6 +725,11 @@ export interface components {
             secondary_types: string[];
             /** First Release Date */
             first_release_date: string;
+            /**
+             * Cover Id
+             * @default
+             */
+            cover_id: string;
         };
         /** Apply */
         Apply: {
@@ -814,6 +840,11 @@ export interface components {
             formats: string[];
             /** Track Count */
             track_count: number;
+            /**
+             * Cover Id
+             * @default
+             */
+            cover_id: string;
         };
         /** FileView */
         FileView: {
@@ -1248,6 +1279,11 @@ export interface components {
              * @default false
              */
             video: boolean;
+            /**
+             * Cover Id
+             * @default
+             */
+            cover_id: string;
         };
         /** TypedSearchOut */
         TypedSearchOut: {
@@ -1563,6 +1599,47 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Track"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cover_api_catalog__source__covers__cover_id__get: {
+        parameters: {
+            query?: {
+                size?: number;
+            };
+            header?: never;
+            path: {
+                source: string;
+                cover_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/*": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

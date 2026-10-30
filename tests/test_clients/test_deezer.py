@@ -210,3 +210,58 @@ def test_search_artists_parse(monkeypatch: pytest.MonkeyPatch) -> None:
     client, _ = client_returning(monkeypatch, FakeResp(body))
     [artist] = client.search_artists("Mötley Crüe")
     assert (artist.id, artist.name, artist.source) == ("1234", "Mötley Crüe", "deezer")
+
+
+# ------------------------------------------------------------ covers (#127)
+
+MD5 = "939a0f931485422493209a8158df0812"
+
+
+def test_cover_ids_come_from_the_album_image() -> None:
+    searched = deezer.parse_track(TRACK | {"album": {"id": 7, "md5_image": MD5}})
+    listed = deezer.parse_track(TRACK | {"md5_image": MD5})  # album tracklists
+    assert searched.cover_id == listed.cover_id == MD5
+    assert deezer.parse_album({"id": 7, "md5_image": MD5}).cover_id == MD5
+    assert deezer.parse_track(TRACK).cover_id == ""
+
+
+class ImageResp:
+    def __init__(self, status: int, kind: str, content: bytes = b"") -> None:
+        self.status_code = status
+        self.headers = {"Content-Type": kind}
+        self.content = content
+
+
+@pytest.mark.parametrize(
+    ("resp", "want"),
+    [
+        (ImageResp(200, "image/jpeg", b"\xff\xd8img"), b"\xff\xd8img"),
+        (ImageResp(302, "text/html"), None),  # unknown id: a placeholder redirect
+    ],
+)
+def test_cover_reads_deezers_image_server(
+    monkeypatch: pytest.MonkeyPatch, resp: ImageResp, want: bytes | None
+) -> None:
+    client = DeezerClient()
+    urls: list[tuple[str, bool]] = []
+
+    def get(url: str, timeout: float, allow_redirects: bool) -> ImageResp:
+        urls.append((url, allow_redirects))
+        return resp
+
+    monkeypatch.setattr(client._http, "get", get)
+    assert client.cover(MD5, 120) == want
+    assert urls == [
+        (
+            f"https://cdn-images.dzcdn.net/images/cover/{MD5}/120x120-000000-80-0-0.jpg",
+            False,
+        )
+    ]
+
+
+def test_cover_refuses_anything_but_an_image_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = DeezerClient()
+    monkeypatch.setattr(client._http, "get", lambda *a, **k: pytest.fail("no call"))
+    assert client.cover("../../etc", 120) is None

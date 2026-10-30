@@ -42,6 +42,7 @@ T = TypeVar("T")
 
 class FakeCatalogService(CatalogServiceBase):
     def __init__(self) -> None:
+        self.covers: dict[tuple[str, str], bytes] = {}
         self.catalogs: dict[str, CatalogSource] = {}
         self.enabled: list[str] = []
         self.origins: dict[tuple[int, str, str], int] = {}  # (user, query, kind) → id
@@ -110,6 +111,12 @@ class FakeCatalogService(CatalogServiceBase):
 
     def edition_tracks(self, user_id: int, source: str, edition_id: str) -> list[Track]:
         return self._catalog(source).edition_tracks(edition_id)
+
+    def cover(
+        self, user_id: int, source: str, cover_id: str, size: int
+    ) -> bytes | None:
+        self._catalog(source)
+        return self.covers.get((source, cover_id))
 
     def resolve(self, user_id: int, source: str, track_id: str) -> Song:
         if (source, track_id) in self.songs:

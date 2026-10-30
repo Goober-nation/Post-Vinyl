@@ -12,6 +12,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -66,7 +67,7 @@ class IndexingNavidrome(FakeNavidromeClient):
         self.songs = {}
         for p in sorted(self.library.rglob("*.flac")):
             rel = str(p.relative_to(self.library))
-            tags = FLAC(p).tags or {}
+            tags: Any = FLAC(p).tags or {}
             title, artist, album = (
                 (tags.get(k) or [""])[0] for k in ("title", "artist", "album")
             )

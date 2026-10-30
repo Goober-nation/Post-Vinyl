@@ -14,6 +14,7 @@ comes from them or from legacy on trust:
 
 from __future__ import annotations
 
+import re
 import threading
 import time
 from typing import Any
@@ -45,6 +46,7 @@ _RECORD_TYPES = {
     "compile": ("Album", ("Compilation",)),
 }
 
+_MD5 = re.compile(r"[0-9a-f]{32}")
 _rate_lock = threading.Lock()
 _last_call = 0.0
 
@@ -73,6 +75,8 @@ def parse_track(raw: dict[str, Any]) -> Track:
         credits=(((raw.get("artist") or {}).get("name", ""), ""),),
         disc=raw.get("disk_number"),
         position=raw.get("track_position"),
+        # its album's image id: on the track in tracklists, on `album` in searches
+        cover_id=raw.get("md5_image") or (raw.get("album") or {}).get("md5_image", ""),
     )
 
 
@@ -86,6 +90,7 @@ def parse_album(raw: dict[str, Any], artist: str = "") -> Album:
         primary_type=primary,
         secondary_types=secondary,
         first_release_date=raw.get("release_date") or "",
+        cover_id=raw.get("md5_image") or "",
     )
 
 
@@ -93,9 +98,13 @@ class DeezerClient(CatalogSource):
     source = "deezer"
 
     def __init__(
-        self, base_url: str = "https://api.deezer.com", timeout_s: float = 15
+        self,
+        base_url: str = "https://api.deezer.com",
+        timeout_s: float = 15,
+        images_url: str = "https://cdn-images.dzcdn.net",
     ) -> None:
         self._base = base_url.rstrip("/")
+        self._images = images_url.rstrip("/")
         self._timeout = timeout_s
         self._http = requests.Session()
 
@@ -182,8 +191,26 @@ class DeezerClient(CatalogSource):
                 status="",
                 formats=(),
                 track_count=raw.get("nb_tracks", 0),
+                cover_id=raw.get("md5_image") or "",
             )
         ]
+
+    def cover(self, cover_id: str, size: int) -> bytes | None:
+        """An album image from Deezer's image server by its ``md5_image`` id,
+        ``size`` px square (#127). Checked live 2026-10-31: any square size is
+        served; an unknown id redirects to a placeholder, taken as none."""
+        if not _MD5.fullmatch(cover_id):
+            return None
+        url = f"{self._images}/images/cover/{cover_id}/{size}x{size}-000000-80-0-0.jpg"
+        try:
+            resp = self._http.get(url, timeout=self._timeout, allow_redirects=False)
+        except requests.RequestException as e:
+            raise CatalogError(f"GET {url}: {e}") from e
+        if resp.status_code != 200 or not resp.headers.get(
+            "Content-Type", ""
+        ).startswith("image/"):
+            return None
+        return resp.content
 
     def edition_tracks(self, edition_id: str) -> list[Track]:
         return [parse_track(t) for t in self._paged(f"/album/{edition_id}/tracks")]

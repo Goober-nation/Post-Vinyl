@@ -132,6 +132,8 @@ function browseResults(view: Exclude<View, { q: string }>): HTMLElement {
 
 const SOURCE_NAMES: Record<string, string> = { musicbrainz: "MusicBrainz", deezer: "Deezer", listenbrainz: "ListenBrainz" };
 
+// a result's cover through Post-Vinyl, from the source that answered (#127)
+const coverOf = (source: string, coverId: string) => (coverId ? `/api/catalog/${enc(source)}/covers/${coverId}?size=80` : undefined);
 const year = (date: string) => date.slice(0, 4);
 const length = (s: number | null) => (s == null ? "" : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`);
 const meta = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" · ");
@@ -156,6 +158,7 @@ function trackRow(t: Schemas["Track"], originId: number | null, album?: string):
   const side = t.position ? `${t.disc && t.disc > 1 ? `${t.disc}-` : ""}${t.position}` : undefined;
   return row({
     title: name,
+    cover: coverOf(t.source, t.cover_id ?? ""),
     artist: t.artist,
     album,
     side,
@@ -184,6 +187,7 @@ function albumRow(a: Schemas["Album"]): HTMLElement {
   const to = { browse: "album", source: a.source, id: a.id, name: a.title, artist: a.artist };
   return opens(row({
     title: a.title,
+    cover: coverOf(a.source, a.cover_id ?? ""),
     artist: a.artist,
     extra: h("span", { class: "sub" }, meta(year(a.first_release_date), types)),
     action: link(`Editions of ${a.title}`, to),
@@ -203,6 +207,7 @@ function editionRow(e: Schemas["Edition"], artist: string): HTMLElement {
   const to = { browse: "edition", source: e.source, id: e.id, name: e.title, artist };
   return opens(row({
     title: e.title,
+    cover: coverOf(e.source, e.cover_id ?? ""),
     artist: meta(year(e.date), e.country, e.formats.join(" + ")) || artist,
     extra: h("span", { class: "sub" }, meta(`${e.track_count} tracks`, e.status)),
     action: link(`Tracks of the ${meta(year(e.date), e.country)} edition`, to),

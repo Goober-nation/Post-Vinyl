@@ -56,6 +56,7 @@ class Track:
     first_release_date: str = ""  # "YYYY[-MM[-DD]]" or ""
     releases: tuple[ReleaseRef, ...] = ()
     video: bool = False  # MusicBrainz marks music-video recordings
+    cover_id: str = ""  # what the source's cover lookup takes (#127); "" none
 
 
 @dataclass(frozen=True)
@@ -75,6 +76,7 @@ class Album:
     primary_type: str  # "Album", "EP", "Single", … ("" when unknown)
     secondary_types: tuple[str, ...]  # "Live", "Compilation", …
     first_release_date: str  # "YYYY[-MM[-DD]]" or ""
+    cover_id: str = ""  # what the source's cover lookup takes (#127); "" none
 
 
 @dataclass(frozen=True)
@@ -87,6 +89,7 @@ class Edition:
     status: str  # "Official", "Bootleg", … ("" when unknown)
     formats: tuple[str, ...]  # per medium, e.g. ("CD", "CD")
     track_count: int
+    cover_id: str = ""  # what the source's cover lookup takes (#127); "" none
 
 
 class CatalogSource(ABC):

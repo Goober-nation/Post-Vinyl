@@ -129,6 +129,13 @@ class CatalogServiceBase(ABC):
     def resolve(self, user_id: int, source: str, track_id: str) -> Song:
         """The song for a picked track, created on first pick."""
 
+    @abstractmethod
+    def cover(
+        self, user_id: int, source: str, cover_id: str, size: int
+    ) -> bytes | None:
+        """A result's cover by its ``cover_id``, from the source's own image
+        lookup; None when it has none (#127). Nothing is stored."""
+
 
 class CatalogService(CatalogServiceBase):
     def __init__(
@@ -137,10 +144,14 @@ class CatalogService(CatalogServiceBase):
         sources: SourcePreferences,
         catalogs: list[CatalogSource],
         clock: Callable[[], float] = time.time,
+        covers: dict[str, Callable[[str, int], bytes | None]] | None = None,
     ) -> None:
         self._db = db
         self._sources = sources
         self._catalogs = {c.source: c for c in catalogs}
+        # per catalog, the client that holds its images: Deezer serves its own;
+        # MusicBrainz's are the Cover Art Archive's (one client per system)
+        self._covers = covers or {}
         self._clock = clock
         self._songs = SongsStore()
         self._requests = RequestsStore()
@@ -217,6 +228,13 @@ class CatalogService(CatalogServiceBase):
 
     def edition_tracks(self, user_id: int, source: str, edition_id: str) -> list[Track]:
         return self._catalog(user_id, source).edition_tracks(edition_id)
+
+    def cover(
+        self, user_id: int, source: str, cover_id: str, size: int
+    ) -> bytes | None:
+        self._catalog(user_id, source)  # only while that source is on for the user
+        fetch = self._covers.get(source)
+        return fetch(cover_id, size) if fetch else None
 
     def resolve(self, user_id: int, source: str, track_id: str) -> Song:
         with self._db.transaction() as conn:

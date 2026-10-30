@@ -91,6 +91,10 @@ def parse_search_hit(raw: dict[str, Any]) -> Track:
         raw,
         score=raw.get("score") if isinstance(raw.get("score"), int) else None,
         first_release_date=raw.get("first-release-date") or "",
+        # the first release it is on: its cover stands for the song (#127)
+        cover_id=next(
+            (f"release/{r['id']}" for r in raw.get("releases") or [] if r.get("id")), ""
+        ),
         releases=tuple(
             ReleaseRef(
                 status=rel.get("status") or "",
@@ -113,6 +117,7 @@ def parse_release_group(raw: dict[str, Any]) -> Album:
         primary_type=raw.get("primary-type") or "",
         secondary_types=tuple(raw.get("secondary-types") or ()),
         first_release_date=raw.get("first-release-date") or "",
+        cover_id=f"release-group/{raw['id']}",
     )
 
 
@@ -127,6 +132,7 @@ def parse_release(raw: dict[str, Any]) -> Edition:
         status=raw.get("status") or "",
         formats=tuple(m.get("format") or "" for m in media),
         track_count=sum(m.get("track-count", 0) for m in media),
+        cover_id=f"release/{raw['id']}",
     )
 
 
@@ -356,7 +362,10 @@ class MusicBrainzClient(CatalogSource, MusicBrainzTagSourceBase):
         )
         return [
             parse_recording(
-                t["recording"], disc=m.get("position"), position=t.get("position")
+                t["recording"],
+                disc=m.get("position"),
+                position=t.get("position"),
+                cover_id=f"release/{edition_id}",
             )
             for m in data.get("media") or []
             for t in m.get("tracks") or []

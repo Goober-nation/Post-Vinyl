@@ -65,8 +65,8 @@ def build_core(
 ) -> Core:
     """Every client and service, built once; the same graph the live loop test runs."""
     prefs = SourcePreferences(db, settings.sources)
-    mb = MusicBrainzClient()
-    catalogs: list[CatalogSource] = [mb, DeezerClient()]
+    mb, deezer, caa = MusicBrainzClient(), DeezerClient(), CoverArtClient()
+    catalogs: list[CatalogSource] = [mb, deezer]
     slskd = SlskdClient(settings.slskd_url, settings.slskd_api_key)
     pause = QueuePause(db)
     gate = SlskdGate(slskd, settings.slskd, paused=pause.paused)
@@ -78,7 +78,7 @@ def build_core(
     files = FilesService(db, nd, box, settings.files)
     lb = ListenBrainzClient()
     tagging = TaggingService(
-        db, mb, lb, CoverArtClient(), box, settings.files,
+        db, mb, lb, caa, box, settings.files,
         search=mb, sources=prefs,
     )  # fmt: skip
     pipeline = FilePipeline(db, files, tagging, settings.workers)
@@ -87,7 +87,12 @@ def build_core(
         settings.workers, dispatch, pipeline, downloader.poll, cleanup.tick
     )
     return Core(
-        CatalogService(db, prefs, catalogs),
+        CatalogService(
+            db,
+            prefs,
+            catalogs,
+            covers={"deezer": deezer.cover, "musicbrainz": caa.thumb},
+        ),
         RequestService(db),
         dispatch,
         SlskdTab(
