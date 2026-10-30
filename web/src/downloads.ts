@@ -5,7 +5,7 @@
 // hash (#/downloads?state=…&page=…&everyone=1&id=…).
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
-import { button, confirm, filters, kv, pageHead, railSection, row, state, toast, type Tone } from "./ui";
+import { button, confirm, filters, kv, pageHead, pager, railSection, row, state, toast, type Tone } from "./ui";
 
 const POLL_MS = 1500;
 type Item = Schemas["QueueItem"];
@@ -40,7 +40,7 @@ export function downloadsPage(me: Me): HTMLElement {
   const selected = Number(p.get("id")) || 0;
 
   const list = h("div", { class: "rows" }, h("p", { class: "py-2 text-muted", role: "status" }, "Loading…"));
-  const pager = h("div", { class: "mt-4 flex items-center gap-3 text-muted" });
+  const pages = h("div");
   const detail = h("div");
   const bar = h("div");
   // without a state in the URL the server applies the user's default filter;
@@ -68,7 +68,7 @@ export function downloadsPage(me: Me): HTMLElement {
   const el = h(
     "div",
     {},
-    h("div", { class: "center-main" }, head, list, pager),
+    h("div", { class: "center-main" }, head, list, pages),
     h("aside", { class: "side-rail rail" }, detail, queueRail(me)),
     bar,
   );
@@ -95,7 +95,7 @@ export function downloadsPage(me: Me): HTMLElement {
         // redraw only on change, so hover and focus survive the polling
         last = sig;
         list.replaceChildren(...(r.items.length ? r.items.map((it) => itemRow(it, it.id === selected, everyone)) : [h("p", { class: "py-2 text-muted" }, "No downloads here.")]));
-        drawPager(pager, r, page);
+        pages.replaceChildren(pager(page, Math.max(1, Math.ceil(r.total / r.page_size)), `${r.total} ${r.total === 1 ? "download" : "downloads"}`, (n) => go({ page: String(n) })));
         bar.replaceChildren(activityBar(now));
       }
     } catch (e) {
@@ -140,14 +140,6 @@ function itemRow(it: Item, selected: boolean, everyone: boolean): HTMLElement {
   return r;
 }
 
-function drawPager(el: HTMLElement, r: Schemas["QueuePage"], page: number): void {
-  const pages = Math.max(1, Math.ceil(r.total / r.page_size));
-  el.replaceChildren(
-    pages > 1 ? h("button", { type: "button", class: "btn btn-ghost btn-sm", disabled: page <= 1, onclick: () => go({ page: String(page - 1) }) }, "← Newer") : "",
-    h("span", { class: "text-sm" }, `${r.total} ${r.total === 1 ? "download" : "downloads"}${pages > 1 ? ` · page ${page} of ${pages}` : ""}`),
-    pages > 1 ? h("button", { type: "button", class: "btn btn-ghost btn-sm", disabled: page >= pages, onclick: () => go({ page: String(page + 1) }) }, "Older →") : "",
-  );
-}
 
 // ── the bottom bar: what is downloading now ─────────────────────────────
 

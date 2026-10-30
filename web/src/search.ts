@@ -5,7 +5,7 @@
 import { ApiError, api, type Schemas } from "./api";
 import { cart, CART_MAX, type CartEntry } from "./cart";
 import { h } from "./dom";
-import { button, iconButton, pageHead, railSection, row, state, toast } from "./ui";
+import { button, iconButton, paged, pageHead, railSection, row, state, toast } from "./ui";
 
 type View =
   | { q: string }
@@ -67,7 +67,7 @@ function searchForm(view: { q: string }): HTMLElement {
 }
 
 /** Three searches at once, each in its own section: a slow or failing source
- *  only holds up its own part. Artists and albums show the top few. */
+ *  only holds up its own part. Each pages on its own. */
 function searchResults(view: { q: string }): HTMLElement[] {
   if (!view.q) return [];
   // sections with nothing in them drop out; if all three do, one line says so
@@ -75,15 +75,15 @@ function searchResults(view: { q: string }): HTMLElement[] {
   let empty = 0;
   const gone = () => ++empty === 3 && none.classList.remove("hidden");
   return [
-    section("Artists", 4, gone,  async () => {
+    section("Artists", 5, gone,  async () => {
       const r = await api<Schemas["Results_Artist_"]>("GET", `/api/catalog/artists?name=${enc(view.q)}`);
       return [r.items.map(artistRow), r.source];
     }),
-    section("Albums", 6, gone,  async () => {
+    section("Albums", 5, gone,  async () => {
       const r = await api<Schemas["Results_Album_"]>("GET", `/api/catalog/albums?title=${enc(view.q)}`);
       return [r.items.map(albumRow), r.source];
     }),
-    section("Songs", Infinity, gone,  async () => {
+    section("Songs", 10, gone,  async () => {
       const r = await api<Schemas["Results_Track_"]>("GET", `/api/catalog/tracks?title=${enc(view.q)}`);
       return [r.items.map((t) => trackRow(t, r.origin_id)), r.source];
     }),
@@ -101,12 +101,8 @@ function section(title: string, top: number, onEmpty: (() => void) | null, load:
         body.replaceChildren(h("p", { class: "py-2 text-muted" }, "Nothing found."));
         return;
       }
-      if (source) head.append(h("span", { class: "text-xs normal-case" }, `${rows.length} from ${SOURCE_NAMES[source] ?? source}`));
-      const list = h("div", { class: "rows" }, ...rows.slice(0, top));
-      const more =
-        rows.length > top &&
-        h("button", { type: "button", class: "btn btn-ghost btn-xs mt-1 text-muted", onclick: () => (list.append(...rows.slice(top)), more && more.remove()) }, `Show all ${rows.length}`);
-      body.replaceChildren(list, more || "");
+      if (source) head.append(h("span", { class: "text-xs normal-case" }, `from ${SOURCE_NAMES[source] ?? source}`));
+      body.replaceChildren(paged(rows, top, ["result", "results"]));
     },
     // 409 a source is off, 502 a source failed, 503 none answered: shown as said
     (e) => body.replaceChildren(h("div", { role: "alert", class: "alert alert-error" }, e instanceof ApiError ? e.message : "Can't reach Post-Vinyl.")),
@@ -126,7 +122,7 @@ function browseHead(view: Exclude<View, { q: string }>): HTMLElement {
 function browseResults(view: Exclude<View, { q: string }>): HTMLElement {
   const base = `/api/catalog/${enc(view.source)}`;
   const label = { artist: "Albums", album: "Editions", edition: "Tracks" }[view.browse];
-  return section(label, Infinity, null, async () => {
+  return section(label, 20, null, async () => {
     if (view.browse === "artist") return [(await api<Schemas["Album"][]>("GET", `${base}/artists/${enc(view.id)}/albums`)).map(albumRow), view.source];
     if (view.browse === "album")
       return [(await api<Schemas["Edition"][]>("GET", `${base}/albums/${enc(view.id)}/editions`)).map((e) => editionRow(e, view.artist)), view.source];
@@ -249,7 +245,7 @@ function cartRail(): HTMLElement {
       bar || "",
       railSection(
         `Cart · ${items.length}`,
-        ...list,
+        list.length ? paged(list, 10, ["song", "songs"], "") : "",
         items.length > 0 && send,
         items.length > 0 && h("button", { type: "button", class: "btn btn-ghost btn-xs mt-2 w-full text-muted", onclick: () => cart.replace([]) }, "Empty cart"),
       ),

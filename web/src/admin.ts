@@ -2,13 +2,13 @@
 // and the peers with a bad record, banned or not, which can be cleared.
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
-import { button, confirm, pageHead, state, toast } from "./ui";
+import { button, confirm, pageHead, paged, state, toast } from "./ui";
 
 const fail = (e: unknown) => toast(e instanceof ApiError ? e.message : "Can't reach Post-Vinyl.", "err");
 const day = (s: number) => new Date(s * 1000).toLocaleDateString();
 
 export function adminPage(): HTMLElement {
-  const users = h("div", { class: "rows" }, h("p", { class: "py-2 text-muted" }, "Loading…"));
+  const users = h("div", {}, h("p", { class: "py-2 text-muted" }, "Loading…"));
   const peers = h("div", {}, h("p", { class: "py-2 text-muted" }, "Loading…"));
   void loadUsers(users);
   void loadPeers(peers);
@@ -24,8 +24,8 @@ export function adminPage(): HTMLElement {
 async function loadUsers(el: HTMLElement): Promise<void> {
   try {
     const list = await api<Schemas["UserView"][]>("GET", "/api/admin/users");
-    el.replaceChildren(
-      ...list.map((u) =>
+    el.replaceChildren(paged(
+      list.map((u) =>
         h(
           "div",
           { class: "row" },
@@ -36,7 +36,9 @@ async function loadUsers(el: HTMLElement): Promise<void> {
           h("span"),
         ),
       ),
-    );
+      20,
+      ["user", "users"],
+    ));
   } catch (e) {
     el.replaceChildren(h("div", { role: "alert", class: "alert alert-error" }, e instanceof ApiError ? e.message : "Can't reach Post-Vinyl."));
   }
@@ -68,10 +70,8 @@ async function loadPeers(el: HTMLElement): Promise<void> {
         h("span", { class: "flex-1" }),
         button("Clear all", () => void clear("/api/admin/peers", `Clear the record of all ${list.length} peers? Banned ones can be picked again.`, (n) => `Cleared ${n} ${n === 1 ? "peer" : "peers"}.`), "danger"),
       ),
-      h(
-        "div",
-        { class: "rows" },
-        ...list.map((p) =>
+      paged(
+        list.map((p) =>
           h(
             "div",
             { class: "row" },
@@ -92,6 +92,8 @@ async function loadPeers(el: HTMLElement): Promise<void> {
             ),
           ),
         ),
+        20,
+        ["peer", "peers"],
       ),
     );
   } catch (e) {

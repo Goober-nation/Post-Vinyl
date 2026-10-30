@@ -5,11 +5,12 @@
 // (user, 2026-10-30). What is shown lives in the hash (#/files?q=…&page=…).
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
-import { button, confirm, kv, pageHead, railSection, row, state, tag, toast } from "./ui";
+import { button, confirm, kv, pageHead, pager, railSection, row, state, tag, toast } from "./ui";
 
 type File = Schemas["LibraryFile"];
 type Me = Schemas["Me"];
 const PAGE_SIZE = 50;
+const REFRESH_MS = 30_000;
 
 function params(): URLSearchParams {
   return new URLSearchParams(location.hash.split("?")[1] ?? "");
@@ -26,7 +27,7 @@ export function filesPage(me: Me): HTMLElement {
   const q = p.get("q") ?? "";
   const page = Math.max(1, Number(p.get("page")) || 1);
   const list = h("div", { class: "rows" }, h("p", { class: "py-2 text-muted", role: "status" }, "Loading…"));
-  const pager = h("div", { class: "mt-4 flex items-center gap-3 text-muted" });
+  const pages = h("div");
   const rail = h("aside", { class: "side-rail rail" }, railSection("Selected", h("p", { class: "text-muted" }, "Pick a song to rename or delete it.")));
 
   const box = h("input", { class: "input w-full", type: "search", name: "q", placeholder: "Title, album or artist", "aria-label": "Search the library", value: q });
@@ -44,9 +45,13 @@ export function filesPage(me: Me): HTMLElement {
     h("button", { class: "btn btn-primary", type: "submit" }, "Search"),
   );
 
-  const load = async () => {
+  let last = "";
+  const load = async (force = false) => {
     try {
       const r = await api<Schemas["LibraryPage"]>("GET", `/api/library/files?${new URLSearchParams({ q, page: String(page), page_size: String(PAGE_SIZE) })}`);
+      const sig = JSON.stringify(r);
+      if (sig === last && !force) return; // unchanged: keep the list as it is
+      last = sig;
       list.replaceChildren(
         ...(r.items.length
           ? r.items.map((f) =>
@@ -59,18 +64,22 @@ export function filesPage(me: Me): HTMLElement {
             )
           : [h("p", { class: "py-2 text-muted" }, q ? `Nothing in the library matches “${q}”.` : "The library is empty.")]),
       );
-      const pages = Math.max(1, Math.ceil(r.total / r.page_size));
-      pager.replaceChildren(
-        pages > 1 ? h("button", { type: "button", class: "btn btn-ghost btn-sm", disabled: page <= 1, onclick: () => go({ page: String(page - 1) }) }, "← Previous") : "",
-        h("span", { class: "text-sm" }, `${r.total} ${r.total === 1 ? "song" : "songs"}${pages > 1 ? ` · page ${page} of ${pages}` : ""}`),
-        pages > 1 ? h("button", { type: "button", class: "btn btn-ghost btn-sm", disabled: page >= pages, onclick: () => go({ page: String(page + 1) }) }, "Next →") : "",
-      );
+      pages.replaceChildren(pager(page, Math.max(1, Math.ceil(r.total / r.page_size)), `${r.total} ${r.total === 1 ? "song" : "songs"}`, (n) => go({ page: String(n) })));
     } catch (e) {
       list.replaceChildren(h("div", { role: "alert", class: "alert alert-error" }, e instanceof ApiError ? e.message : "Can't reach Post-Vinyl."));
     }
   };
   void load();
-  return h("div", {}, h("div", { class: "center-main" }, pageHead("Files"), form, list, pager), rail);
+  // new downloads land in the library on their own: look again now and then
+  // while the tab is open and visible, and on demand
+  const tick = () => {
+    if (!list.isConnected) return;
+    if (document.visibilityState === "visible") void load();
+    setTimeout(tick, REFRESH_MS);
+  };
+  setTimeout(tick, REFRESH_MS);
+  const refresh = h("button", { type: "button", class: "btn btn-ghost btn-sm", onclick: () => void load(true).then(() => toast("Library refreshed.")) }, "↻ Refresh");
+  return h("div", {}, h("div", { class: "center-main" }, pageHead("Files", h("span", { class: "flex-1" }), refresh), form, list, pages), rail);
 }
 
 const length = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;

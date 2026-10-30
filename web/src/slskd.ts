@@ -4,10 +4,10 @@
 // search shown lives in the hash (#/slskd?id=<request id>).
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
-import { button, filters, iconButton, pageHead, railSection, state, tag, toast } from "./ui";
+import { button, filters, iconButton, paged, pageHead, railSection, state, tag, toast } from "./ui";
 
 const POLL_MS = 1500; // polling while the tab is open (user, 2026-10-30)
-const PEERS_SHOWN = 40; // a popular search answers hundreds of peers; more on demand
+const PEERS_PER_PAGE = 25; // a popular search answers hundreds of peers
 
 type Pick = Schemas["PickedFile"];
 
@@ -89,11 +89,7 @@ function results(id: number, picks: Pick[], changed: () => void): HTMLElement {
       body.replaceChildren(h("p", { class: "py-2 text-muted" }, latest.file_count ? "Only marked files: see All files." : "No peer answered."));
       return;
     }
-    const list = h("div", {}, ...shown.slice(0, PEERS_SHOWN).map((p) => peerBlock(p, picks, changed)));
-    const more =
-      shown.length > PEERS_SHOWN &&
-      h("button", { type: "button", class: "btn btn-ghost btn-sm mt-2 text-muted", onclick: () => (list.append(...shown.slice(PEERS_SHOWN).map((p) => peerBlock(p, picks, changed))), more && more.remove()) }, `Show all ${shown.length} peers`);
-    body.replaceChildren(list, more || "");
+    body.replaceChildren(paged(shown.map((p) => peerBlock(p, picks, changed)), PEERS_PER_PAGE, ["peer", "peers"], ""));
   };
 
   const poll = async () => {
@@ -208,7 +204,7 @@ function picksRail(id: number, picks: Pick[], changed: () => void): HTMLElement 
   holder.append(bar);
   holder.append(railSection(
     `To download · ${picks.length}`,
-    ...picks.map((p, i) =>
+    paged(picks.map((p, i) =>
       h(
         "div",
         { class: "mb-2 flex items-start gap-2" },
@@ -222,7 +218,7 @@ function picksRail(id: number, picks: Pick[], changed: () => void): HTMLElement 
           changed();
         }),
       ),
-    ),
+    ), 10, ["file", "files"], ""),
     send,
   ));
   return holder;

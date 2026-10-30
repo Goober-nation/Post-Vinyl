@@ -181,3 +181,31 @@ export function toast(text: string, tone: "ok" | "err" = "ok"): void {
   toasts.append(el);
   if (tone === "ok") setTimeout(() => el.remove(), 4000);
 }
+
+/** Page controls: ← · "page x of y" · →, plus a count. `go` gets the new page. */
+export function pager(page: number, pages: number, count: string, go: (page: number) => void): HTMLElement {
+  return h(
+    "nav",
+    { class: "mt-3 flex items-center gap-3 text-sm text-muted", "aria-label": "Pages" },
+    pages > 1 && h("button", { type: "button", class: "btn btn-ghost btn-sm", disabled: page <= 1, "aria-label": "Previous page", onclick: () => go(page - 1) }, "←"),
+    h("span", {}, pages > 1 ? `${count} · page ${page} of ${pages}` : count),
+    pages > 1 && h("button", { type: "button", class: "btn btn-ghost btn-sm", disabled: page >= pages, "aria-label": "Next page", onclick: () => go(page + 1) }, "→"),
+  );
+}
+
+/** A list that arrives whole, shown a page at a time. */
+export function paged(items: Node[], size: number, noun: [string, string], cls = "rows"): HTMLElement {
+  const list = h("div", { class: cls });
+  const el = h("div", {}, list);
+  const pages = Math.max(1, Math.ceil(items.length / size));
+  const count = `${items.length} ${items.length === 1 ? noun[0] : noun[1]}`;
+  const show = (page: number) => {
+    list.replaceChildren(...items.slice((page - 1) * size, page * size));
+    el.replaceChildren(list, pager(page, pages, count, (p) => {
+      show(p);
+      el.scrollIntoView({ block: "nearest" });
+    }));
+  };
+  show(1);
+  return el;
+}
