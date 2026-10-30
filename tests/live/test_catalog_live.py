@@ -30,7 +30,7 @@ def setup(tmp_path: Path) -> tuple[CatalogService, SourcePreferences, Database, 
     db.migrate()
     with db.transaction() as conn:
         uid = UsersStore().upsert_on_login(conn, "alice", "enc", False, 0).id
-    prefs = SourcePreferences(db, load_sources(Path("config/post-vinyl.example.yaml")))
+    prefs = SourcePreferences(db, load_sources(Path("post-vinyl.example.yaml")))
     svc = CatalogService(db, prefs, [MusicBrainzClient(), DeezerClient()])
     return svc, prefs, db, uid
 

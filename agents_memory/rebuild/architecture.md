@@ -67,7 +67,7 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   produced stay; it just isn't asked any more. A request whose only download source is off
   waits (stays in its state) rather than failing.
 - **Every config file is YAML** (user, 2026-10-29): `post-vinyl.yaml` at `PV_CONFIG_PATH`,
-  documented by `config/post-vinyl.example.yaml`; secrets stay in `.env`.
+  documented by `post-vinyl.example.yaml`; secrets stay in `.env`.
 - **Folder names** (#118, user 2026-10-30): Post-Vinyl's own folders carry a joined `postvinyl`
   prefix so they don't collide with other apps' on Docker Hub setups: host `./postvinyl_config`,
   `./postvinyl_data`; container `/postvinyl/config`, `/postvinyl/data`; the image defaults

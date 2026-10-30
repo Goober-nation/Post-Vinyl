@@ -85,7 +85,7 @@ The same commands work in bash, PowerShell and the macOS terminal. Needs Docker 
 1. Create Post-Vinyl's two folders and its settings file (each value is explained in it):
    ```bash
    mkdir postvinyl_config postvinyl_data
-   cp config/post-vinyl.example.yaml postvinyl_config/post-vinyl.yaml
+   cp post-vinyl.example.yaml postvinyl_config/post-vinyl.yaml
    ```
    On Linux, make both folders writable by UID 1000 (the container's user).
 2. Copy `.env.example` to `.env` and fill it in (table below). Generate `PV_SECRET_KEY` once and
@@ -156,21 +156,19 @@ region without direct access). See [`docs/deployment.md`](docs/deployment.md) fo
 `postvinyl-proxy` and when to skip it.
 
 **Where do config settings actually live?**
-Non-secret settings live in `config.toml` and are hot-reloadable from the UI (`POST /api/config`).
-Secrets (passwords, tokens, API keys) live only in `.env` and require a restart.
+Non-secret settings live in `postvinyl_config/post-vinyl.yaml` (copied from `post-vinyl.example.yaml`,
+which explains each value). Secrets (passwords, tokens, API keys) live only in `.env`. Both are read at
+startup, so restart the container after a change.
 
 **What happens to a download that fails to match anything?**
-It's retried through a re-query "ladder" up to `download.max_retries_per_track`, then marked failed.
-Manual downloads show the failure in the UI; recommendation downloads log it and move on — recs
-failing occasionally is expected background attrition, not something that alerts you.
+Post-Vinyl re-reads the same slskd search and tries the next peer, up to `slskd.candidates_per_download`
+peers, then marks the request failed. Asking for the song again starts a fresh search.
 
 ## known bugs
 
 - If you see a download hang in queue forever ocasionally switching to "downloading", just cancel it, it should retry on its own
 
 - You may want to clear slskd_config/incomplete from time to time to get rid of songs that errored in downloads
-
-- If you notice your downloads fail in the logs and never start downloading due to the peers not responding after 5000ms, the main way that was found to counter this was increasing the `download.max_retries_per_track` value in config/config.toml or in the config UI
 
 - 1 letter songs/albums (like "i" by Kendrick Lamar) are able to show up in the search results, but the soulseek search mechanism itself
 really does not like those, so there is a high probability that a wrong track may be downloaded. You can try your hand at the search in the 

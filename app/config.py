@@ -2,7 +2,7 @@
 
 Secrets and deployment values come from the environment; settings come from
 the YAML file at ``PV_CONFIG_PATH`` (every config file is YAML, user
-2026-10-29; ``config/post-vinyl.example.yaml`` documents each value). Read
+2026-10-29; ``post-vinyl.example.yaml`` documents each value). Read
 once in ``main.create_app_from_env``; a missing or invalid value refuses to
 start rather than running half-configured.
 """
@@ -20,7 +20,7 @@ from typing import Any
 import yaml
 
 # Every source name each kind accepts; a new source adds its name here and to
-# the comment in config/post-vinyl.example.yaml in the same change.
+# the comment in post-vinyl.example.yaml in the same change.
 KNOWN_SOURCES: dict[str, tuple[str, ...]] = {
     "catalog": ("musicbrainz", "deezer", "listenbrainz"),
     "download": ("slskd",),

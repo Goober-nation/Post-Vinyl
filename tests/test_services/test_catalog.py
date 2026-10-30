@@ -250,7 +250,7 @@ def test_resolve_passes_catalog_errors_up(setup: Setup) -> None:
 
 
 def test_example_config_loads() -> None:
-    sources = load_sources(Path("config/post-vinyl.example.yaml"))
+    sources = load_sources(Path("post-vinyl.example.yaml"))
     assert sources["catalog"] == ("musicbrainz", "deezer", "listenbrainz")
     assert sources["request"] == ()
 

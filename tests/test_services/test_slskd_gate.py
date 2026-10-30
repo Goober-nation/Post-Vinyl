@@ -225,7 +225,7 @@ def test_one_search_at_a_time() -> None:
 
 
 def test_example_config_has_the_defaults() -> None:
-    assert load_slskd(Path("config/post-vinyl.example.yaml")) == SlskdSettings()
+    assert load_slskd(Path("post-vinyl.example.yaml")) == SlskdSettings()
 
 
 def test_missing_section_means_defaults(tmp_path: Path) -> None:
