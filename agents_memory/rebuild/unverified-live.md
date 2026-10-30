@@ -21,10 +21,10 @@ MusicBrainz / ListenBrainz / Deezer / Cover Art Archive. Versions: `work-plan.md
 - [ ] **MusicBrainz paging past 100 hits** isn't built (Hyperballad had 90, Feather 3).
 
 ## First admin setup (#97)
-- [ ] **Hidden password prompt on a real terminal**: the live run piped stdin, so `getpass`
-  fell back to echo.
-- [ ] **The 60 s wait for a starting Navidrome**: Navidrome may already have been up at
-  the first call.
+- [x] **Hidden password prompt on a real terminal**: live 2026-10-30 (#113): the user ran
+  setup on a real terminal; the password stayed hidden.
+- [x] **The 60 s wait for a starting Navidrome**: live 2026-10-30 (#113): Navidrome paused
+  for 25 s under the setup container, setup waited it out, then refused (admin exists).
 - [ ] **PowerShell and the macOS terminal**: only run from zsh; the commands are plain
   `docker compose`.
 - [ ] **The setup override on the server's own compose file** (only the test compose ran).

@@ -55,3 +55,30 @@ Findings:
 2. The file is marked `moved` but stays under the downloads tree. beets is disabled, so there is no
    library placement yet. Expected for now; phase 5 owns placement.
 3. Not checked: whether slskd removed the finished transfer (history cleaner, design item D2).
+
+
+## 2026-10-30: the app in its container on the test stack (#113, branch rebuild/container-test)
+
+The test compose's `postvinyl` service now passes only the PV_* env (Navidrome and slskd by
+service name, `PV_DEV=1`), mounts the config folder (`post-vinyl.yaml`) and the data folder;
+the old app's env, `.env` and `config.toml` mounts are gone. Navidrome test data moved aside so
+setup could run on an empty Navidrome.
+
+- Found: the Dockerfile's `python -m app.main` had no entry point; now
+  `uvicorn app.main:create_app_from_env --factory`.
+- First admin: setup run by the user through the setup override on a real terminal; one admin
+  row, `is_admin=1`. After `down` + `up -d`: container healthy, `/docs` 200, core loop started
+  (0 waiting), no tracebacks.
+- Login with the admin: 200, `/api/auth/me` 200.
+- Config folder mounted `:ro`: `PUT /api/admin/settings` → 422. Found: the reason named our own
+  file path (`/app/config/.post-vinyl.yaml.<n>.new`); now only `can't write post-vinyl.yaml:
+  Read-only file system`. Writable mount: 200, `.bak` kept beside the file.
+- Found: the healthcheck's `/api/system/ping` every 15 s filled the access log; now quiet
+  (0 lines after the rebuild).
+- 60 s Navidrome wait: Navidrome paused 25 s (a stopped Navidrome can't be used: the setup
+  container shares its network namespace), setup waited, then refused with "already has an
+  admin"; still one user.
+- The key-generation command from the README runs in the app image.
+
+Not verified: the server's own compose with the new `postvinyl` service and
+`ND_MUSICFOLDER=/music/library` (cutover); PowerShell.

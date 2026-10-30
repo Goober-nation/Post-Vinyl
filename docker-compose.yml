@@ -11,7 +11,7 @@ services:
       - "8090:4533"
     restart: unless-stopped
     environment:
-      - ND_MUSICFOLDER=/music
+      - ND_MUSICFOLDER=/music/library  # library only: never index downloads (#103)
       - ND_DATAFOLDER=/data
       - ND_LOGLEVEL=warning
       - ND_SCANSCHEDULE=@every 10m
@@ -81,22 +81,19 @@ services:
     ports:
       - "8092:8000"
     environment:
-      - PYTHONUNBUFFERED=1
-      - NAVIDROME_USERNAME=${NAVIDROME_USERNAME}
-      - NAVIDROME_PASSWORD=${NAVIDROME_PASSWORD}
-      - SLSKD_API_KEY=${SLSKD_API_KEY}
-      - LISTENBRAINZ_TOKEN=${LISTENBRAINZ_TOKEN}
-      - LISTENBRAINZ_USERNAME=${LISTENBRAINZ_USERNAME}
-      - http_proxy=${MUSICA_HTTP_PROXY}
-      - https_proxy=${MUSICA_HTTP_PROXY}
-      - no_proxy=${NO_PROXY_LIST}
-      - NO_PROXY=${NO_PROXY_LIST}
-      - MUSICA_CONFIG_PATH=/app/config/config.toml
+      - PV_DB_PATH=/app/data/post-vinyl.db
+      - PV_NAVIDROME_URL=http://navidrome:4533
+      - PV_PUBLIC_ORIGIN=${PV_PUBLIC_ORIGIN}
+      - PV_DEV=${PV_DEV}
+      - PV_CONFIG_PATH=/app/config/post-vinyl.yaml
+      - PV_SLSKD_URL=http://slskd:5030
+      - PV_SLSKD_API_KEY=${SLSKD_API_KEY}
+      - PV_SECRET_KEY=${PV_SECRET_KEY}
     volumes:
       - ${MUSIC_HOST_DIR}:/music:rw
-      - ./app_data:/app/data
+      - ${PV_DATA_DIR:-./app_data}:/app/data
+      # a folder, not the file: settings writes replace it and keep a .bak beside it
       - ./config:/app/config
-      - ./.env:/app/.env
     networks:
       - music-net
     depends_on:

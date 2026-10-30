@@ -197,5 +197,6 @@ class InstallSettings(InstallSettingsBase):
         try:
             values = write_values(self._path, changes, int(self._clock()))
         except OSError as e:  # e.g. the config folder is mounted read-only
-            raise ConfigError(f"can't write {self._path.name}: {e}") from e
+            # strerror only: the OSError text names our own folder (live #113)
+            raise ConfigError(f"can't write {self._path.name}: {e.strerror}") from e
         return self._view(values)
