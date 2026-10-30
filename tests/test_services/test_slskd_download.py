@@ -343,7 +343,7 @@ def test_dropped_mid_download_cancels_without_blaming_the_peer(tmp_path: Path) -
         RequestsStore().set_track_state(conn, c.req, "dropped")
     c.tick(2)
     (a,) = c.attempts()
-    assert a.outcome == "failed" and c.download().state == "cancelled"
+    assert a.outcome == "skipped" and c.download().state == "cancelled"
     assert c.slskd.transfers[a.transfer_id or ""].state == "Completed, Cancelled"
     with c.db.transaction() as conn:
         assert SlskdStore().get_peer(conn, "p0") is None

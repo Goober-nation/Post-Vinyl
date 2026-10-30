@@ -34,7 +34,7 @@ from app.services.catalog import (
     order_tracks,
     search_query,
 )
-from app.services.sources import UnknownSource
+from app.services.sources import SourceOff, UnknownSource
 from app.stores.songs import Song
 
 T = TypeVar("T")
@@ -48,7 +48,9 @@ class FakeCatalogService(CatalogServiceBase):
         self.songs: dict[tuple[str, str], Song] = {}  # (source, id) → song
 
     def _catalog(self, source: str) -> CatalogSource:
-        if source not in self.enabled or source not in self.catalogs:
+        if source in self.catalogs and source not in self.enabled:
+            raise SourceOff(f"{source} is turned off")
+        if source not in self.catalogs:
             raise UnknownSource(f"catalog source {source!r} is not enabled")
         return self.catalogs[source]
 
@@ -61,6 +63,8 @@ class FakeCatalogService(CatalogServiceBase):
     ) -> Results[T]:
         catalogs = [self.catalogs[s] for s in self.enabled if s in self.catalogs]
         if not catalogs:
+            if self.catalogs:  # some exist; all switched off
+                raise SourceOff(NO_SOURCES)
             raise CatalogUnavailable(NO_SOURCES)
         key = (user_id, query.lower(), kind)
         origin = self.origins.setdefault(key, len(self.origins) + 1)

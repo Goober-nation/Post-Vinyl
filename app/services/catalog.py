@@ -33,7 +33,7 @@ from app.clients.catalog import (
 )
 from app.core.catalog_order import track_key
 from app.core.normalize import credits_from_joined, query_names
-from app.services.sources import SourcePreferences, UnknownSource
+from app.services.sources import SourceOff, SourcePreferences, UnknownSource
 from app.stores.database import Database
 from app.stores.requests import RequestsStore
 from app.stores.songs import Song, SongFields, SongsStore
@@ -153,6 +153,8 @@ class CatalogService(CatalogServiceBase):
         for catalog in self._user_catalogs(user_id):
             if catalog.source == source:
                 return catalog
+        if source in self._catalogs:
+            raise SourceOff(f"{source} is turned off")
         raise UnknownSource(f"catalog source {source!r} is not enabled")
 
     def _search(
@@ -164,6 +166,11 @@ class CatalogService(CatalogServiceBase):
     ) -> Results[T]:
         catalogs = self._user_catalogs(user_id)
         if not catalogs:  # user, 2026-10-29: a soft error, shown as is
+            usable = [
+                s for s in self._sources.configured("catalog") if s in self._catalogs
+            ]
+            if usable:  # the install has some; the user switched them all off
+                raise SourceOff(NO_SOURCES)
             log.warning("user %s: %s", user_id, NO_SOURCES)
             raise CatalogUnavailable(NO_SOURCES)
         with self._db.transaction(write=True) as conn:

@@ -10,6 +10,7 @@ __pycache__/
 # Isolated test stack (docker-compose.test.yml) — same reasons as above,
 # kept fully separate so tests can never touch the real ones
 .env.test
+.env*.bak*
 app_data_test/
 postvinyl_data/
 postvinyl_config/

@@ -218,3 +218,58 @@ Verified:
   call went through.
 
 Not verified: runs of many hours; slskd keeping searches for days.
+
+## 2026-10-30: every tab's API end to end, separate instance on the server (#117, branch rebuild/e2e-run)
+
+The #116 instance (own folder, ports, containers, proxy; copied test Navidrome data; admin + a
+non-admin user), updated to `rebuild/base`, Navidrome's session timeout back to its default.
+A script called every endpoint in `docs/api.md` as anonymous, the user and the admin, and
+scanned every answer for our own paths (`/postvinyl/`, `/music/`, `/app/`, `/downloads/`,
+`postvinyl_data`). 121 checks over 48 call/case pairs; real MusicBrainz, Deezer, ListenBrainz
+(the admin's token), slskd 0.26.2 and Navidrome 0.64.2; 7 real downloads.
+
+Found and fixed (both re-run live after the fix):
+- **A switched-off catalog source didn't answer 409**: a search with every catalog source off
+  → 503 (`catalog search is unavailable without sources`), browsing or requesting from a source
+  that's off → 404. Now `SourceOff` (409) when the install has the source and the user
+  switched it off; 503 only when the install has none; an unknown source name stays 404.
+- **Dropping a request labelled the running attempt `failed`** (the peer wasn't counted, but
+  the downloads tab showed a failed peer). Now `skipped`, like next-peer.
+- **Re-applying the same names moved a numbered file on**: a file at "06 Unfinished Sympathy
+  (2).mp3" went to "(3)" on an unchanged apply, because the target name was taken (by another
+  copy) and the file itself was counted as a collision. A file already at one of its
+  target's " (n)" names stays put.
+
+Verified per tab (happy and failure paths):
+
+| Tab | Calls | Checked |
+|---|---|---|
+| Account | login, logout, me, ping, credentials get/put | anon 401; wrong password 401; missing field 422; foreign Origin 403; no Origin 403; invalid ListenBrainz token 422 and nothing stored; ListenBrainz off for the user 409; `null` removes; logout → 401 |
+| Search | tracks, albums, artists; artist → albums → editions → tracks on MusicBrainz and Deezer; request; batch | empty 422; 401; source off 409 (after fix); unknown source 404; bogus MusicBrainz id 502; batch 207 with one good + one bad item; empty and 101-item batches 422 |
+| Requests | list, get, searches, drop, re-request | other user's 404; missing 404; drop of a running download cancels it (slskd and our row); second drop 409; re-request searches again; paging values outside 1–100 are clamped (by design, `clamp_page`) |
+| slskd | typed search, list, get, downloads | empty 422; a repeated query re-reads the same slskd search id; other user's 404; a file not in the results 404; queue paused 409; a picked FLAC downloaded, verified and indexed |
+| Downloads | list, get, next-peer, queue pause/resume | `everyone` 403 for a user, all for the admin; bad state 422; next-peer queued rank 1 with the skipped peer not blamed; next-peer on a completed download 409; other user's 404; the user's `downloads.page_size` default applied |
+| Files | list, rename, apply, strip, delete | user 403 on every write; rename via ListenBrainz (admin's token); no match → `{match: false}`; empty title/artist 422; missing song 404; strip moved a file out of a hand-made folder; delete 204 then 404 |
+| Admin / settings | users, peers, schema, me/settings, admin/settings | admin-only 403s; values outside a range 422 (`downloads.page_size` minimum is 10); install keys refused for users 422; folders not editable 422; an admin change writes the file with a backup and shows in `restart_pending`, reverting clears it |
+
+Stage rules:
+- **Sources**: every switched-off case answered 409 with nothing sent (no outgoing call in the
+  log); a request dropped while slskd was down never searched once it came back.
+- **Polls**: no successful `GET /api/downloads`, `/api/slskd/searches` or `/api/requests` in
+  the access log over the whole run; failures (403/404/422) are logged.
+- **Paths**: no answer contained one of our paths. The admin settings show the configured
+  folder values (`files.music_dir` etc.) by design; library answers show Navidrome's tags only.
+
+Also seen live:
+- A file from a typed search (no MusicBrainz id), owned by a user without a ListenBrainz
+  token: tagging failed twice, 5 min apart, then the file moved untagged, as designed.
+- A restart between tagging and moving: the tagged file was moved and indexed after it.
+- An unplanned outage: starting Docker Desktop brought the local test stack up with the same
+  Soulseek account, which kicked the instance's slskd ("another client logged in using the
+  same username"). The app waited without blaming anyone; slskd doesn't log back in after a
+  kick on its own, so it was restarted, and the gate reopened about a minute later. The local
+  test stack's Soulseek login was blanked afterwards (user, 2026-10-30) so it can't do it again.
+- A bogus MusicBrainz id in a batch answers 502 with MusicBrainz's own error text in `error`
+  (no paths; upstream detail only).
+
+Not verified: anything already listed in `unverified-live.md`.
