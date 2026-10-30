@@ -144,7 +144,10 @@ CREATE TABLE slskd_attempts (
     filename     TEXT    NOT NULL,              -- peer's remote path
     size         INTEGER NOT NULL,
     transfer_id  TEXT,                          -- slskd's, once queued
-    outcome      TEXT    CHECK (outcome IN ('completed', 'noStart', 'tooSlow', 'failed')),
+    -- skipped: the user's "next peer" (#111); interrupted: slskd itself went away
+    -- (#115). Neither blames the peer; interrupted doesn't use up a candidate.
+    outcome      TEXT    CHECK (outcome IN ('completed', 'noStart', 'tooSlow', 'failed',
+                                            'skipped', 'interrupted')),
                                                 -- NULL while running
     started_at   INTEGER NOT NULL,
     ended_at     INTEGER,

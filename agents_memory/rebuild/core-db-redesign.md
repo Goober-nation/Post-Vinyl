@@ -263,7 +263,7 @@ ALTER file_management: + song_id INTEGER NOT NULL UNIQUE REFERENCES songs(id)  -
                        + verification TEXT            -- 'success' or an error code
                        - source (copy no longer needed; see open questions)
 ALTER download_attempts: + rank INTEGER, + filename TEXT (remote path), + slskd_transfer_id TEXT,
-                         + outcome CHECK (outcome IN ('completed','noStart','tooSlow','failed')),
+                         + outcome CHECK (outcome IN ('completed','noStart','tooSlow','failed','skipped','interrupted')),
                          + started_at / ended_at (attempted_at → started_at); - success
 DROP  mb_provenance    (the MBID lives in song_identity; file → song_id → song_identity)
 

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from app.clients.navidrome import Song as NdSong
 from app.clients.navidrome_fake import FakeNavidromeClient
+from app.clients.slskd import SlskdError, Transfer
 from app.clients.slskd_fake import FakeSlskdClient
 from app.config import FilesSettings, WorkersSettings
 from app.core import states
@@ -279,6 +280,28 @@ def test_cleanup(tmp_path: Path) -> None:
     assert cleanup.tick() == 0  # idempotent
 
 
+def test_cleanup_with_slskd_down_still_tidies_the_disk(tmp_path: Path) -> None:
+    """Live #115: slskd unreachable made every tick a traceback."""
+
+    class Down(FakeSlskdClient):
+        def list_downloads(self) -> list[Transfer]:
+            raise SlskdError("GET /transfers/downloads: connection refused")
+
+    c = Case(tmp_path)
+    with c.db.transaction(write=True) as conn:
+        song = SongsStore().create(conn, SongFields("S", "A"))
+        req = RequestsStore().create(conn, c.uid, "catalog", NOW, song_id=song.id)
+        d = DownloadsStore().create(conn, req.id, "slskd", NOW)
+        SlskdStore().add_search(conn, "s1", req.id, "q", "L0", NOW)
+        a = SlskdStore().add_attempt(conn, d.id, "s1", 0, "p", "p.flac", 1, NOW)
+        SlskdStore().end_attempt(conn, a.id, "tooSlow", NOW)
+    folder = c.dl / "post-vinyl" / str(d.id) / str(a.id)
+    folder.mkdir(parents=True)
+    (folder / "partial.flac").write_text("x")
+    assert SlskdCleanup(c.db, Down(), c.settings).tick() == 0
+    assert not folder.exists()
+
+
 # ------------------------------------------------------------ workers
 
 
@@ -302,5 +325,6 @@ def test_core_loop_resumes_then_starts_workers(tmp_path: Path) -> None:
     loop.stop()
     assert [r for _, r in dispatch.started] == [1, 2]  # resumed, then the waiting one
     assert {w.name for w in loop.workers} == {
-        "download-monitor", "file-pipeline", "cleanup", "missing-check", "redispatch",
+        "download-monitor", "file-pipeline", "cleanup", "unverifiable", "missing-check",
+        "redispatch",
     }  # fmt: skip

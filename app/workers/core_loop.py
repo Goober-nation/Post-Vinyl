@@ -33,10 +33,10 @@ class CoreLoopWorkers:
         self.workers = [
             DownloadMonitor(downloads_poll),
             Periodic("file-pipeline", pipeline.tick, s.pipeline_every_seconds),
+            Periodic("cleanup", cleanup_tick, s.cleanup_every_seconds),
+            # its own worker: slskd being down never holds up the disk (live #115)
             Periodic(
-                "cleanup",
-                lambda: (cleanup_tick(), pipeline.discard_unverifiable()),
-                s.cleanup_every_seconds,
+                "unverifiable", pipeline.discard_unverifiable, s.cleanup_every_seconds
             ),
             Periodic(
                 "missing-check", pipeline.check_missing, s.missing_check_minutes * 60
