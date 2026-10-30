@@ -75,15 +75,15 @@ function searchResults(view: { q: string }): HTMLElement[] {
   let empty = 0;
   const gone = () => ++empty === 3 && none.classList.remove("hidden");
   return [
-    section("Artists", 5, gone,  async () => {
+    section("Artists", gone,  async () => {
       const r = await api<Schemas["Results_Artist_"]>("GET", `/api/catalog/artists?name=${enc(view.q)}`);
       return [r.items.map(artistRow), r.source];
     }),
-    section("Albums", 5, gone,  async () => {
+    section("Albums", gone,  async () => {
       const r = await api<Schemas["Results_Album_"]>("GET", `/api/catalog/albums?title=${enc(view.q)}`);
       return [r.items.map(albumRow), r.source];
     }),
-    section("Songs", 10, gone,  async () => {
+    section("Songs", gone,  async () => {
       const r = await api<Schemas["Results_Track_"]>("GET", `/api/catalog/tracks?title=${enc(view.q)}`);
       return [r.items.map((t) => trackRow(t, r.origin_id)), r.source];
     }),
@@ -91,7 +91,7 @@ function searchResults(view: { q: string }): HTMLElement[] {
   ];
 }
 
-function section(title: string, top: number, onEmpty: (() => void) | null, load: () => Promise<[HTMLElement[], string | null]>): HTMLElement {
+function section(title: string, onEmpty: (() => void) | null, load: () => Promise<[HTMLElement[], string | null]>): HTMLElement {
   const body = h("div", {}, h("p", { class: "py-2 text-muted", role: "status" }, "Searching…"));
   const head = h("h2", { class: "rail-title flex items-baseline gap-3" }, title);
   void load().then(
@@ -102,7 +102,7 @@ function section(title: string, top: number, onEmpty: (() => void) | null, load:
         return;
       }
       if (source) head.append(h("span", { class: "text-xs normal-case" }, `from ${SOURCE_NAMES[source] ?? source}`));
-      body.replaceChildren(paged(rows, top, ["result", "results"]));
+      body.replaceChildren(paged(rows, ["result", "results"]));
     },
     // 409 a source is off, 502 a source failed, 503 none answered: shown as said
     (e) => body.replaceChildren(h("div", { role: "alert", class: "alert alert-error" }, e instanceof ApiError ? e.message : "Can't reach Post-Vinyl.")),
@@ -122,7 +122,7 @@ function browseHead(view: Exclude<View, { q: string }>): HTMLElement {
 function browseResults(view: Exclude<View, { q: string }>): HTMLElement {
   const base = `/api/catalog/${enc(view.source)}`;
   const label = { artist: "Albums", album: "Editions", edition: "Tracks" }[view.browse];
-  return section(label, 20, null, async () => {
+  return section(label, null, async () => {
     if (view.browse === "artist") return [(await api<Schemas["Album"][]>("GET", `${base}/artists/${enc(view.id)}/albums`)).map(albumRow), view.source];
     if (view.browse === "album")
       return [(await api<Schemas["Edition"][]>("GET", `${base}/albums/${enc(view.id)}/editions`)).map((e) => editionRow(e, view.artist)), view.source];
@@ -245,7 +245,7 @@ function cartRail(): HTMLElement {
       bar || "",
       railSection(
         `Cart · ${items.length}`,
-        list.length ? paged(list, 10, ["song", "songs"], "") : "",
+        list.length ? paged(list, ["song", "songs"], "") : "",
         items.length > 0 && send,
         items.length > 0 && h("button", { type: "button", class: "btn btn-ghost btn-xs mt-2 w-full text-muted", onclick: () => cart.replace([]) }, "Empty cart"),
       ),

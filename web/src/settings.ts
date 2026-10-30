@@ -5,7 +5,7 @@
 // everyone and refused for non-admins (user, 2026-10-30).
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
-import { button, filters, pageHead, railSection, setting, slider, state, toast } from "./ui";
+import { button, filters, loadPageSize, pageHead, railSection, setting, slider, state, toast } from "./ui";
 
 type Field = Schemas["SchemaField"];
 type Me = Schemas["Me"];
@@ -64,6 +64,7 @@ async function draw(body: HTMLElement, which: "mine" | "install", me: Me): Promi
       try {
         await api("PUT", which === "mine" ? "/api/me/settings" : "/api/admin/settings", { changes } satisfies Schemas["Changes"]);
         toast(which === "mine" ? "Saved. In use now." : "Saved to the config file. In use after the next restart.");
+        if (which === "mine") await loadPageSize();
         void draw(body, which, me);
       } catch (e) {
         fail(e); // 422 names the first value that doesn't fit; nothing is stored

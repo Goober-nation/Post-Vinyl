@@ -36,7 +36,6 @@ async function loadUsers(el: HTMLElement): Promise<void> {
           h("span"),
         ),
       ),
-      20,
       ["user", "users"],
     ));
   } catch (e) {
@@ -92,7 +91,6 @@ async function loadPeers(el: HTMLElement): Promise<void> {
             ),
           ),
         ),
-        20,
         ["peer", "peers"],
       ),
     );

@@ -9,7 +9,7 @@ import { filesPage } from "./files";
 import { settingsPage } from "./settings";
 import { adminPage } from "./admin";
 import logoUrl from "./logo.svg";
-import { page } from "./ui";
+import { loadPageSize, page } from "./ui";
 
 // Hash routes (#/downloads…): a reload stays on the same tab; the session
 // cookie keeps the login (user, 2026-10-30).
@@ -36,7 +36,7 @@ function currentTab(): Tab {
 
 function render(): void {
   if (!me) {
-    root.replaceChildren(loginPage((user) => ((me = user), render())));
+    root.replaceChildren(loginPage((user) => ((me = user), void loadPageSize().then(render))));
     return;
   }
   const tab = currentTab();
@@ -111,7 +111,10 @@ whenLoggedOut(() => {
 window.addEventListener("hashchange", render);
 
 api<Schemas["Me"]>("GET", "/api/auth/me")
-  .then((user) => (me = user))
+  .then(async (user) => {
+    me = user;
+    await loadPageSize();
+  })
   .catch((e) => {
     if (!(e instanceof ApiError)) throw e;
   })

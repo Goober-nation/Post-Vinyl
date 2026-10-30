@@ -1,4 +1,5 @@
 // Shared components (#120). Plain DOM built with h(); classes in style.css.
+import { api } from "./api";
 import { h } from "./dom";
 
 type Child = Node | string | null | false | undefined;
@@ -193,14 +194,27 @@ export function pager(page: number, pages: number, count: string, go: (page: num
   );
 }
 
+// One page size for every list: the user's "downloads.page_size" setting
+// (read at login and after Settings are saved).
+let size = 20;
+export const pageSize = () => size;
+export async function loadPageSize(): Promise<void> {
+  try {
+    const s = await api<Record<string, unknown>>("GET", "/api/me/settings");
+    if (typeof s["downloads.page_size"] === "number") size = s["downloads.page_size"];
+  } catch {
+    // keep the last size
+  }
+}
+
 /** A list that arrives whole, shown a page at a time. */
-export function paged(items: Node[], size: number, noun: [string, string], cls = "rows"): HTMLElement {
+export function paged(items: Node[], noun: [string, string], cls = "rows", perPage = pageSize()): HTMLElement {
   const list = h("div", { class: cls });
   const el = h("div", {}, list);
-  const pages = Math.max(1, Math.ceil(items.length / size));
+  const pages = Math.max(1, Math.ceil(items.length / perPage));
   const count = `${items.length} ${items.length === 1 ? noun[0] : noun[1]}`;
   const show = (page: number) => {
-    list.replaceChildren(...items.slice((page - 1) * size, page * size));
+    list.replaceChildren(...items.slice((page - 1) * perPage, page * perPage));
     el.replaceChildren(list, pager(page, pages, count, (p) => {
       show(p);
       el.scrollIntoView({ block: "nearest" });

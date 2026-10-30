@@ -7,7 +7,6 @@ import { h } from "./dom";
 import { button, filters, iconButton, paged, pageHead, railSection, state, tag, toast } from "./ui";
 
 const POLL_MS = 1500; // polling while the tab is open (user, 2026-10-30)
-const PEERS_PER_PAGE = 25; // a popular search answers hundreds of peers
 
 type Pick = Schemas["PickedFile"];
 
@@ -89,7 +88,7 @@ function results(id: number, picks: Pick[], changed: () => void): HTMLElement {
       body.replaceChildren(h("p", { class: "py-2 text-muted" }, latest.file_count ? "Only marked files: see All files." : "No peer answered."));
       return;
     }
-    body.replaceChildren(paged(shown.map((p) => peerBlock(p, picks, changed)), PEERS_PER_PAGE, ["peer", "peers"], ""));
+    body.replaceChildren(paged(shown.map((p) => peerBlock(p, picks, changed)), ["peer", "peers"], ""));
   };
 
   const poll = async () => {
@@ -218,7 +217,7 @@ function picksRail(id: number, picks: Pick[], changed: () => void): HTMLElement 
           changed();
         }),
       ),
-    ), 10, ["file", "files"], ""),
+    ), ["file", "files"], ""),
     send,
   ));
   return holder;

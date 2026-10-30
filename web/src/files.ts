@@ -5,11 +5,10 @@
 // (user, 2026-10-30). What is shown lives in the hash (#/files?q=…&page=…).
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
-import { button, confirm, kv, pageHead, pager, railSection, row, state, tag, toast } from "./ui";
+import { button, confirm, kv, pageHead, pager, pageSize, railSection, row, state, tag, toast } from "./ui";
 
 type File = Schemas["LibraryFile"];
 type Me = Schemas["Me"];
-const PAGE_SIZE = 20;
 const REFRESH_MS = 30_000;
 
 function params(): URLSearchParams {
@@ -48,7 +47,7 @@ export function filesPage(me: Me): HTMLElement {
   let last = "";
   const load = async (force = false) => {
     try {
-      const r = await api<Schemas["LibraryPage"]>("GET", `/api/library/files?${new URLSearchParams({ q, page: String(page), page_size: String(PAGE_SIZE) })}`);
+      const r = await api<Schemas["LibraryPage"]>("GET", `/api/library/files?${new URLSearchParams({ q, page: String(page), page_size: String(pageSize()) })}`);
       const sig = JSON.stringify(r);
       if (sig === last && !force) return; // unchanged: keep the list as it is
       last = sig;

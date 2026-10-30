@@ -5,7 +5,7 @@
 // hash (#/downloads?state=…&page=…&everyone=1&id=…).
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
-import { button, confirm, filters, kv, pageHead, pager, railSection, row, state, toast, type Tone } from "./ui";
+import { button, confirm, filters, kv, pageHead, pager, pageSize, railSection, row, state, toast, type Tone } from "./ui";
 
 const POLL_MS = 1500;
 type Item = Schemas["QueueItem"];
@@ -79,7 +79,7 @@ export function downloadsPage(me: Me): HTMLElement {
     // the open details follow too, less often: they ask the peer its queue place
     if (selected && ++polls % 4 === 0 && el.isConnected) void showDetail(detail, selected);
     if (!el.isConnected && last) return; // the tab was left: stop
-    const q = new URLSearchParams({ page: String(page) });
+    const q = new URLSearchParams({ page: String(page), page_size: String(pageSize()) });
     if (stateFilter !== null) q.set("state", stateFilter === "all" ? "" : stateFilter);
     if (everyone) q.set("everyone", "true");
     try {
