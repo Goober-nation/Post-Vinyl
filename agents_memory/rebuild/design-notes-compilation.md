@@ -62,7 +62,8 @@ Remaster/deluxe/year suffixes count as the **same song**. Non-Latin text is kept
 cover, live, acoustic, a cappella/acapella, mix/remix/rmx, extended, solo, reference,
 home session(s), soundtrack/OST, ambient, edit/radio edit, karaoke, nightcore, sped up,
 slowed, 8d audio, mashup, bootleg, tribute, "made famous by", "in the style of",
-instrumental, demo, loop, flip, backing track, vip mix.
+instrumental, demo, loop, flip, backing track, vip mix; drumless, bbc/peel/radio (one) session(s), podcast, audiobook, voiceover (user, 2026-10-30,
+from #114 misses; "dub", "session", "book", "cast", "voice" left out as too broad).
 Joined "live" forms count too: `Livebox`, `LiveAt`, `Live1999` (but never
 Liverpool/Lively/Oliver). **Not** excluded: remaster/remastered.
 

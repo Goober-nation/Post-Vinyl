@@ -42,6 +42,10 @@ EXCLUDED_VERSIONS = (
     "karaoke", "nightcore", "sped up", "slowed", "8d audio", "8d", "mashup",
     "bootleg", "tribute", "made famous by", "in the style of", "instrumental",
     "demo", "loop", "flip", "backing track",
+    # user, 2026-10-30 (#114 misses + spoken word; broad single words left out)
+    "drumless", "bbc session", "bbc sessions", "peel session", "peel sessions",
+    "radio session", "radio one session", "radio 1 session", "podcast",
+    "audiobook", "voiceover", "voice over",
 )  # fmt: skip
 # The normal version, though it says "mix".
 SAME_SONG_PHRASES = ("original mix",)
