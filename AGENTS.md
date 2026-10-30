@@ -159,7 +159,8 @@ After any implementation work, give the user the exact commands to run and exerc
 - Never download excluded versions unless the requested song itself is one: cover, live,
   acoustic, a cappella, mix/remix, extended, solo, reference, home session, soundtrack/OST,
   ambient, edit/radio edit, karaoke, nightcore, sped up, slowed, 8d audio, mashup, bootleg,
-  tribute, "in the style of", instrumental, demo. Remaster/deluxe/year suffixes are the same song.
+  tribute, "in the style of", instrumental, demo, drumless, BBC/Peel/radio session,
+  podcast, audiobook, voiceover (user, 2026-10-30). Remaster/deluxe/year suffixes are the same song.
 - Config: only user-facing and advanced values become config, with self-explanatory names.
 
 ---

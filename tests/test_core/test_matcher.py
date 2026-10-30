@@ -34,6 +34,21 @@ def test_correct_with_backslash_path_and_empty_extension_field():
         ("Radiohead\\Karma Police (VIP Mix).mp3", 264, "excluded:mix"),
         ("Radiohead\\Livebox\\Karma Police.mp3", 264, "excluded:live"),
         ("Radiohead\\Liverpool\\Karma Police.mp3", 264, "correct"),
+        ("Radiohead\\Karma Police (Mazaruni Dub One).mp3", 264, "correct"),
+        (
+            "Radiohead\\OK Computer (drumless edition)\\Karma Police.mp3",
+            264,
+            "excluded:drumless",
+        ),
+        (
+            "Radiohead\\Karma Police (BBC Radio One Session).mp3",
+            264,
+            "excluded:radio one session",
+        ),
+        ("Radiohead\\Karma Police - Audiobook.mp3", 264, "excluded:audiobook"),
+        ("Radiohead\\Podcast 12\\Karma Police.mp3", 264, "excluded:podcast"),
+        ("Radiohead\\Karma Police (Voiceover).mp3", 264, "excluded:voiceover"),
+        ("Radiohead\\The Abbey Road Sessions\\Karma Police.mp3", 264, "correct"),
     ],
 )
 def test_labels(name, length, want):
