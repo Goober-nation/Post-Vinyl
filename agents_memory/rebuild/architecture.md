@@ -74,6 +74,9 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   `PV_CONFIG_PATH` and `PV_DB_PATH` to files in them. Navidrome's and slskd's folders keep their
   names. Every env value can be set in `.env` or the compose `environment:` (secrets in `.env`).
   The env-only startup values move into it with the config redesign.
+- **Folders made on start** (user, 2026-10-31): like slskd, the container starts as root,
+  creates both folders, writes `post-vinyl.yaml` from `post-vinyl.example.yaml` when missing,
+  chowns them to `PUID`/`PGID` (default 1000) and runs the app as that user (`entrypoint.sh`).
 - **Catalog service (#95, user 2026-10-29)**: a typed search goes to the user's catalog sources in
   order and the **first source that answers with results** is shown; `resolve` stores **only the
   pick** (song + the picked source's id; linking to other sources and choosing a release is

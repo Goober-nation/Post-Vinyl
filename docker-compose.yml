@@ -86,6 +86,8 @@ services:
       - PV_SLSKD_URL=http://slskd:5030
       - PV_SLSKD_API_KEY=${SLSKD_API_KEY}
       - PV_SECRET_KEY=${PV_SECRET_KEY}
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
     volumes:
       - ${MUSIC_HOST_DIR}:/music:rw
       - ${PV_DATA_DIR:-./postvinyl_data}:/postvinyl/data

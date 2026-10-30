@@ -29,5 +29,7 @@ services:
     environment:
       - PV_NAVIDROME_URL=http://localhost:4533
       - PV_SECRET_KEY=${PV_SECRET_KEY}
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
     volumes:
       - ${PV_DATA_DIR:-./postvinyl_data}:/postvinyl/data

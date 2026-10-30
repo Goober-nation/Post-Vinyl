@@ -82,26 +82,23 @@ endpoint, see [`docs/api.md`](docs/api.md). For running your own stack, see
 
 The same commands work in bash, PowerShell and the macOS terminal. Needs Docker Compose 2.24 or newer.
 
-1. Create Post-Vinyl's two folders and its settings file (each value is explained in it):
-   ```bash
-   mkdir postvinyl_config postvinyl_data
-   cp post-vinyl.example.yaml postvinyl_config/post-vinyl.yaml
-   ```
-   On Linux, make both folders writable by UID 1000 (the container's user).
-2. Copy `.env.example` to `.env` and fill it in (table below). Generate `PV_SECRET_KEY` once and
+1. Copy `.env.example` to `.env` and fill it in (table below). Generate `PV_SECRET_KEY` once and
    back it up outside the database (losing it loses every stored secret):
    ```bash
    docker compose run --rm --no-deps postvinyl python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
    ```
-3. Create the first admin (Navidrome's and Post-Vinyl's), once. Navidrome stays unpublished while it runs:
+2. Create the first admin (Navidrome's and Post-Vinyl's), once. Navidrome stays unpublished while it runs:
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.setup.yml run --rm setup
    docker compose down
    ```
-4. Start the stack and open `PV_PUBLIC_ORIGIN`:
+3. Start the stack and open `PV_PUBLIC_ORIGIN`:
    ```bash
    docker compose up -d
    ```
+   On first start Post-Vinyl creates `postvinyl_config/` and `postvinyl_data/`, writes
+   `postvinyl_config/post-vinyl.yaml` from `post-vinyl.example.yaml` (each value is explained in it;
+   restart after editing), and hands both folders to `PUID`/`PGID`.
 
 ### Environment variables
 
@@ -118,12 +115,14 @@ Each can go in `.env` (read through `${...}` in `docker-compose.yml`) or straigh
 | `SLSKD_NETWORK_USERNAME`, `SLSKD_NETWORK_PASSWORD` | yes, secret | Your Soulseek login; the first login registers the name. |
 | `SLSKD_UI_USERNAME`, `SLSKD_UI_PASSWORD` | yes, secret | slskd's own web UI login. |
 | `PV_DATA_DIR` | no | Host folder for the database (default `./postvinyl_data`). |
+| `PUID`, `PGID` | no | The user and group Post-Vinyl runs as and owns its folders with (default `1000`). |
 | `PV_DEV` | no | `1` serves the API docs at `/docs`; leave empty in production. |
 | `LISTENBRAINZ_TOKEN` | no | Navidrome's own ListenBrainz scrobbling. |
 | `MUSICA_HTTP_PROXY`, `MUSICA_PROXY_*`, `NO_PROXY_LIST` | no | Optional SOCKS5 proxy for Navidrome. |
 
 Inside the container the app's folders are `/postvinyl/data` and `/postvinyl/config`; the image
-defaults `PV_DB_PATH` and `PV_CONFIG_PATH` to files in them.
+defaults `PV_DB_PATH` and `PV_CONFIG_PATH` to files in them. The container starts as root only to
+create them and set their owner, then runs the app as `PUID`/`PGID`.
 
 ## Tests
 
