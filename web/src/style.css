@@ -1,4 +1,306 @@
+/* Design kit (#120): deep harbour blue, one accent, hairline borders, flat
+   surfaces; no gradients, glass, glow or soft oversized cards. Mockup:
+   web/design/mockup.html. daisyUI gives the controls (btn, input, select,
+   range, checkbox, modal, toast, alert); the classes below give the layout. */
 @import "tailwindcss";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+/* Forta (OFL, see fonts/forta-LICENSE.txt), the legacy app's logo face: wordmark and page titles */
+@font-face {
+  font-family: "Forta";
+  src: url("./fonts/forta.ttf") format("truetype");
+  font-display: swap;
+}
+
 @plugin "daisyui" {
-  themes: light --default, dark --prefersdark;
+  themes: false;
+}
+
+@plugin "daisyui/theme" {
+  name: "harbour-dark";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #0c0e12; /* page */
+  --color-base-200: #13161c; /* panels, row hover */
+  --color-base-300: #1a1e26; /* inputs, selected */
+  --color-base-content: #e6e8ec;
+  --color-primary: #3a6699; /* filled buttons: white text 6.0:1 */
+  --color-primary-content: #ffffff;
+  --color-secondary: #1a1e26;
+  --color-secondary-content: #e6e8ec;
+  --color-accent: #7ea3cf; /* links, focus, active tab, progress */
+  --color-accent-content: #0c0e12;
+  --color-neutral: #262b35;
+  --color-neutral-content: #e6e8ec;
+  --color-info: #7ea3cf;
+  --color-info-content: #0c0e12;
+  --color-success: #74b29f;
+  --color-success-content: #0c0e12;
+  --color-warning: #d1a85e;
+  --color-warning-content: #0c0e12;
+  --color-error: #d97b7b;
+  --color-error-content: #0c0e12;
+  --radius-selector: 3px;
+  --radius-field: 3px;
+  --radius-box: 6px;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "harbour-light";
+  color-scheme: light;
+  --color-base-100: #f4f5f7;
+  --color-base-200: #ffffff;
+  --color-base-300: #eceef2;
+  --color-base-content: #14181f;
+  --color-primary: #2f5f94;
+  --color-primary-content: #ffffff;
+  --color-secondary: #eceef2;
+  --color-secondary-content: #14181f;
+  --color-accent: #2f5f94;
+  --color-accent-content: #ffffff;
+  --color-neutral: #dde1e7;
+  --color-neutral-content: #14181f;
+  --color-info: #2f5f94;
+  --color-info-content: #ffffff;
+  --color-success: #217a63;
+  --color-success-content: #ffffff;
+  --color-warning: #91661a;
+  --color-warning-content: #ffffff;
+  --color-error: #b23a3a;
+  --color-error-content: #ffffff;
+  --radius-selector: 3px;
+  --radius-field: 3px;
+  --radius-box: 6px;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* Tokens daisyUI has no slot for */
+[data-theme="harbour-dark"], :root:not([data-theme]) {
+  --live: #e0a15a; /* warm: only for what is happening now */
+  --line: #262b35;
+  --muted: #9097a3;
+}
+[data-theme="harbour-light"] {
+  --live: #9a5b12;
+  --line: #dde1e7;
+  --muted: #5a6270;
+}
+
+@theme {
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-live: var(--live);
+  --font-display: "Forta", var(--font-sans);
+}
+
+@layer base {
+  body {
+    @apply bg-base-100 text-base-content text-sm/normal;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  h1 {
+    @apply font-display text-[22px] tracking-[.01em] md:text-[26px];
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+    }
+  }
+}
+
+@layer components {
+  /* top bar: logo · tabs · search · account */
+  .topbar {
+    @apply sticky top-0 z-10 flex min-h-12 flex-wrap md:min-h-14 items-center gap-x-6 border-b border-line bg-base-200 px-4 md:flex-nowrap md:px-6;
+  }
+  /* tabs and filters scroll sideways on phones, without a scrollbar */
+  .navtabs {
+    /* own full-width row on phones, inline from tablet width up */
+    @apply order-last -mx-4 flex h-11 w-[calc(100%+2rem)] min-w-0 overflow-x-auto border-t border-line px-2 md:order-none md:mx-0 md:h-14 md:w-auto md:border-0 md:px-0;
+    scrollbar-width: none;
+    /* fade at the right edge hints that more tabs scroll in */
+    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  }
+  @media (min-width: 48rem) {
+    .navtabs {
+      mask-image: none;
+    }
+  }
+  .navtabs a {
+    @apply flex items-center whitespace-nowrap border-b-2 border-transparent px-3 text-muted md:px-4 transition-colors hover:text-base-content;
+  }
+  .navtabs a[aria-current="page"] {
+    @apply border-accent text-base-content;
+  }
+
+  /* page: main column + right rail; the rail drops below on phones */
+  .page {
+    @apply mx-auto grid max-w-[1240px] grid-cols-1 gap-8 px-4 pt-6 pb-24 md:px-6 lg:grid-cols-[minmax(0,1fr)_300px];
+  }
+  .page-head {
+    @apply mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-2;
+  }
+  .rail section {
+    @apply mb-6 border-b border-line pb-6;
+  }
+  .rail-title {
+    @apply mb-3 font-medium tracking-[.08em] text-muted;
+    font-variant: all-small-caps;
+  }
+  .kv {
+    @apply grid grid-cols-[1fr_auto] gap-x-4 gap-y-2;
+  }
+  .kv dt {
+    @apply text-muted;
+  }
+  .kv dd {
+    @apply text-right;
+  }
+
+  /* filters as underlined text */
+  .filters {
+    @apply flex w-full max-w-full gap-4 overflow-x-auto md:ml-auto md:w-auto;
+    scrollbar-width: none;
+  }
+  .filters button {
+    @apply cursor-pointer border-b border-transparent pb-0.5 text-muted;
+  }
+  .filters button[aria-pressed="true"] {
+    @apply border-base-content text-base-content;
+  }
+
+  /* song rows, the heart of every tab */
+  .rows {
+    @apply border-t border-line;
+  }
+  .row {
+    @apply grid min-h-13 grid-cols-[40px_minmax(0,1fr)_32px] items-center gap-x-4 border-b border-line p-2 transition-colors hover:bg-base-200 md:grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_150px_32px];
+  }
+  .row-extra {
+    @apply hidden md:block;
+  }
+  .row .state {
+    @apply col-start-2 row-start-2 text-xs md:col-start-auto md:row-start-auto md:text-sm;
+  }
+  .row > .cover,
+  .row > :last-child {
+    @apply row-span-2 self-center md:row-span-1;
+  }
+  .row > :last-child {
+    @apply col-start-3 row-start-1 md:col-start-auto md:row-start-auto;
+  }
+  /* covers carry the song's colour (--art, from its cover art); the chrome stays neutral */
+  .cover {
+    @apply grid size-10 flex-none place-items-center rounded-[3px] bg-(--art,var(--color-base-300)) text-xs font-semibold text-muted;
+  }
+  .row.selected {
+    @apply bg-base-200;
+    box-shadow: inset 2px 0 0 var(--art, var(--color-accent));
+  }
+  .title {
+    @apply truncate font-medium;
+  }
+  .sub {
+    @apply truncate text-muted;
+  }
+  .icon-btn {
+    @apply grid size-8 cursor-pointer place-items-center rounded-[3px] text-muted hover:bg-base-300 hover:text-base-content;
+  }
+
+  /* a state is a coloured dot plus its words, never colour alone */
+  .state {
+    @apply flex items-center gap-2;
+  }
+  .state::before {
+    content: "";
+    @apply size-[7px] flex-none rounded-full bg-current;
+  }
+  .state.wait::before {
+    @apply bg-transparent;
+    box-shadow: inset 0 0 0 1.5px currentColor;
+  }
+  .state.live::before {
+    display: none;
+  }
+
+  /* record motif: what is happening now turns, as a small record */
+  .rec {
+    @apply size-[11px] flex-none rounded-full;
+    background: radial-gradient(circle, var(--color-base-100) 0 1px, currentColor 1.2px 2.6px, var(--color-base-300) 2.8px 100%);
+    box-shadow: inset 0 0 0 1px currentColor;
+    animation: spin 1.8s linear infinite;
+  }
+  .rec::after {
+    content: "";
+    @apply mt-0.5 ml-1.5 block h-px w-[3px] bg-current opacity-60;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rec {
+      animation: none;
+    }
+  }
+
+  /* sleeve typography: catalogue numbers, side/track, small-caps credits */
+  .cat {
+    @apply font-mono text-xs tracking-[.04em] text-muted;
+  }
+  .side {
+    @apply mr-1.5 font-mono text-xs text-muted;
+  }
+  .credit {
+    @apply tracking-[.05em];
+    font-variant: all-small-caps;
+  }
+
+  /* slskd: peers and their files */
+  .peer {
+    @apply border-b border-line py-3;
+  }
+  .peer-head {
+    @apply mb-2 flex items-center gap-4 text-muted;
+  }
+  .file {
+    @apply grid cursor-pointer grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-3 rounded-[3px] px-2 py-1.5 hover:bg-base-200 md:grid-cols-[20px_minmax(0,1fr)_70px_70px_120px];
+  }
+  .file .path {
+    @apply truncate font-mono;
+  }
+  .tag {
+    @apply justify-self-start rounded-[3px] border border-line px-1.5 text-xs whitespace-nowrap text-muted;
+  }
+
+  /* settings: label left, control right */
+  .setting {
+    @apply grid grid-cols-1 gap-2 border-b border-line py-4 md:grid-cols-[1fr_280px] md:gap-6;
+  }
+
+  /* bottom activity bar: the "player bar" of a download app */
+  .activity {
+    @apply fixed inset-x-0 bottom-0 z-10 flex h-14 items-center gap-6 border-t border-line bg-base-200 px-4 md:px-6;
+    box-shadow: inset 0 2px 0 var(--art, transparent); /* the current download's cover colour */
+  }
 }

@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Post-Vinyl mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+@font-face { font-family: "Forta"; src: url("../src/fonts/forta.ttf") format("truetype"); font-display: swap; }
+/* ── Tokens (#120 draft) ─────────────────────────────────────────────
+   Deep harbour blue, one accent, hairline borders, flat surfaces.
+   No gradients, glass, glow or soft oversized cards. */
+:root {
+  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --text-xs: 12px; --text-sm: 13px; --text-md: 14px; --text-lg: 16px; --text-xl: 20px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
+  --radius-sm: 3px; --radius-md: 6px;
+  --row: 52px;          /* compact list row */
+  --bar: 56px;          /* top bar and bottom activity bar */
+  --ease: cubic-bezier(.2,.6,.2,1);
+}
+[data-theme="dark"] {
+  --bg: #0c0e12;        /* page */
+  --surface: #13161c;   /* panels, rows on hover */
+  --surface-2: #1a1e26; /* inputs, selected row */
+  --line: #262b35;      /* hairlines */
+  --text: #e6e8ec;
+  --text-muted: #9097a3;
+  --accent: #7ea3cf;    /* links, focus, active tab, progress */
+  --accent-fill: #3a6699; /* primary buttons, white text 5.1:1 */
+  --on-accent: #FFFFFF;
+  --ok: #74b29f; --warn: #9097a3; --err: #d97b7b; --live: #e0a15a; /* warm: only for what is happening now */
+  --wave: #2a303b; --wave-done: var(--accent);
+}
+[data-theme="light"] {
+  --bg: #f4f5f7;
+  --surface: #FFFFFF;
+  --surface-2: #eceef2;
+  --line: #dde1e7;
+  --text: #14181f;
+  --text-muted: #5a6270;
+  --accent: #2f5f94;
+  --accent-fill: #2f5f94;
+  --on-accent: #FFFFFF;
+  --ok: #217A63; --warn: #5a6270; --err: #B23A3A; --live: #9a5b12;
+  --wave: #cfd4dc; --wave-done: var(--accent);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 var(--text-md)/1.5 var(--font-ui); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+.muted { color: var(--text-muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ── Top bar: logo · search · account (SoundCloud's layout) ───────── */
+.topbar { position: sticky; top: 0; z-index: 2; height: var(--bar); display: flex; align-items: center; gap: var(--space-6);
+  padding: 0 var(--space-6); background: var(--surface); border-bottom: 1px solid var(--line); }
+.logo { font-family: "Forta", var(--font-ui); font-size: 22px; letter-spacing: .01em; white-space: nowrap; display: flex; align-items: center; gap: 10px; }
+h1 { font-family: "Forta", var(--font-ui); font-weight: 400; font-size: 26px; letter-spacing: .01em; }
+.tabs { display: flex; height: 100%; }
+.tabs a { display: flex; align-items: center; padding: 0 var(--space-4); color: var(--text-muted); text-decoration: none;
+  border-bottom: 2px solid transparent; transition: color .15s var(--ease); white-space: nowrap; }
+.tabs a:hover { color: var(--text); }
+.tabs a[aria-current="page"] { color: var(--text); border-bottom-color: var(--accent); }
+.search { flex: 1; max-width: 420px; margin-left: auto; position: relative; }
+.search input { width: 100%; height: 34px; padding: 0 var(--space-3) 0 34px; background: var(--surface-2); border: 1px solid transparent;
+  border-radius: var(--radius-sm); }
+.search input:focus { border-color: var(--accent); outline: none; }
+.search svg { position: absolute; left: 10px; top: 9px; color: var(--text-muted); }
+.user { display: flex; align-items: center; gap: var(--space-3); white-space: nowrap; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-size: var(--text-xs); font-weight: 600; }
+
+/* ── Page: main column + right rail ──────────────────────────────── */
+.page { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: var(--space-8); max-width: 1240px; margin: 0 auto;
+  padding: var(--space-6) var(--space-6) calc(var(--bar) + var(--space-8)); }
+.head { display: flex; align-items: baseline; gap: var(--space-4); margin-bottom: var(--space-4); }
+h1 { font-size: var(--text-xl); font-weight: 600; margin: 0; }
+h2 { font-size: var(--text-md); font-weight: 500; font-variant: all-small-caps; letter-spacing: .08em; color: var(--text-muted); margin: 0 0 var(--space-3); }
+
+/* filters as underlined text, not pills */
+.filters { display: flex; gap: var(--space-4); margin-left: auto; font-size: var(--text-sm); }
+.filters button { background: none; border: 0; padding: 0 0 2px; color: var(--text-muted); cursor: pointer; border-bottom: 1px solid transparent; }
+.filters button[aria-pressed="true"] { color: var(--text); border-bottom-color: var(--text); }
+
+/* ── Track rows (the heart of every tab) ─────────────────────────── */
+.list { border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: 40px minmax(0,1.4fr) minmax(0,1fr) 150px 32px; align-items: center; gap: var(--space-4);
+  min-height: var(--row); padding: var(--space-2) var(--space-2); border-bottom: 1px solid var(--line); transition: background .12s var(--ease); }
+.row:hover { background: var(--surface); }
+.cover { width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--art, var(--surface-2)); position: relative; overflow: hidden; display: grid; place-items: center;
+  color: var(--text-muted); font-size: var(--text-xs); font-weight: 600; }
+.title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub { font-size: var(--text-sm); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.state { font-size: var(--text-sm); display: flex; align-items: center; gap: var(--space-2); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.s-ok { color: var(--ok); } .s-warn { color: var(--warn); } .s-err { color: var(--err); } .s-run { color: var(--live); } .s-cart { color: var(--accent); } .s-idle { color: var(--text-muted); }
+.icon-btn { width: 32px; height: 32px; display: grid; place-items: center; background: none; border: 0; border-radius: var(--radius-sm);
+  color: var(--text-muted); cursor: pointer; }
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+
+.scale { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+
+/* record motif: what is happening now turns, as a small record */
+.rec { width: 11px; height: 11px; flex: none; border-radius: 50%; background:
+  radial-gradient(circle, var(--bg) 0 1px, currentColor 1.2px 2.6px, #1b1f27 2.8px 100%); box-shadow: 0 0 0 1px currentColor inset;
+  animation: spin 1.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.rec::after { content: ""; display: block; width: 3px; height: 1px; margin: 2px 0 0 6px; background: currentColor; opacity: .6; }
+@media (prefers-reduced-motion: reduce) { .rec { animation: none; } }
+/* sleeve typography: catalogue numbers, side/track, small-caps credits */
+.cat { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); letter-spacing: .04em; }
+.side { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-right: 6px; }
+.credit { font-variant: all-small-caps; letter-spacing: .05em; }
+
+/* ── Right rail ──────────────────────────────────────────────────── */
+.rail section { padding-bottom: var(--space-6); margin-bottom: var(--space-6); border-bottom: 1px solid var(--line); }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); }
+.kv dt { color: var(--text-muted); } .kv dd { margin: 0; text-align: right; }
+
+/* buttons: one filled kind, one quiet kind */
+.btn { height: 34px; padding: 0 var(--space-4); border-radius: var(--radius-sm); border: 1px solid var(--line); background: transparent;
+  cursor: pointer; font-weight: 500; transition: background .12s var(--ease), border-color .12s var(--ease); }
+.btn:hover { border-color: var(--text-muted); }
+.btn-primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--on-accent); }
+.btn-primary:hover { filter: brightness(1.08); border-color: var(--accent-fill); }
+.btn-danger { color: var(--err); }
+
+/* ── slskd: peers with their files ───────────────────────────────── */
+.peer { border-bottom: 1px solid var(--line); padding: var(--space-3) 0; }
+.peer-head { display: flex; align-items: center; gap: var(--space-4); font-size: var(--text-sm); margin-bottom: var(--space-2); }
+.peer-head .mono { color: var(--text); }
+.file { display: grid; grid-template-columns: 20px minmax(0,1fr) 70px 70px 90px; gap: var(--space-3); align-items: center; padding: 6px var(--space-2);
+  border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.file:hover { background: var(--surface); }
+.file .path { font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file.excluded { color: var(--text-muted); }
+.tag { font-size: var(--text-xs); color: var(--text-muted); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0 6px; white-space: nowrap; }
+.tag.good { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
+
+/* ── Settings: label left, control right ─────────────────────────── */
+.setting { display: grid; grid-template-columns: 1fr 280px; gap: var(--space-6); padding: var(--space-4) 0; border-bottom: 1px solid var(--line); }
+.setting .help { font-size: var(--text-sm); color: var(--text-muted); }
+.restart { font-size: var(--text-xs); color: var(--text-muted); font-style: italic; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.field { height: 34px; width: 100%; padding: 0 var(--space-3); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.order li { display: flex; align-items: center; gap: var(--space-3); height: 36px; padding: 0 var(--space-3); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); margin-bottom: var(--space-1); background: var(--surface); font-size: var(--text-sm); }
+.order { list-style: none; padding: 0; margin: 0; }
+.order .grip { color: var(--text-muted); cursor: grab; }
+.order .off { margin-left: auto; color: var(--text-muted); }
+
+/* ── Bottom activity bar: the "player bar" of a download app ─────── */
+.activity { position: fixed; inset: auto 0 0 0; height: var(--bar); display: flex; align-items: center; gap: var(--space-6);
+  padding: 0 var(--space-6); background: var(--surface); border-top: 1px solid var(--line); font-size: var(--text-sm); }
+.activity .now { display: flex; align-items: center; gap: var(--space-3); min-width: 0; flex: 1; }
+.activity .bar { flex: 1; max-width: 360px; height: 3px; background: var(--wave); border-radius: 2px; overflow: hidden; }
+.activity .bar span { display: block; height: 100%; width: 62%; background: var(--live); }
+.activity { box-shadow: inset 0 2px 0 var(--art-now, transparent); }
+.row.selected { box-shadow: inset 2px 0 0 var(--art); background: var(--surface); }
+
+.screen { display: none; } .screen.on { display: contents; }
+.switch { position: fixed; right: var(--space-4); bottom: calc(var(--bar) + var(--space-4)); font-size: var(--text-xs); }
+
+@media (max-width: 900px) {
+  .page { grid-template-columns: 1fr; }
+  .topbar { height: auto; min-height: var(--bar); flex-wrap: wrap; gap: 0 var(--space-3); padding: 0 var(--space-4); }
+  .user { margin-left: auto; }
+  .tabs { order: 9; width: calc(100% + 2 * var(--space-4)); margin: 0 calc(-1 * var(--space-4)); height: 44px; padding: 0 var(--space-2);
+    border-top: 1px solid var(--line); overflow-x: auto; scrollbar-width: none;
+    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+  .tabs a { padding: 0 var(--space-3); }
+  .search, .user span:first-child { display: none; }
+  .page { padding-left: var(--space-4); padding-right: var(--space-4); }
+  .filters { overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  .head { flex-wrap: wrap; }
+  .activity { padding: 0 var(--space-4); gap: var(--space-3); }
+  .activity .bar, .activity > .muted { display: none; }
+  .row { grid-template-columns: 40px minmax(0,1fr) 32px; row-gap: 0; }
+  .row .wcol { display: none; }
+  .row .state { grid-column: 2; grid-row: 2; font-size: var(--text-xs); }
+  .setting { grid-template-columns: 1fr; gap: var(--space-2); }
+  .file { grid-template-columns: 20px minmax(0,1fr) 60px; } .file .hide-sm { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="logo">
+    <img src="logo.svg" alt="" width="36" height="36" />
+    Post-Vinyl
+  </div>
+  <nav class="tabs" aria-label="Main">
+    <a href="#search" data-s="search">Search</a>
+    <a href="#slskd" data-s="slskd">slskd</a>
+    <a href="#downloads" data-s="downloads">Downloads</a>
+    <a href="#files" data-s="downloads">Files</a>
+    <a href="#settings" data-s="settings">Settings</a>
+    <a href="#admin" data-s="settings">Admin</a>
+  </nav>
+  <label class="search">
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5"/></svg>
+    <span class="sr" hidden>Search songs, albums, artists</span>
+    <input placeholder="Songs, albums, artists" aria-label="Search songs, albums, artists" />
+  </label>
+  <div class="user"><span class="muted">tim</span><span class="avatar" aria-hidden="true">T</span></div>
+</header>
+
+<div class="page">
+  <!-- ═══ Downloads ═══ -->
+  <div class="screen" id="downloads">
+    <main>
+      <div class="head">
+        <h1>Downloads</h1><span class="cat">PV-0001 – 0142</span>
+        <div class="filters" role="group" aria-label="State">
+          <button aria-pressed="true">All</button><button>Downloading</button><button>Queued</button><button>Failed</button><button>Done</button>
+        </div>
+      </div>
+      <div class="list" id="dl"></div>
+    </main>
+    <aside class="rail">
+      <section>
+        <h2>Queue</h2>
+        <dl class="kv"><dt>Running</dt><dd>3</dd><dt>Waiting</dt><dd>11</dd><dt>Speed</dt><dd class="mono">1.8 MB/s</dd><dt>Searches / min</dt><dd>2 of 3</dd></dl>
+        <div style="display:flex;gap:8px;margin-top:16px"><button class="btn">Pause queue</button></div>
+      </section>
+      <section>
+        <h2>Selected</h2>
+        <div class="cat">PV-0142</div><div class="title">Teardrop</div><div class="sub">Massive Attack · Mezzanine</div>
+        <dl class="kv" style="margin-top:12px"><dt>Peer</dt><dd class="mono">vinylghost</dd><dt>Attempt</dt><dd>2 of 5</dd><dt>Format</dt><dd>FLAC 16/44</dd></dl>
+        <div style="display:flex;gap:8px;margin-top:16px"><button class="btn">Next peer</button><button class="btn btn-danger">Drop</button></div>
+      </section>
+    </aside>
+  </div>
+
+  <!-- ═══ slskd ═══ -->
+  <div class="screen" id="slskd">
+    <main>
+      <div class="head"><h1>slskd</h1></div>
+      <form style="display:flex;gap:8px;margin-bottom:24px" onsubmit="return false">
+        <input class="field" style="flex:1" value="boards of canada roygbiv" aria-label="slskd search" />
+        <button class="btn btn-primary">Search</button>
+      </form>
+      <div class="head" style="margin-bottom:8px"><span class="state s-ok"><span class="dot"></span>Complete</span>
+        <span class="muted" style="font-size:13px">38 peers · 214 files · 6 excluded versions hidden</span>
+        <div class="filters"><button aria-pressed="true">Matches</button><button>All files</button></div></div>
+      <div id="peers"></div>
+    </main>
+    <aside class="rail">
+      <section>
+        <h2>To download</h2>
+        <div class="title">Roygbiv.flac</div><div class="sub mono">vinylghost</div>
+        <div class="title" style="margin-top:8px">Roygbiv.mp3</div><div class="sub mono">nightdrive_93</div>
+        <button class="btn btn-primary" style="width:100%;margin-top:16px">Queue 2 files</button>
+      </section>
+      <section>
+        <h2>Recent searches</h2>
+        <div class="sub">boards of canada roygbiv</div><div class="sub">aphex twin xtal</div><div class="sub">burial archangel</div>
+      </section>
+    </aside>
+  </div>
+
+  <!-- ═══ Search ═══ -->
+  <div class="screen" id="search">
+    <main>
+      <div class="head"><h1>“portishead”</h1><span class="muted">from MusicBrainz</span>
+        <div class="filters"><button aria-pressed="true">Songs</button><button>Albums</button><button>Artists</button></div></div>
+      <div class="list" id="cat"></div>
+    </main>
+    <aside class="rail">
+      <section>
+        <h2>Cart · 3</h2>
+        <div class="title">Roads</div><div class="sub">Portishead · Dummy</div>
+        <div class="title" style="margin-top:8px">Glory Box</div><div class="sub">Portishead · Dummy</div>
+        <div class="title" style="margin-top:8px">Machine Gun</div><div class="sub">Portishead · Third</div>
+        <button class="btn btn-primary" style="width:100%;margin-top:16px">Request 3 songs</button>
+      </section>
+    </aside>
+  </div>
+
+  <!-- ═══ Settings ═══ -->
+  <div class="screen" id="settings">
+    <main>
+      <div class="head"><h1>Settings</h1>
+        <div class="filters"><button aria-pressed="true">Mine</button><button>Install</button></div></div>
+      <div class="setting"><div><div>Catalog sources</div><div class="help">Searched in this order; the first with results answers.</div></div>
+        <ol class="order"><li><span class="grip">⋮⋮</span>MusicBrainz</li><li><span class="grip">⋮⋮</span>Deezer</li><li><span class="grip">⋮⋮</span>ListenBrainz<span class="off">off</span></li></ol></div>
+      <div class="setting"><div><div>Results per search</div><div class="help">How many songs a catalog search shows.</div></div>
+        <div><input type="range" min="5" max="100" value="25" aria-label="Results per search" /><div class="scale"><span>5</span><span>25</span><span>100</span></div></div></div>
+      <div class="setting"><div><div>Downloads per page</div><div class="help">Rows on the downloads tab.</div></div>
+        <select class="field"><option>50</option></select></div>
+      <div class="setting"><div><div>Searches per minute</div><div class="help">Higher gets the Soulseek account throttled.</div><div class="restart">Applies at the next restart</div></div>
+        <div><input type="range" min="1" max="4" value="3" aria-label="Searches per minute" /><div class="scale"><span>1</span><span>3</span><span>4</span></div></div></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:24px"><button class="btn">Reset</button><button class="btn btn-primary">Save</button></div>
+    </main>
+    <aside class="rail"><section><h2>ListenBrainz</h2><div class="sub">Token stored</div><button class="btn" style="margin-top:12px">Replace token</button></section></aside>
+  </div>
+</div>
+
+<footer class="activity" aria-label="Activity" style="--art-now:#8a3b2e">
+  <div class="now"><span class="state s-run"><span class="rec"></span></span><span class="cover" style="--art:#8a3b2e;width:32px;height:32px"></span>
+    <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><b style="font-weight:500">Teardrop</b> <span class="muted">· Massive Attack</span></span>
+    <div class="bar" aria-hidden="true"><span></span></div><span class="mono muted">62%</span></div>
+  <span class="muted">3 downloading · 11 waiting</span>
+  <button class="icon-btn" id="theme" aria-label="Switch light/dark">◐</button>
+</footer>
+
+<script>
+// mock data only
+// art = the cover's key colour (from Navidrome's art later); side/track like a sleeve
+const songs = [
+  ["Teardrop","Massive Attack","Mezzanine","A3","run","Downloading",.62,"1.2 MB/s","#8a3b2e",142],
+  ["Roygbiv","Boards of Canada","Music Has the Right to Children","B4","run","Downloading",.31,"420 KB/s","#5d7a4a",141],
+  ["Archangel","Burial","Untrue","A2","warn","Queued at peer · #4",0,"","#3d4a5c",140],
+  ["Xtal","Aphex Twin","Selected Ambient Works 85–92","A1","ok","Done",1,"FLAC","#6b6f78",139],
+  ["Svefn-g-englar","Sigur Rós","Ágætis byrjun","A2","err","Failed · 5 peers tried",0,"","#9a8a6a",138],
+  ["Windowlicker","Aphex Twin","Windowlicker","A1","idle","Searching",0,"","#a9476a",137],
+  ["Hyperballad","Björk","Post","A4","ok","Done",1,"MP3 320","#7a8fa3",136],
+];
+const initials = (s) => s.split(" ").map(w => w[0]).join("").slice(0, 2);
+const mark = (s) => s === "run" ? '<span class="rec"></span>' : s === "warn" ? '<span class="dot" style="background:none;box-shadow:inset 0 0 0 1.5px currentColor"></span>' : '<span class="dot"></span>';
+document.getElementById("dl").innerHTML = songs.map(([t, artist, album, side, s, label, p, meta, art, n], i) => `
+  <div class="row${i === 0 ? " selected" : ""}" style="--art:${art}"><div class="cover"></div>
+    <div><div class="title"><span class="side">${side}</span>${t}</div><div class="sub"><span class="credit">${artist}</span> · ${album}</div></div>
+    <div class="wcol"><span class="sub mono">${p > 0 && p < 1 ? `${Math.round(p*100)}% · ${meta}` : meta}</span></div>
+    <div class="state s-${s}">${mark(s)}${label}</div>
+    <button class="icon-btn" aria-label="More for ${t}">⋯</button></div>`).join("");
+const peers = [
+  ["vinylghost","free slot","2.4 MB/s",[["Music Has the Right to Children/07 Roygbiv.flac","FLAC","24.1 MB","correct",1]]],
+  ["nightdrive_93","queue 2","880 KB/s",[["BoC/MHTRTC/Roygbiv.mp3","320","5.5 MB","correct",1],["BoC/live/Roygbiv (live 1998).mp3","192","6.0 MB","excluded: live",0]]],
+  ["tapehiss","queue 14","310 KB/s",[["@@xk2/Boards of Canada - Roygbiv.flac","FLAC","23.8 MB","correct",0]]],
+];
+document.getElementById("peers").innerHTML = peers.map(([u, slot, sp, files]) => `
+  <div class="peer"><div class="peer-head"><span class="mono">${u}</span><span class="muted">${slot}</span><span class="muted mono">${sp}</span></div>
+  ${files.map(([path, fmt, size, label, on]) => `<label class="file ${label.startsWith("excluded") ? "excluded" : ""}">
+    <input type="checkbox" ${on && !label.startsWith("excluded") ? "checked" : ""} ${label.startsWith("excluded") ? "disabled" : ""} />
+    <span class="path">${path}</span><span class="hide-sm">${fmt}</span><span class="hide-sm mono">${size}</span>
+    <span class="tag ${label === "correct" ? "good" : ""}">${label}</span></label>`).join("")}</div>`).join("");
+const cat = [["Roads","Portishead · Dummy · 1994","5:05",1],["Glory Box","Portishead · Dummy · 1994","5:06",1],["Sour Times","Portishead · Dummy · 1994","4:11",0],["Machine Gun","Portishead · Third · 2008","4:43",1],["Wandering Star","Portishead · Dummy · 1994","4:51",0]];
+document.getElementById("cat").innerHTML = cat.map(([t, sub, len, inCart]) => `
+  <div class="row"><div class="cover">${initials(t)}</div><div><div class="title">${t}</div><div class="sub">${sub}</div></div>
+  <div class="wcol sub mono">${len}</div><div class="state ${inCart ? "s-cart" : "s-idle"}">${inCart ? "In cart" : ""}</div>
+  <button class="icon-btn" aria-label="${inCart ? "Remove" : "Add"} ${t}">${inCart ? "−" : "+"}</button></div>`).join("");
+
+function show() {
+  const id = location.hash.slice(1) || "downloads";
+  const tab = document.querySelector(`.tabs a[href="#${id}"]`) || document.querySelector('.tabs a[href="#downloads"]');
+  document.querySelectorAll(".tabs a").forEach(a => a === tab ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+  tab.scrollIntoView({ inline: "nearest", block: "nearest" });
+  document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === tab.dataset.s));
+}
+addEventListener("hashchange", show); show();
+document.getElementById("theme").onclick = () => { const r = document.documentElement; r.dataset.theme = r.dataset.theme === "dark" ? "light" : "dark"; };
+</script>
+</body>
+</html>

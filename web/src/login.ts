@@ -1,5 +1,6 @@
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
+import logoUrl from "./logo.svg";
 
 export function loginPage(onLogin: (me: Schemas["Me"]) => void): HTMLElement {
   const error = h("p", { class: "text-error text-sm", role: "alert" });
@@ -35,8 +36,8 @@ export function loginPage(onLogin: (me: Schemas["Me"]) => void): HTMLElement {
         }
       },
     },
-    h("h1", { class: "card-title text-2xl" }, "Post-Vinyl"),
-    h("p", { class: "text-sm opacity-70" }, "Log in with your Navidrome account."),
+    h("h1", { class: "flex items-center gap-3" }, h("img", { src: logoUrl, alt: "", class: "size-12" }), "Post-Vinyl"),
+    h("p", { class: "text-muted" }, "Log in with your Navidrome account."),
     field("Username", "username", "text", "username"),
     field("Password", "password", "password", "current-password"),
     error,
@@ -45,7 +46,7 @@ export function loginPage(onLogin: (me: Schemas["Me"]) => void): HTMLElement {
   return h(
     "main",
     { class: "min-h-screen grid place-items-center p-4" },
-    h("div", { class: "card bg-base-100 w-full max-w-sm shadow" }, form),
+    h("div", { class: "card bg-base-200 border border-line w-full max-w-sm" }, form),
   );
 }
 

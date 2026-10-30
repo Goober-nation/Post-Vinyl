@@ -161,7 +161,9 @@ def test_web_files_open_without_session(
     (dist / "assets" / "app.js").write_text("1")
     monkeypatch.setattr("app.main.WEB_DIST", dist)
     client = client_for(tmp_path)
-    assert client.get("/").text == "<p>login</p>"
+    index = client.get("/")
+    assert index.text == "<p>login</p>"
+    assert index.headers["cache-control"] == "no-cache"  # new builds rename assets
     assert client.get("/assets/app.js").status_code == 200
     assert client.get("/index.html").status_code == 401  # only / and /assets/
     assert client.get("/api/auth/me").status_code == 401

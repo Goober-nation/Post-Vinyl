@@ -119,7 +119,32 @@ Decisions (user, 2026-10-30):
   `PV_API=<the app's PV_PUBLIC_ORIGIN> npm run dev` (proxies `/api`, sending that origin so the
   CSRF check passes); `PV_API=… npm run gen:api` against an app run with `PV_DEV=1` after any
   API change.
-- Design: tokens first (colors with light + dark, a UI font and a monospace font for paths and
+- **Design kit built in #120** (user approved the direction, 2026-10-30): SoundCloud's layout
+  (top bar with tabs and search, a main list with a right rail, a fixed bottom bar showing
+  download activity where SoundCloud has its player; the waveform progress was tried and dropped, user 2026-10-30: progress is "62% · 1.2 MB/s" as text), in calm
+  deep blue: navy page, one blue accent, hairline borders, flat surfaces, 3–6 px corners; no
+  gradients, glass, glow or soft oversized cards. Fonts IBM Plex Sans + Plex Mono, bundled
+  (@fontsource), so no request leaves the origin. Themes `harbour-dark` (default) and
+  `harbour-light` in `web/src/style.css`; components in `web/src/ui.ts`; every one on `#/kit`
+  in `npm run dev`; the static mockup is `web/design/mockup.html`. A state is always a dot
+  plus words, never colour alone. The ui-ux-pro-max skill was used for its rules (contrast,
+  focus, density, reduced motion); its suggested indigo/green palette was rejected as generic.
+- **Identity and palette (user, 2026-10-30)**, replacing the navy above: blue-tinted charcoal
+  (`#0C0E12` page, `#13161C` panels) with a desaturated blue accent (`#7EA3CF`), because the
+  navy was too blue ("eye burns"); every text pair checked at ≥ 5.6:1. Identity, all from the
+  record world:
+  - **Logo**: a square record with slightly rounded corners, grooves and a warm amber label
+    (`web/src/logo.svg`, also the favicon). **Wordmark and page titles in Forta**, the legacy
+    app's logo font (OFL, copied with its licence to `web/src/fonts/`); body stays IBM Plex.
+  - **Record motif**: what is happening now shows a small turning record (still with reduced
+    motion). **Warm amber `--live`** is used only for live things (downloading, progress, the
+    logo's label); blue stays for actions, links, focus and the active tab. Queued = hollow dot.
+  - **Sleeve typography**: side/track before titles (`A3`), artists as small-caps credits,
+    catalogue numbers (`PV-0142`), small-caps rail headings.
+  - **Album art colour**: the chrome stays neutral; a song's cover colour (`--art`) tints its
+    cover, the selected row's edge and the bottom bar's top edge (real cover colours from
+    Navidrome's art when the tabs are built).
+- Earlier plan: tokens first (colors with light + dark, a UI font and a monospace font for paths and
   peer names, type/spacing/radius scales, compact density for the tables), then the ~15 shared
   components, then mockups of the hardest screens (slskd tab, downloads queue, settings).
   Soulbeet (Dioxus fullstack, Rust → WebAssembly, Tailwind v4, WebSocket push) was looked at;

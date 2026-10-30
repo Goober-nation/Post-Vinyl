@@ -2,6 +2,8 @@ import "./style.css";
 import { ApiError, api, whenLoggedOut, type Schemas } from "./api";
 import { h } from "./dom";
 import { loginPage } from "./login";
+import logoUrl from "./logo.svg";
+import { applyTheme, iconButton, page } from "./ui";
 
 // Hash routes (#/downloads…): a reload stays on the same tab; the session
 // cookie keeps the login (user, 2026-10-30).
@@ -14,12 +16,15 @@ const TABS: Tab[] = [
   { path: "settings", label: "Settings" },
   { path: "admin", label: "Admin", adminOnly: true },
 ];
+// The component sheet, in `npm run dev` only.
+const KIT: Tab = { path: "kit", label: "Kit" };
 
 const root = document.getElementById("app")!;
 let me: Schemas["Me"] | null = null;
 
 function currentTab(): Tab {
   const path = location.hash.replace(/^#\/?/, "");
+  if (import.meta.env.DEV && path === KIT.path) return KIT;
   return TABS.find((t) => t.path === path) ?? TABS[0];
 }
 
@@ -31,23 +36,13 @@ function render(): void {
   const tab = currentTab();
   const nav = h(
     "nav",
-    { role: "tablist", class: "tabs tabs-border" },
-    ...TABS.map((t) =>
-      h(
-        "a",
-        {
-          role: "tab",
-          href: `#/${t.path}`,
-          class: t === tab ? "tab tab-active" : "tab",
-          "aria-selected": String(t === tab),
-        },
-        t.label,
-      ),
-    ),
+    { class: "navtabs", "aria-label": "Main" },
+    ...TABS.map((t) => h("a", { href: `#/${t.path}`, "aria-current": t === tab ? "page" : false }, t.label)),
   );
   const logout = h(
     "button",
     {
+      type: "button",
       class: "btn btn-ghost btn-sm",
       onclick: async () => {
         await api("POST", "/api/auth/logout").catch(() => {});
@@ -57,31 +52,52 @@ function render(): void {
     },
     "Log out",
   );
+  const dark = document.documentElement.dataset.theme !== "harbour-light";
   root.replaceChildren(
     h(
       "header",
-      { class: "navbar bg-base-100 shadow-sm gap-4 px-4 flex-wrap" },
-      h("span", { class: "font-bold text-lg" }, "Post-Vinyl"),
+      { class: "topbar" },
+      h("span", { class: "flex items-center gap-2 font-display text-lg whitespace-nowrap md:gap-2.5 md:text-[22px]" }, logo(), "Post-Vinyl"),
       nav,
-      h("span", { class: "ml-auto text-sm opacity-70" }, me.username),
-      logout,
+      h(
+        "div",
+        { class: "ml-auto flex items-center gap-3" },
+        h("span", { class: "hidden text-muted sm:inline" }, me.username),
+        iconButton(dark ? "Light theme" : "Dark theme", "◐", () => {
+          applyTheme(dark ? "harbour-light" : "harbour-dark");
+          render();
+        }),
+        logout,
+      ),
     ),
-    h("main", { class: "p-4", role: "tabpanel" }, page(tab)),
+    h("main", {}, content(tab)),
   );
+  nav.querySelector('[aria-current="page"]')?.scrollIntoView({ inline: "nearest", block: "nearest" });
   document.title = `${tab.label} · Post-Vinyl`;
 }
 
-function page(tab: Tab): HTMLElement {
+function content(tab: Tab): HTMLElement {
+  if (import.meta.env.DEV && tab === KIT) {
+    // loaded on demand, so the production build leaves the kit out
+    const spot = h("div");
+    void import("./kit").then((kit) => spot.replaceWith(kit.kitPage()));
+    return spot;
+  }
   // Admin-only parts are shown to everyone and refuse for non-admins (user,
   // 2026-10-30); the API's 403 stays the real guard.
-  if (tab.adminOnly && !me?.is_admin) return adminsOnly();
-  return h("p", { class: "opacity-70" }, `${tab.label}: coming in milestone 8.`);
+  if (tab.adminOnly && !me?.is_admin) return page([adminsOnly()]);
+  return page([h("p", { class: "text-muted" }, `${tab.label}: coming in milestone 8.`)]);
 }
 
 export function adminsOnly(): HTMLElement {
   return h("div", { role: "alert", class: "alert alert-warning" }, "Admins only.");
 }
 
+function logo(): HTMLImageElement {
+  return h("img", { src: logoUrl, alt: "", class: "size-7 md:size-9" });
+}
+
+applyTheme();
 whenLoggedOut(() => {
   me = null;
   render();

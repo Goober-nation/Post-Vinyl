@@ -47,3 +47,7 @@ legacy/app/static/fonts/*
 
 old_files/
 .cache/
+
+# skills installed locally with `npx skills add` (third-party, not ours)
+.agents/
+skills-lock.json
