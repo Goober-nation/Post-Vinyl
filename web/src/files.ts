@@ -53,6 +53,8 @@ export function filesPage(me: Me): HTMLElement {
               fileRow(f, () => {
                 list.querySelectorAll(".row.selected").forEach((x) => x.classList.remove("selected"));
                 showFile(rail, f, me, load);
+                // on narrower screens the rail sits below the list: bring it into view
+                if (innerWidth < 1280) rail.scrollIntoView({ behavior: "smooth" });
               }),
             )
           : [h("p", { class: "py-2 text-muted" }, q ? `Nothing in the library matches “${q}”.` : "The library is empty.")]),
