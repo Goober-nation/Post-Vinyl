@@ -45,7 +45,8 @@ If anything is unclear or missing, ask before proceeding.
 
 - Rebuild work goes on **`rebuild/<topic>`** branches, branched from and merged into
   **`rebuild/base`**. `rebuild/base` → `main` only when the rebuild is done.
-- `main` and `dev` keep the old app; don't commit there.
+- `main` keeps the old app; don't commit there. Its old `dev` line is the tag `old-app-dev`
+  (the `dev` branch was removed from GitHub 2026-10-29; a local copy may still exist).
 - Never commit or push without an explicit "commit" / "push" from the user.
 
 ---
