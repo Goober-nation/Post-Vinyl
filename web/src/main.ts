@@ -5,6 +5,7 @@ import { loginPage } from "./login";
 import { searchPage } from "./search";
 import { slskdPage } from "./slskd";
 import { downloadsPage } from "./downloads";
+import { filesPage } from "./files";
 import logoUrl from "./logo.svg";
 import { page } from "./ui";
 
@@ -87,6 +88,7 @@ function content(tab: Tab): HTMLElement {
   if (tab.path === "search") return searchPage();
   if (tab.path === "slskd") return slskdPage();
   if (tab.path === "downloads" && me) return downloadsPage(me);
+  if (tab.path === "files" && me) return filesPage(me);
   return page([h("p", { class: "text-muted" }, `${tab.label}: coming in milestone 8.`)]);
 }
 
