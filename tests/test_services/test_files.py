@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import struct
 import wave
 from pathlib import Path
 
@@ -175,6 +176,21 @@ def test_not_audio_fails(tmp_path: Path) -> None:
         "not audio"
     )
     assert not c.svc.verify(fid) and c.file(fid).verification == "not_audio"
+
+
+def test_a_cut_off_file_whose_header_claims_the_full_length_fails(
+    tmp_path: Path,
+) -> None:
+    """Live #114: an MP3 cut to 4 KB still read as 306 s from its Xing header."""
+    c = Case(tmp_path)
+    fid = c.download("post-vinyl/1/1/x.wav")  # the song is 175 s
+    frame = b"\xff\xfb\x90\x64"  # MPEG-1 Layer III, 128 kbit/s, 44.1 kHz
+    xing = (
+        frame + b"\x00" * 32 + b"Xing" + struct.pack(">III", 3, 6699, 6699 * 417)
+    )  # 175 s
+    path = c.music / "downloads/complete/soulseek/post-vinyl/1/1/x.wav"
+    path.write_bytes(xing.ljust(417, b"\x00") + (frame + b"\x00" * 413) * 3)
+    assert not c.svc.verify(fid) and c.file(fid).verification == "truncated"
 
 
 def test_never_overwrites_another_file(tmp_path: Path) -> None:

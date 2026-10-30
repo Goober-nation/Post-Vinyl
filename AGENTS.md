@@ -81,7 +81,8 @@ If anything is unclear or missing, ask before proceeding.
   Post-Vinyl owns its own bookkeeping (songs it was asked for, requests, attempts, file states,
   playlist definitions).
 - **Re-read, don't re-search**: slskd keeps searches indefinitely; a retry re-reads the same search
-  by id and re-picks from its peers.
+  by id and re-picks from its peers. A user's re-request is a fresh ask and searches again
+  (user, 2026-10-30).
 
 ---
 

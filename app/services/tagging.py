@@ -133,7 +133,8 @@ def build_album_tags(rec: RecordingInfo, chosen: RecordingRelease) -> dict[str, 
 
 # ------------------------------------------------------------ writing, per format
 
-_KEEP_VORBIS = ("replaygain_", "lyrics", "unsyncedlyrics")
+# r128_: Opus loudness (RFC 7845), its ReplayGain (live #114)
+_KEEP_VORBIS = ("replaygain_", "r128_", "lyrics", "unsyncedlyrics")
 _MB_ID3 = {
     "musicbrainz_releasetrackid": "MusicBrainz Release Track Id",
     "musicbrainz_albumid": "MusicBrainz Album Id",

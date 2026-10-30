@@ -149,6 +149,7 @@ def test_flac_keeps_replaygain_and_lyrics_replaces_the_rest(tmp_path: Path) -> N
     peer["album"] = "WRONG [www.site.ru]"
     peer["comment"] = "ripped by someone"
     peer["replaygain_track_gain"] = "-6.5 dB"
+    peer["r128_track_gain"] = "-512"  # what Opus files carry
     peer["lyrics"] = "la la"
     pic = Picture()
     pic.type, pic.mime, pic.data = 3, "image/png", b"peer art"
@@ -158,6 +159,7 @@ def test_flac_keeps_replaygain_and_lyrics_replaces_the_rest(tmp_path: Path) -> N
     out = FLAC(p)
     assert out["album"] == ["Modal Soul"] and "comment" not in out
     assert out["replaygain_track_gain"] == ["-6.5 dB"] and out["lyrics"] == ["la la"]
+    assert out["r128_track_gain"] == ["-512"]
     assert out["musicbrainz_artistid"] == ["a1", "a2", "a3"]
     assert [x.data for x in out.pictures] == [COVER]  # the peer's art is gone
 
