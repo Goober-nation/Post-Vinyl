@@ -82,7 +82,9 @@ async function draw(body: HTMLElement, which: "mine" | "install", me: Me): Promi
     save.disabled = reset.disabled = true;
 
     const sections = new Map<string, HTMLElement[]>();
-    for (const f of fields) {
+    for (const f0 of fields) {
+      // the downloads page size pages every list now, so it reads as one
+      const f = f0.key === "downloads.page_size" ? { ...f0, section: "lists", help: "Rows per page in every list." } : f0;
       const control = controlFor(f, values[f.key], (v) => changed(f.key, v));
       const note = pending.includes(f.key) ? h("div", { class: "mt-1" }, state("Changed, waiting for a restart", "wait")) : "";
       const el = setting(label(f.key), f.help, h("div", {}, control, note), which === "install" && f.applies === "restart");
