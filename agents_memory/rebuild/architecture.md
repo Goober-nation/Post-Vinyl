@@ -66,8 +66,13 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
 - **Turning a source off never deletes data**: songs, identities, requests and files it
   produced stay; it just isn't asked any more. A request whose only download source is off
   waits (stays in its state) rather than failing.
-- **Every config file is YAML** (user, 2026-10-29): `config/post-vinyl.yaml` at
-  `PV_CONFIG_PATH`, documented by `config/post-vinyl.example.yaml`; secrets stay in `.env`.
+- **Every config file is YAML** (user, 2026-10-29): `post-vinyl.yaml` at `PV_CONFIG_PATH`,
+  documented by `config/post-vinyl.example.yaml`; secrets stay in `.env`.
+- **Folder names** (#118, user 2026-10-30): Post-Vinyl's own folders carry a joined `postvinyl`
+  prefix so they don't collide with other apps' on Docker Hub setups: host `./postvinyl_config`,
+  `./postvinyl_data`; container `/postvinyl/config`, `/postvinyl/data`; the image defaults
+  `PV_CONFIG_PATH` and `PV_DB_PATH` to files in them. Navidrome's and slskd's folders keep their
+  names. Every env value can be set in `.env` or the compose `environment:` (secrets in `.env`).
   The env-only startup values move into it with the config redesign.
 - **Catalog service (#95, user 2026-10-29)**: a typed search goes to the user's catalog sources in
   order and the **first source that answers with results** is shown; `resolve` stores **only the

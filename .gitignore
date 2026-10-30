@@ -11,6 +11,10 @@ __pycache__/
 # kept fully separate so tests can never touch the real ones
 .env.test
 app_data_test/
+postvinyl_data/
+postvinyl_config/
+postvinyl_data_test/
+postvinyl_config_test/
 navidrome_data_test*/
 slskd_config_test/
 config_test/

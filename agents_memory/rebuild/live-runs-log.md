@@ -82,3 +82,19 @@ setup could run on an empty Navidrome.
 
 Not verified: the server's own compose with the new `postvinyl` service and
 `ND_MUSICFOLDER=/music/library` (cutover); PowerShell.
+
+## 2026-10-30: folder names on the test stack (#118, branch rebuild/folder-names)
+
+- `docker compose config` resolves for the base compose, base + setup override (with
+  `.env.example`), the test compose and test + setup override (setup mounts
+  `./postvinyl_data_test`).
+- Test stack rebuilt on `./postvinyl_data_test` and `./postvinyl_config_test` (the old test
+  folders moved, database kept): healthy; inside, `PV_DB_PATH` and `PV_CONFIG_PATH` come from
+  the image defaults, `/app/data` and `/app/config` no longer exist; login 200; a settings write
+  landed in `postvinyl_config_test/post-vinyl.yaml` with its `.bak` (reverted after).
+- The image on an empty data folder with only env + mounts: starts, creates `post-vinyl.db`.
+- Found (for #115): with slskd unreachable the cleanup worker logs a full traceback every tick;
+  the app keeps running.
+
+Not run: first-admin setup on the new folders (the setup override's mount resolves to them;
+Navidrome already has its admin).

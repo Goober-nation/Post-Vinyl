@@ -82,23 +82,48 @@ endpoint, see [`docs/api.md`](docs/api.md). For running your own stack, see
 
 The same commands work in bash, PowerShell and the macOS terminal. Needs Docker Compose 2.24 or newer.
 
-1. Copy `.env.example` to `.env` and fill it in. `MUSIC_HOST_DIR` must be a folder that exists
-   (Docker silently mounts an empty one otherwise); `PV_PUBLIC_ORIGIN` is the address you open the
-   app at, e.g. `http://localhost:8092`. Generate `PV_SECRET_KEY` once and back it up outside the
-   database (losing it loses every stored secret):
+1. Create Post-Vinyl's two folders and its settings file (each value is explained in it):
+   ```bash
+   mkdir postvinyl_config postvinyl_data
+   cp config/post-vinyl.example.yaml postvinyl_config/post-vinyl.yaml
+   ```
+   On Linux, make both folders writable by UID 1000 (the container's user).
+2. Copy `.env.example` to `.env` and fill it in (table below). Generate `PV_SECRET_KEY` once and
+   back it up outside the database (losing it loses every stored secret):
    ```bash
    docker compose run --rm --no-deps postvinyl python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
    ```
-2. Copy `config/post-vinyl.example.yaml` to `config/post-vinyl.yaml` (each value is explained in it).
 3. Create the first admin (Navidrome's and Post-Vinyl's), once. Navidrome stays unpublished while it runs:
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.setup.yml run --rm setup
    docker compose down
    ```
-4. Start the stack:
+4. Start the stack and open `PV_PUBLIC_ORIGIN`:
    ```bash
    docker compose up -d
    ```
+
+### Environment variables
+
+Each can go in `.env` (read through `${...}` in `docker-compose.yml`) or straight into the service's
+`environment:` in `docker-compose.yml`. Keep secrets in `.env`, since compose files get copied and shared.
+
+| Variable | Needed | What it is |
+|---|---|---|
+| `MUSIC_HOST_DIR` | yes | Your music folder; must exist. Navidrome's library is its `library/` subfolder. |
+| `SLSKD_DOWNLOADS_DIR` | yes | Where slskd saves finished downloads inside `/music` (default in `.env.example`). |
+| `PV_SECRET_KEY` | yes, secret | Encrypts stored per-user secrets. |
+| `PV_PUBLIC_ORIGIN` | yes | The address people open the app at, `scheme://host[:port]`. |
+| `SLSKD_API_KEY` | yes, secret | Any long random string; slskd and Post-Vinyl share it. |
+| `SLSKD_NETWORK_USERNAME`, `SLSKD_NETWORK_PASSWORD` | yes, secret | Your Soulseek login; the first login registers the name. |
+| `SLSKD_UI_USERNAME`, `SLSKD_UI_PASSWORD` | yes, secret | slskd's own web UI login. |
+| `PV_DATA_DIR` | no | Host folder for the database (default `./postvinyl_data`). |
+| `PV_DEV` | no | `1` serves the API docs at `/docs`; leave empty in production. |
+| `LISTENBRAINZ_TOKEN` | no | Navidrome's own ListenBrainz scrobbling. |
+| `MUSICA_HTTP_PROXY`, `MUSICA_PROXY_*`, `NO_PROXY_LIST` | no | Optional SOCKS5 proxy for Navidrome. |
+
+Inside the container the app's folders are `/postvinyl/data` and `/postvinyl/config`; the image
+defaults `PV_DB_PATH` and `PV_CONFIG_PATH` to files in them.
 
 ## Tests
 

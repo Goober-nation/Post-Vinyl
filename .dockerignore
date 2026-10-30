@@ -3,6 +3,8 @@ __pycache__
 *.pyc
 data/
 app_data/
+postvinyl_data*/
+postvinyl_config*/
 .env
 config.toml
 .git
