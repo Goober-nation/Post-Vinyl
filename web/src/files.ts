@@ -81,11 +81,13 @@ export function filesPage(me: Me): HTMLElement {
   return h("div", {}, h("div", { class: "center-main" }, pageHead("Files", h("span", { class: "flex-1" }), refresh), form, list, pages), rail);
 }
 
+export const coverUrl = (songId: string, size: number) => `/api/library/files/${encodeURIComponent(songId)}/cover?size=${size}`;
 const length = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
 function fileRow(f: File, pick: () => void): HTMLElement {
   const r = row({
     title: f.title || "(no title)",
+    cover: f.has_cover ? coverUrl(f.id, 80) : undefined,
     artist: f.artist || "Unknown artist",
     album: f.album || undefined,
     extra: h("span", { class: "sub font-mono" }, `${length(f.duration)} · ${f.suffix.toUpperCase()}`),
@@ -120,6 +122,7 @@ function showFile(rail: HTMLElement, f: File, me: Me, reload: () => Promise<void
   rail.replaceChildren(
     railSection(
       "Selected",
+      f.has_cover && h("img", { src: coverUrl(f.id, 300), alt: `Cover of ${f.title}`, class: "mb-3 aspect-square w-full rounded-[6px] object-cover" }),
       h("div", { class: "title" }, f.title),
       h("div", { class: "sub" }, [f.artist, f.album].filter(Boolean).join(" · ")),
       h(

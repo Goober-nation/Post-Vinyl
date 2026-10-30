@@ -5,7 +5,8 @@
 // hash (#/downloads?state=…&page=…&everyone=1&id=…).
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
-import { button, confirm, filters, kv, pageHead, pager, pageSize, railSection, row, state, toast, type Tone } from "./ui";
+import { coverUrl } from "./files";
+import { button, confirm, cover, filters, kv, pageHead, pager, pageSize, railSection, row, state, toast, type Tone } from "./ui";
 
 const POLL_MS = 1500;
 type Item = Schemas["QueueItem"];
@@ -129,6 +130,7 @@ function itemRow(it: Item, selected: boolean, everyone: boolean): HTMLElement {
     title,
     artist: everyone ? `${it.artist ?? "Unknown artist"} · for ${it.username}` : (it.artist ?? "Unknown artist"),
     selected,
+    cover: it.library_id ? coverUrl(it.library_id, 80) : undefined,
     extra: h("span", { class: "sub font-mono" }, progressText(it) || (it.attempts > 1 ? `${it.attempts} peers tried` : "")),
     state: state(LABEL[it.state] ?? it.state, TONE[it.state] ?? "idle"),
     action: h("button", { type: "button", class: "icon-btn", "aria-label": `Details of ${title}`, onclick: () => go({ id: String(it.id) }) }, "›"),
@@ -152,6 +154,7 @@ function activityBar(running: Schemas["QueuePage"]): HTMLElement | string {
     "div",
     { class: "activity", "aria-label": "Downloading now" },
     h("span", { class: "state live text-live" }, h("span", { class: "rec", "aria-hidden": "true" })),
+    cover(now.title ?? "", now.library_id ? coverUrl(now.library_id, 80) : undefined),
     h("span", { class: "min-w-0 truncate" }, h("b", { class: "font-medium" }, now.title ?? "…"), h("span", { class: "text-muted" }, ` · ${now.artist ?? ""}`)),
     h("div", { class: "hidden h-[3px] max-w-90 flex-1 overflow-hidden rounded bg-base-300 md:block", role: "progressbar", "aria-valuenow": String(pct) }, h("span", { class: "block h-full bg-live", style: `width:${pct}%` })),
     h("span", { class: "font-mono text-muted" }, `${pct}%`),

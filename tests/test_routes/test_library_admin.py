@@ -193,6 +193,36 @@ def test_the_whole_library_is_listed_with_our_records_where_we_have_them(
     assert env.bob.get("/api/library/files", params={"q": "zzz"}).json()["total"] == 0
 
 
+# ------------------------------------------------------------ covers (#126)
+
+
+def test_a_cover_comes_from_navidrome_and_is_never_stored(env: Env) -> None:
+    sid = song_id(env)
+    assert env.bob.get(f"/api/library/files/{sid}/cover").status_code == 404  # none
+    env.nd.covers[sid] = b"\xff\xd8jpeg"
+    r = env.bob.get(f"/api/library/files/{sid}/cover", params={"size": 80})
+    assert (r.status_code, r.content, r.headers["content-type"]) == (
+        200, b"\xff\xd8jpeg", "image/jpeg")  # fmt: skip
+    assert r.headers["cache-control"].startswith("private")  # behind the login
+    assert (
+        env.bob.get(f"/api/library/files/{sid}/cover", params={"size": 5}).status_code
+        == 422
+    )
+    assert env.bob.get("/api/library/files/nope/cover").status_code == 404
+    with env.db.transaction() as conn:  # nothing written for it
+        assert conn.execute("SELECT COUNT(*) FROM file_management").fetchone()[0] == 0
+
+
+def test_a_download_carries_its_library_id_once_indexed(env: Env) -> None:
+    fid = track_by_us(env)
+    with env.db.transaction() as conn:
+        rec = conn.execute(
+            "SELECT * FROM file_management WHERE id = ?", (fid,)
+        ).fetchone()
+        [row] = DownloadsStore().queue_page(conn, None, None, 10, 0)
+    assert row.library_id == rec["navidrome_id"] == nd_id(HAND_ADDED)
+
+
 # ------------------------------------------------------------ rename
 
 

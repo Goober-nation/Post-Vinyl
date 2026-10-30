@@ -32,7 +32,13 @@ class QueueRow:
     track_state: str
     title: str | None
     artist: str | None
+    library_id: str | None = None  # Navidrome's id of the song's file, once indexed
 
+
+# the song's file as Navidrome lists it (its cover comes from there, #126)
+_LIBRARY_ID = """(SELECT f.navidrome_id FROM file_management f
+                 WHERE f.song_id = r.song_id AND f.navidrome_id IS NOT NULL
+                 ORDER BY f.id DESC LIMIT 1) AS library_id"""
 
 _QUEUE_SQL = """
     FROM downloads d
@@ -106,7 +112,7 @@ class DownloadsStore:
         rows = conn.execute(
             f"""SELECT d.id, d.request_id, r.user_id, u.username, d.source, d.state,
                        d.created_at, d.completed_at, r.track_state,
-                       s.title, s.artist_name AS artist
+                       s.title, s.artist_name AS artist, {_LIBRARY_ID}
                 {_QUEUE_SQL} ORDER BY d.id DESC LIMIT :limit OFFSET :offset""",
             {"user": user_id, "state": state, "id": None, "limit": limit,
              "offset": offset},
@@ -117,7 +123,7 @@ class DownloadsStore:
         row = conn.execute(
             f"""SELECT d.id, d.request_id, r.user_id, u.username, d.source, d.state,
                        d.created_at, d.completed_at, r.track_state,
-                       s.title, s.artist_name AS artist
+                       s.title, s.artist_name AS artist, {_LIBRARY_ID}
                 {_QUEUE_SQL}""",
             {"user": None, "state": None, "id": download_id},
         ).fetchone()

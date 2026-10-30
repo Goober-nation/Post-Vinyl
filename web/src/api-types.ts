@@ -587,6 +587,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/library/files/{song_id}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cover
+         * @description The song's cover from Navidrome, never stored (#126); 404 when it has none.
+         */
+        get: operations["cover_api_library_files__song_id__cover_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/credentials": {
         parameters: {
             query?: never;
@@ -848,6 +868,11 @@ export interface components {
             file_id: number | null;
             /** File State */
             file_state: string | null;
+            /**
+             * Has Cover
+             * @default false
+             */
+            has_cover: boolean;
         };
         /** LibraryPage */
         LibraryPage: {
@@ -961,6 +986,8 @@ export interface components {
             attempts: number;
             current: components["schemas"]["AttemptView"] | null;
             progress: components["schemas"]["Progress"] | null;
+            /** Library Id */
+            library_id?: string | null;
         };
         /** QueuePage */
         QueuePage: {
@@ -2296,6 +2323,46 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cover_api_library_files__song_id__cover_get: {
+        parameters: {
+            query?: {
+                size?: number;
+            };
+            header?: never;
+            path: {
+                song_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/*": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -92,7 +92,7 @@ A request is one song someone asked for, whatever started it. `track_state`: `re
 
 | Call | Who | Takes | Answers |
 |---|---|---|---|
-| `GET /api/downloads` | user | `state?` (`""` = all), `everyone?` (admins), `page`, `page_size?` | newest first: song, `track_state`, `state` (`queued`, `downloading`, `completed`, `failed`, `cancelled`), `attempts`, the running attempt (peer, peer path, rank) and its live `progress` (`state`, `bytes_transferred`, `size`, `average_speed`, `place_in_queue`). Without `state` / `page_size` the user's own defaults apply |
+| `GET /api/downloads` | user | `state?` (`""` = all), `everyone?` (admins), `page`, `page_size?` | newest first: song, `track_state`, `state` (`queued`, `downloading`, `completed`, `failed`, `cancelled`), `attempts`, the running attempt (peer, peer path, rank), `library_id` (the song's Navidrome id once its file is indexed: its cover) and its live `progress` (`state`, `bytes_transferred`, `size`, `average_speed`, `place_in_queue`). Without `state` / `page_size` the user's own defaults apply |
 | `GET /api/downloads/{download_id}` | owner, admin | | the same, every attempt with its `outcome`, and the peer is asked its queue place when the transfer waits in it |
 | `POST /api/downloads/{download_id}/next-peer` | owner, admin | | skips the running peer (not counted against it) and queues the next one; `409` when nothing is running |
 | `GET /api/admin/queue` | admin | | `{paused}` |
@@ -109,11 +109,12 @@ library.
 
 | Call | Who | Takes | Answers |
 |---|---|---|---|
-| `GET /api/library/files` | user | `q?` (title, album, artists), `page`, `page_size` | songs with `file_id` / `file_state` where Post-Vinyl downloaded them |
+| `GET /api/library/files` | user | `q?` (title, album, artists), `page`, `page_size` | songs with `has_cover`, and `file_id` / `file_state` where Post-Vinyl downloaded them |
 | `POST /api/library/files/{song_id}/rename` | admin | `{title, artist, album_artist?, album?, year?, track?, disc?}` | `{match, recording_id, release_id, via, tags, has_cover}` or `{match: false}` |
 | `POST /api/library/files/{song_id}/apply` | admin | `{recording_id, release_id}` | `{file}`: the song under its new id (`null` if Navidrome doesn't list it yet) |
 | `POST /api/library/files/{song_id}/strip` | admin | `{title, artist}` | `{file}` at `<artist>/<title>` |
 | `DELETE /api/library/files/{song_id}` | admin | | `204`; the file goes, Navidrome rescans; a later request downloads it again |
+| `GET /api/library/files/{song_id}/cover` | user | `size?` (32–600 px, default 160) | the song's cover image from Navidrome (`has_cover` on the song says it has one), cached a day by the browser; never stored; `404` when there is none |
 
 ## Administering
 

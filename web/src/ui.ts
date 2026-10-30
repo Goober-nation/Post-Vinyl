@@ -60,12 +60,49 @@ export function tag(text: string, tone?: Tone): HTMLElement {
   return h("span", { class: tone ? `tag ${TONE[tone]}` : "tag" }, text);
 }
 
-/** The cover's colour, or initials until covers come from Navidrome. */
-export function cover(title: string, art?: string): HTMLElement {
-  if (art) return h("span", { class: "cover", style: `--art:${art}`, "aria-hidden": "true" });
+/** Initials, with the cover image over them once it loads (`src`, from
+ *  Post-Vinyl only); the cover's colour then tints its row (`--art`). */
+export function cover(title: string, src?: string): HTMLElement {
   const words = title.replace(/[^\p{L}\p{N}\s]/gu, "").split(/\s+/).filter(Boolean);
   const initials = words.map((w) => w[0]).join("").slice(0, 2);
-  return h("span", { class: "cover", "aria-hidden": "true" }, initials.toUpperCase());
+  const el = h("span", { class: "cover relative overflow-hidden", "aria-hidden": "true" }, initials.toUpperCase());
+  if (src) {
+    const img = h("img", { src, alt: "", loading: "lazy", decoding: "async", class: "absolute inset-0 size-full object-cover opacity-0 transition-opacity" });
+    img.addEventListener("load", () => {
+      img.classList.remove("opacity-0");
+      const colour = coverColour(img);
+      const holder = el.closest<HTMLElement>(".row, .activity");
+      if (colour && holder) holder.style.setProperty("--art", colour);
+    });
+    img.addEventListener("error", () => img.remove()); // no cover: the initials stay
+    el.append(img);
+  }
+  return el;
+}
+
+/** The cover's main colour, read in the browser: the average of a tiny copy,
+ *  without near-black and near-white pixels, darkened a little to sit in the
+ *  dark theme. Same-origin images only, so the canvas stays readable. */
+function coverColour(img: HTMLImageElement): string | null {
+  try {
+    const c = document.createElement("canvas");
+    c.width = c.height = 12;
+    const g = c.getContext("2d", { willReadFrequently: true });
+    if (!g) return null;
+    g.drawImage(img, 0, 0, 12, 12);
+    const px = g.getImageData(0, 0, 12, 12).data;
+    let r = 0, gr = 0, b = 0, n = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      const lum = (px[i] + px[i + 1] + px[i + 2]) / 3;
+      if (lum < 24 || lum > 232) continue;
+      r += px[i]; gr += px[i + 1]; b += px[i + 2]; n++;
+    }
+    if (!n) return null;
+    const k = 0.85 / n;
+    return `rgb(${Math.round(r * k)} ${Math.round(gr * k)} ${Math.round(b * k)})`;
+  } catch {
+    return null;
+  }
 }
 
 /** Transfer progress as words: "62% · 1.2 MB/s". */
@@ -82,6 +119,7 @@ export function row(opts: {
   album?: string;
   side?: string;
   art?: string;
+  cover?: string; // image URL, Post-Vinyl's own
   selected?: boolean;
   extra?: Child;
   state?: Child;
@@ -90,7 +128,7 @@ export function row(opts: {
   return h(
     "div",
     { class: opts.selected ? "row selected" : "row", style: opts.art ? `--art:${opts.art}` : false },
-    cover(opts.title, opts.art),
+    cover(opts.title, opts.cover),
     h(
       "div",
       { class: "min-w-0" },

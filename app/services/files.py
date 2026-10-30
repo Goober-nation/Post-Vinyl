@@ -36,6 +36,7 @@ import mutagen
 from mutagen.flac import FLAC
 
 from app.clients.navidrome import (
+    Cover,
     NavidromeAuthError,
     NavidromeClientBase,
     NavidromeError,
@@ -383,6 +384,16 @@ class FilesService(FilesServiceBase):
         except NavidromeNotFound as e:
             raise LibraryFileNotFound(f"no library song {navidrome_id}") from e
         return song
+
+    def cover(self, navidrome_id: str, size: int) -> Cover | None:
+        """The song's cover from Navidrome (it owns the art; nothing is kept)."""
+        try:
+            cover: Cover = self._call(
+                lambda s: self._nd.cover_art(s, navidrome_id, size)
+            )
+        except NavidromeNotFound:
+            return None
+        return cover
 
     def library_path(self, song: LibrarySong) -> Path:
         """Our path for a library song; never anything outside the library."""
