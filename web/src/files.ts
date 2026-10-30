@@ -9,7 +9,7 @@ import { button, confirm, kv, pageHead, pager, railSection, row, state, tag, toa
 
 type File = Schemas["LibraryFile"];
 type Me = Schemas["Me"];
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 const REFRESH_MS = 30_000;
 
 function params(): URLSearchParams {
