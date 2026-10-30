@@ -471,6 +471,7 @@ class FilesService(FilesServiceBase):
             except NavidromeAuthError:
                 if retry:
                     raise
+                log.info("Navidrome session expired; logging in again")
         raise NavidromeError("unreachable")
 
     def _login(self) -> Session:

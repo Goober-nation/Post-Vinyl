@@ -189,3 +189,32 @@ Not verified (reasons in unverified-live.md): a parent lost while slskd stays up
 account, a crash while slskd is up, slskd refusing a query, a cancelled search that never
 ends, a ban expiring, a peer going offline mid-transfer, slskd's own resume live, a peer
 erroring on the queue-place ask.
+
+## 2026-10-30: two users at once and a 1 h run, separate instance on the server (#116)
+
+A separate instance in its own project folder on the server, own containers and ports, music
+inside the folder, env from `.env.test`; Navidrome data copied from the test stack (admin + a
+second, non-admin test user); its own Soulseek proxy and gost proxy (MusicBrainz and
+ListenBrainz are blocked from that host); the local test stack stopped (same Soulseek account).
+Short worker intervals; a watcher on the server appended one JSON line a minute
+(`run/observations.jsonl`) so a crash would keep what was seen.
+
+Smoke test first: ping, both logins (admin / non-admin), MusicBrainz through the proxy,
+Navidrome library listed, slskd 0.26.2 logged in, no errors in the log.
+
+Verified:
+- Per-user sources: the second user with MusicBrainz and ListenBrainz off searched via Deezer;
+  storing a ListenBrainz token → 409 SourceOff for that user only; with their download source
+  off their requests waited in `requested` while the admin's searched and downloaded. Turned
+  back on, both were downloading within 30 s and ended downloaded and indexed.
+- No cross-user leaks: the user reading or dropping the admin's request → 404; their request
+  list held only their own; `everyone` downloads → 403 for them, all 4 for the admin.
+- 60 minutes: 60 observations, the app running with 0 restarts, slskd healthy, 0 tracebacks,
+  0 errors; 4 requests downloaded and indexed (Windowlicker, Hyperballad, Midnight City,
+  Strobe as WAV).
+- Navidrome sessions: with `ND_SESSIONTIMEOUT=30m` none expired, because each Navidrome answer
+  refreshes the token and the missing check calls Navidrome every 5 min. Forced with a 2 min
+  timeout: "Navidrome session expired; logging in again" (log line added for this run) and the
+  call went through.
+
+Not verified: runs of many hours; slskd keeping searches for days.

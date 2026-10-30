@@ -66,7 +66,5 @@ MusicBrainz / ListenBrainz / Deezer / Cover Art Archive. Versions: `work-plan.md
   (9) was listed on the first scan; can't be forced without a scan that ends early.
 
 ## Across the loop
-- [ ] **Several users at once** (per-user source preferences, requests and LB tokens ran
-  live with one user only).
-- [ ] **Long runs**: hours of workers ticking, Navidrome sessions expiring for real (only a
-  forced expiry ran live), and slskd keeping searches for days.
+- [ ] **Runs of many hours and slskd keeping searches for days**: #116 ran 1 h (user
+  2026-10-30); a session refreshed by use never expires, a forced idle expiry re-logged in.
