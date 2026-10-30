@@ -27,8 +27,7 @@ services:
     depends_on:
       - navidrome
     environment:
-      - PV_DB_PATH=/app/data/post-vinyl.db
       - PV_NAVIDROME_URL=http://localhost:4533
       - PV_SECRET_KEY=${PV_SECRET_KEY}
     volumes:
-      - ${PV_DATA_DIR:-./app_data}:/app/data
+      - ${PV_DATA_DIR:-./postvinyl_data}:/postvinyl/data

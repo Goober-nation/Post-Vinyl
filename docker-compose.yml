@@ -1,7 +1,5 @@
-# Secrets/host paths (${MUSIC_HOST_DIR}, ${NAVIDROME_USERNAME}, etc.) come
-# from .env, auto-loaded by `docker compose` from this directory
-
-# Copy .env.example to .env and fill in real values first.
+# ${...} values come from .env (auto-loaded from this folder; see .env.example).
+# Any of them can instead be written here directly; keep secrets in .env.
 
 services:
   navidrome:
@@ -81,19 +79,17 @@ services:
     ports:
       - "8092:8000"
     environment:
-      - PV_DB_PATH=/app/data/post-vinyl.db
       - PV_NAVIDROME_URL=http://navidrome:4533
       - PV_PUBLIC_ORIGIN=${PV_PUBLIC_ORIGIN}
       - PV_DEV=${PV_DEV}
-      - PV_CONFIG_PATH=/app/config/post-vinyl.yaml
       - PV_SLSKD_URL=http://slskd:5030
       - PV_SLSKD_API_KEY=${SLSKD_API_KEY}
       - PV_SECRET_KEY=${PV_SECRET_KEY}
     volumes:
       - ${MUSIC_HOST_DIR}:/music:rw
-      - ${PV_DATA_DIR:-./app_data}:/app/data
+      - ${PV_DATA_DIR:-./postvinyl_data}:/postvinyl/data
       # a folder, not the file: settings writes replace it and keep a .bak beside it
-      - ./config:/app/config
+      - ./postvinyl_config:/postvinyl/config
     networks:
       - music-net
     depends_on:

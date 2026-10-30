@@ -14,11 +14,15 @@ WORKDIR /app
 COPY --from=builder /root/.local /home/postvinyl/.local
 COPY app/ ./app/
 
-RUN mkdir -p /app/data && chown -R postvinyl:postvinyl /app /home/postvinyl/.local
+# Post-Vinyl's own folders, named so they don't collide with other apps' (#118)
+RUN mkdir -p /postvinyl/data /postvinyl/config \
+    && chown -R postvinyl:postvinyl /app /postvinyl /home/postvinyl/.local
 
 USER postvinyl
 ENV PATH=/home/postvinyl/.local/bin:$PATH \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PV_DB_PATH=/postvinyl/data/post-vinyl.db \
+    PV_CONFIG_PATH=/postvinyl/config/post-vinyl.yaml
 
 EXPOSE 8000
 
