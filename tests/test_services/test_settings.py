@@ -21,7 +21,7 @@ from app.services.sources import SourcePreferences
 from app.stores.database import Database
 from app.stores.users import UsersStore
 
-EXAMPLE = Path(__file__).parents[2] / "config" / "post-vinyl.example.yaml"
+EXAMPLE = Path(__file__).parents[2] / "post-vinyl.example.yaml"
 NOW = 1_800_000_000
 
 
