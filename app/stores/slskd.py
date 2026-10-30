@@ -115,9 +115,11 @@ class SlskdStore:
         return [SlskdAttempt(**r) for r in rows]
 
     def tried_usernames(self, conn: sqlite3.Connection, download_id: int) -> set[str]:
-        """Peers already tried for this download; peer selection skips them."""
+        """Peers already tried for this download; peer selection skips them. An
+        interrupted attempt (slskd's fault, not the peer's) doesn't count."""
         rows = conn.execute(
-            "SELECT DISTINCT username FROM slskd_attempts WHERE download_id = ?",
+            """SELECT DISTINCT username FROM slskd_attempts WHERE download_id = ?
+               AND outcome IS NOT 'interrupted'""",
             (download_id,),
         )
         return {r["username"] for r in rows}

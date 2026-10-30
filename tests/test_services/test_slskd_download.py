@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from app.clients.slskd import PeerFile, PeerResponse, SlskdNotFound
+from app.clients.slskd import AppState, PeerFile, PeerResponse, SlskdNotFound
 from app.clients.slskd_fake import FakeSlskdClient
 from app.config import SlskdSettings
 from app.services.slskd_download import SlskdDownloader, local_name, transfer_phase
@@ -189,6 +189,90 @@ def test_offline_peer_and_refused_file_fail_at_once(tmp_path: Path) -> None:
     assert [(a.username, a.outcome) for a in c.attempts()] == [
         ("p0", "failed"), ("p1", "failed"), ("p2", None),
     ]  # fmt: skip
+
+
+def test_slskd_shutting_down_is_nobodys_fault(tmp_path: Path) -> None:
+    """Live #115: a restarted slskd cut the transfer off and refused the next
+    queue while logged out; both peers got blamed and two candidates went."""
+    c = build(tmp_path, PEERS)
+    c.dl.start(c.req)
+    tid = c.attempts()[-1].transfer_id
+    assert tid is not None
+    c.slskd.transfers[tid] = replace(c.slskd.transfers[tid], state="Completed, Errored",
+                                     exception="Application shut down")  # fmt: skip
+    c.slskd.state = AppState(logged_in=False, has_parent=False)  # restarting
+    c.tick(2)
+    c.tick(2)  # not logged in yet: nothing read, nothing queued
+    assert [(a.username, a.outcome) for a in c.attempts()] == [("p0", None)]
+    assert c.state() == "midDownload"
+    c.slskd.state = AppState(logged_in=True, has_parent=True)
+    c.tick(2)  # back: the cut-off attempt is nobody's fault, the same file again
+    assert [(a.username, a.outcome) for a in c.attempts()] == [
+        ("p0", "interrupted"), ("p0", None),
+    ]  # fmt: skip
+    with c.db.transaction() as conn:
+        assert SlskdStore().get_peer(conn, "p0") is None  # not blamed
+
+
+def test_slskds_own_resume_is_forgotten_and_the_file_queued_again(
+    tmp_path: Path,
+) -> None:
+    """Live #115: slskd 0.26.2 requests a cut-off file again when it starts, but
+    saves it outside our attempt folder."""
+    c = build(tmp_path, PEERS)
+    c.dl.start(c.req)
+    tid = c.attempts()[-1].transfer_id
+    assert tid is not None
+    old = c.slskd.transfers[tid]
+    c.slskd.transfers[tid] = replace(old, state="Completed, Errored",
+                                     exception="Application shut down")  # fmt: skip
+    c.slskd.transfers["resumed"] = replace(old, id="resumed", state="InProgress")
+    c.tick(2)
+    assert "resumed" not in c.slskd.transfers
+    assert [(a.username, a.outcome) for a in c.attempts()] == [
+        ("p0", "interrupted"), ("p0", None),
+    ]  # fmt: skip
+
+
+def test_slskd_logging_out_as_a_file_is_queued_interrupts(tmp_path: Path) -> None:
+    c = build(tmp_path, PEERS)
+    c.slskd.log_out_on_queue = True
+    c.dl.start(c.req)
+    assert [(a.username, a.outcome) for a in c.attempts()] == [("p0", "interrupted")]
+    c.slskd.log_out_on_queue = False
+    c.slskd.state = AppState(logged_in=True, has_parent=True)
+    c.tick(2)
+    assert [(a.username, a.outcome) for a in c.attempts()][-1] == ("p0", None)
+
+
+def test_a_poll_during_start_never_queues_the_file_twice(tmp_path: Path) -> None:
+    """Live #115: the monitor polled between the row and its first attempt, saw
+    a download with no attempt and queued it again."""
+    c = build(tmp_path, PEERS)
+    polls: list[threading.Thread] = []
+
+    def poll_now() -> None:
+        c.slskd.on_app_state = None
+        polls.append(threading.Thread(target=c.dl.poll))
+        polls[0].start()
+        polls[0].join(timeout=0.3)  # without the lock it queues here
+
+    c.slskd.on_app_state = poll_now  # after the row, before the attempt
+    c.dl.start(c.req)
+    polls[0].join()
+    assert [(a.username, a.outcome) for a in c.attempts()] == [("p0", None)]
+    assert len(c.slskd.transfers) == 1
+
+
+def test_a_pick_made_while_slskd_is_logged_out_waits(tmp_path: Path) -> None:
+    c = build(tmp_path, PEERS)
+    c.slskd.state = AppState(logged_in=False, has_parent=False)
+    c.dl.start(c.req)
+    c.tick(2)
+    assert c.attempts() == [] and c.state() == "midDownload"
+    c.slskd.state = AppState(logged_in=True, has_parent=True)
+    c.tick(2)
+    assert [(a.username, a.outcome) for a in c.attempts()] == [("p0", None)]
 
 
 # ------------------------------------------------------------ giving up

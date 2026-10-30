@@ -8,6 +8,8 @@ on each scan (the same path keeps its id, as Navidrome 0.64.2 does).
 from __future__ import annotations
 
 import hashlib
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,6 +60,7 @@ class IndexingNavidrome(FakeNavidromeClient):
     def __init__(self, users: dict[str, tuple[str, bool]], library: Path) -> None:
         super().__init__(users)
         self.library = library
+        self.after_scan: Callable[[], None] | None = None  # runs mid-rename
 
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:
         self.songs = {}
@@ -71,6 +74,8 @@ class IndexingNavidrome(FakeNavidromeClient):
                 nd_id(rel), rel, "/music/library", title or p.stem, artist, album,
                 175.0, p.stat().st_size, "flac", False,
             )  # fmt: skip
+        if self.after_scan:
+            self.after_scan()
         return super().start_scan(session, full)
 
 
@@ -111,6 +116,7 @@ class Env:
     prefs: SourcePreferences
     box: SecretBox
     alice_id: int
+    files: FilesService
 
 
 @pytest.fixture
@@ -149,7 +155,7 @@ def env(tmp_path: Path) -> Env:
     with db.transaction() as conn:
         u = UsersStore().get_by_username(conn, "alice")
     assert u is not None
-    return Env(alice, bob, db, library, nd, lb, prefs, box, u.id)
+    return Env(alice, bob, db, library, nd, lb, prefs, box, u.id, files)
 
 
 def song_id(env: Env) -> str:
@@ -247,6 +253,28 @@ def test_no_match_then_strip_moves_by_the_new_names(env: Env) -> None:
                        json={"title": "Nothing Like It", "artist": "Nobody"}, headers=SAME)  # fmt: skip
     assert r.json()["file"]["id"] == nd_id("Nobody/Nothing Like It.flac")
     assert not (FLAC(env.library / "Nobody/Nothing Like It.flac").tags or {})
+
+
+def test_the_missing_check_waits_for_a_rename_in_progress(env: Env) -> None:
+    """Live #114: the hourly check ran during a rename's rescan, saw the old id
+    gone and marked the just-renamed file missing."""
+    file_id, sid = track_by_us(env), song_id(env)
+    check = threading.Thread(target=env.files.check_missing, args=(file_id,))
+
+    def check_now() -> None:  # the old id is gone from Navidrome by now
+        env.nd.after_scan = None
+        check.start()
+        check.join(timeout=0.5)  # without the lock it finishes here
+
+    env.nd.after_scan = check_now
+    r = env.alice.post(f"/api/library/files/{sid}/strip",
+                       json={"title": "Feather", "artist": "Nujabes"}, headers=SAME)  # fmt: skip
+    assert r.status_code == 200
+    check.join()
+    with env.db.transaction() as conn:
+        rec = FilesStore().get(conn, file_id)
+    assert rec is not None and rec.file_state == "indexed"
+    assert rec.navidrome_id == nd_id("Nujabes/Feather.flac")
 
 
 def test_apply_refuses_a_release_that_isnt_the_recordings(env: Env) -> None:

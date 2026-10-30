@@ -20,6 +20,14 @@ completed download clears the peer's record. ``next_peer`` (the user skips
 the running attempt, #111) ends it as ``skipped``: the peer isn't blamed, and
 the next candidate is queued like after a failure.
 
+slskd itself going away (live #115) is nobody's fault: while slskd isn't logged
+in nothing is queued (the download waits; ``poll`` queues it once slskd is
+back). An attempt cut off by slskd ("Application shut down", or queueing
+refused while logged out) ends ``interrupted``: not blamed, no candidate used
+up, the same file queued again into its own folder (the copy slskd resumes by
+itself on startup lacks that folder and is forgotten). An outage is logged
+once, not every poll.
+
 Each attempt saves into its own folder, ``post-vinyl/<download>/<attempt>``,
 passed to slskd as the batch destination, so ``file_location`` is known
 exactly (slskd 0.26.1: destination + the remote file's sanitized base name).
@@ -29,6 +37,7 @@ Transfers this app didn't start are never looked at: only attempts in the DB.
 from __future__ import annotations
 
 import logging
+import sqlite3
 import threading
 import time
 from collections.abc import Callable
@@ -55,6 +64,12 @@ def local_name(remote_filename: str) -> str:
     Linux): the last segment split on both slashes, NUL replaced, "."/".." → "_"."""
     name = remote_filename.replace("\\", "/").rsplit("/", 1)[-1].replace("\0", "_")
     return "_" if name in (".", "..") else name
+
+
+def retry_of(attempt: SlskdAttempt) -> Candidate:
+    """An interrupted attempt's file, to queue again as it was."""
+    return Candidate(attempt.username, attempt.filename, attempt.size, None, None,
+                     None, None, False, 0, attempt.search_id)  # fmt: skip
 
 
 def destination(download_id: int, attempt_id: int) -> str:
@@ -100,12 +115,28 @@ class SlskdDownloader:
         self._songs = SongsStore()
         self._watch: dict[int, _Watch] = {}  # attempt id → progress
         self._lock = threading.Lock()  # poll and start may run on different threads
+        self._down = False  # slskd unreachable or logged out: logged once
 
     def _now(self) -> int:
         return int(self._wall())
 
     def _ban_cutoff(self) -> int:
         return self._now() - self._settings.peer_ban_days * 86_400
+
+    def _slskd_up(self) -> bool:
+        """slskd answers and is logged in; an outage is logged when it starts and ends."""
+        try:
+            up = self._client.app_state().logged_in
+            reason = "logged out"
+        except SlskdError as e:
+            up, reason = False, str(e)
+        if up != (not self._down):
+            self._down = not up
+            if up:
+                log.info("slskd is back: downloads carry on")
+            else:
+                log.warning("slskd unavailable (%s): downloads wait", reason)
+        return up
 
     # ------------------------------------------------------------ start
 
@@ -114,15 +145,18 @@ class SlskdDownloader:
         the request moved meanwhile (e.g. dropped). ``pinned``: a file the user
         picked (#108), tried first; the request has no searches of its own, so
         there is no other candidate after it."""
-        with self._lock, self._db.transaction(write=True) as conn:
-            req = self._requests.get(conn, request_id)
-            if req is None or req.track_state != "found":
-                return False
-            row = self._downloads.create(conn, request_id, "slskd", self._now())
-            self._requests.set_track_state(
-                conn, request_id, states.start_download("found"), expected="found"
-            )
-        self._next(row.id, request_id, pinned)
+        # one lock for the row and its first queueing: a poll in between would
+        # see a download with no attempt and queue it twice (live #115)
+        with self._lock:
+            with self._db.transaction(write=True) as conn:
+                req = self._requests.get(conn, request_id)
+                if req is None or req.track_state != "found":
+                    return False
+                row = self._downloads.create(conn, request_id, "slskd", self._now())
+                self._requests.set_track_state(
+                    conn, request_id, states.start_download("found"), expected="found"
+                )
+            self._next(row.id, request_id, pinned)
         return True
 
     def _candidates(self, download_id: int, request_id: int) -> list[Candidate]:
@@ -144,15 +178,20 @@ class SlskdDownloader:
     ) -> None:
         """Queue the next candidate, or end the download when none is left."""
         while True:
+            if not self._slskd_up():
+                return None  # waits; poll queues it once slskd is back
             with self._db.transaction() as conn:
                 attempts = self._store.attempts_for_download(conn, download_id)
-            if len(attempts) >= self._settings.candidates_per_download:
-                return self._give_up(download_id, request_id, attempts)
-            cands = (
-                [pinned]
-                if pinned and not attempts
-                else self._candidates(download_id, request_id)
-            )
+            used = [a for a in attempts if a.outcome != "interrupted"]
+            if len(used) >= self._settings.candidates_per_download:
+                return self._give_up(download_id, request_id, used)
+            last = attempts[-1] if attempts else None
+            if last is not None and last.outcome == "interrupted":
+                cands = [retry_of(last)]  # the same file again
+            elif pinned and not attempts:
+                cands = [pinned]
+            else:
+                cands = self._candidates(download_id, request_id)
             if not cands:
                 return self._give_up(download_id, request_id, attempts)
             cand = cands[0]
@@ -171,7 +210,7 @@ class SlskdDownloader:
             except SlskdError as e:  # peer offline, slskd refused, …
                 log.info("download %s: queueing from %s failed: %s", download_id,
                          cand.username, e)  # fmt: skip
-                self._end(attempt, "failed")
+                self._end(attempt, "failed" if self._slskd_up() else "interrupted")
                 continue
             transfer = next(
                 (t for t in result.transfers if t.filename == cand.filename), None
@@ -199,7 +238,7 @@ class SlskdDownloader:
             if outcome == "completed":
                 self._store.clear_peer(conn, attempt.username)
                 return
-            if outcome == "skipped":  # the user's choice, not the peer's fault
+            if outcome in ("skipped", "interrupted"):  # not the peer's fault
                 return
             failures = self._store.record_peer_failure(conn, attempt.username)
             if failures >= self._settings.peer_ban_failures:
@@ -263,10 +302,14 @@ class SlskdDownloader:
     # ------------------------------------------------------------ polling
 
     def poll(self) -> None:
-        """One round over every running attempt (the download monitor's tick)."""
+        """One round over every running attempt (the download monitor's tick), then
+        the downloads that waited for slskd."""
         with self._lock:
             with self._db.transaction() as conn:
                 running = self._store.running_attempts(conn)
+                waiting = self._waiting(conn)
+            if (running or waiting) and not self._slskd_up():
+                return  # nothing readable; logged once
             for attempt in running:
                 if attempt.transfer_id is None:
                     continue  # being queued right now
@@ -278,6 +321,22 @@ class SlskdDownloader:
                     log.info("transfer %s unreadable: %s", attempt.transfer_id, e)
                     continue
                 self._follow(attempt, transfer)
+            for download_id, request_id in waiting:
+                self._next(download_id, request_id)
+
+    def _waiting(self, conn: sqlite3.Connection) -> list[tuple[int, int]]:
+        """Running downloads with no running attempt: they waited for slskd."""
+        out = []
+        for state in ("queued", "downloading"):
+            for d in self._downloads.in_state(conn, state, "slskd"):
+                req = self._requests.get(conn, d.request_id)
+                if (
+                    req is not None
+                    and req.track_state == "midDownload"
+                    and (self._store.running_for_download(conn, d.id) is None)
+                ):
+                    out.append((d.id, d.request_id))
+        return out
 
     def _follow(self, attempt: SlskdAttempt, transfer: Transfer) -> None:
         with self._db.transaction() as conn:
@@ -301,7 +360,11 @@ class SlskdDownloader:
         if phase == "failed":
             log.info("attempt %s failed at slskd: %s %s", attempt.id, transfer.state,
                      transfer.exception)  # fmt: skip
-            outcome = "failed"
+            # slskd 0.26.2's text for transfers it cut off when it stopped
+            shut_down = transfer.exception == "Application shut down"
+            if shut_down:
+                self._cancel_resumed(attempt)
+            outcome = "interrupted" if shut_down else "failed"
         elif phase == "queued" and not watch.samples:
             # a file the user picked waits in the peer's queue as long as it
             # takes: it has no other candidate (user, 2026-10-30, #108)
@@ -316,11 +379,34 @@ class SlskdDownloader:
             outcome = stall_outcome(watch.samples, now)
         if outcome is None:
             return None
-        if outcome != "failed":
+        if outcome not in ("failed", "interrupted"):
             self._cancel(attempt)
         self._end(attempt, outcome)
         self._next(download.id, req.id)
         return None
+
+    def _cancel_resumed(self, attempt: SlskdAttempt) -> None:
+        """slskd 0.26.2 requests a cut-off file again by itself when it starts,
+        without our destination folder (live #115: it saved to
+        ``<peer>/<remote folder>/``). Forget that copy, so ours can be queued."""
+        try:
+            transfers = self._client.list_downloads()
+        except SlskdError:
+            return
+        for t in transfers:
+            if (
+                t.id != attempt.transfer_id
+                and t.username == attempt.username
+                and t.filename == attempt.filename
+                and transfer_phase(t.state) != "done"
+            ):
+                try:
+                    self._client.cancel_download(t.username, t.id, forget=True)
+                    log.info(
+                        "attempt %s: forgot slskd's own resume %s", attempt.id, t.id
+                    )
+                except SlskdError as e:
+                    log.info("forgetting slskd's resume %s failed: %s", t.id, e)
 
     def _complete(
         self, attempt: SlskdAttempt, download_id: int, request_id: int

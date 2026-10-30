@@ -326,16 +326,9 @@ def test_every_foreign_key_column_is_indexed(conn: sqlite3.Connection) -> None:
     assert missing == []
 
 
-def test_002_keeps_attempts_and_their_id_counter_and_allows_skipped(
-    tmp_path: Path,
-) -> None:
-    first = tmp_path / "m"
-    first.mkdir()
-    (first / "001_initial.sql").write_text(
-        (MIGRATIONS_DIR / "001_initial.sql").read_text(encoding="utf-8")
-    )
+def test_attempt_outcomes(tmp_path: Path) -> None:
     db = Database(tmp_path / "pv.db")
-    assert db.migrate(first) == 1
+    db.migrate()
     c = db.connect()
     request = add_request(c, add_user(c), add_song(c))
     download = add_download(c, request)
@@ -345,19 +338,15 @@ def test_002_keeps_attempts_and_their_id_counter_and_allows_skipped(
         "INSERT INTO slskd_attempts (download_id, search_id, rank, username, filename,"
         " size, outcome, started_at, ended_at) VALUES (?, 's1', 0, 'peer', 'f', 1, ?, ?, ?)"
     )
-    for _ in range(3):
-        c.execute(insert, (download, "failed", NOW, NOW))
-    c.execute("DELETE FROM slskd_attempts WHERE id = 3")  # its folder may still exist
-    c.commit()
-    c.close()
-    assert db.migrate() == LATEST
-    c = db.connect()
-    assert [r[0] for r in c.execute("SELECT id FROM slskd_attempts ORDER BY id")] == [
-        1,
-        2,
-    ]
-    new = c.execute(insert, (download, "skipped", NOW, NOW)).lastrowid
-    assert new == 4  # id 3 is never handed out again
+    for outcome in (
+        "completed",
+        "noStart",
+        "tooSlow",
+        "failed",
+        "skipped",
+        "interrupted",
+    ):
+        c.execute(insert, (download, outcome, NOW, NOW))
     with pytest.raises(sqlite3.IntegrityError):
         c.execute(insert, (download, "bogus", NOW, NOW))
     c.close()

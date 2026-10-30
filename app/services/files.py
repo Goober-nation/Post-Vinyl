@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 import re
 import shutil
+import threading
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -32,6 +33,7 @@ from pathlib import Path
 from typing import Any
 
 import mutagen
+from mutagen.flac import FLAC
 
 from app.clients.navidrome import (
     NavidromeAuthError,
@@ -54,6 +56,8 @@ log = logging.getLogger(__name__)
 
 SCAN_WAIT_S = 120
 SCAN_POLL_S = 2
+# a file smaller than this share of bitrate × length is cut off (tags only add)
+MIN_SIZE_RATIO = 0.8
 MAX_SEGMENT = 120  # characters per folder/file name
 _UNSAFE = re.compile(r"[\x00-\x1f/\\]")
 
@@ -165,6 +169,9 @@ class FilesService(FilesServiceBase):
         self._files = FilesStore()
         self._songs = SongsStore()
         self._session: Session | None = None
+        # moves, renames, deletes and the missing check one at a time: the check
+        # must never see a file between its move and our record of it (live #114)
+        self._placing = threading.Lock()
 
     def _now(self) -> int:
         return int(self._clock())
@@ -218,11 +225,24 @@ class FilesService(FilesServiceBase):
             and abs(audio.info.length - song.duration_s) > DURATION_TOLERANCE_S
         ):
             return "duration"
+        # the header's length can outlive a cut-off file (live #114: 4 KB read as
+        # 306 s); FLAC's bitrate comes from the file size, so it can't tell
+        bitrate = getattr(audio.info, "bitrate", 0) or 0
+        if (
+            not isinstance(audio, FLAC)
+            and bitrate
+            and path.stat().st_size < MIN_SIZE_RATIO * bitrate * audio.info.length / 8
+        ):
+            return "truncated"
         return None
 
     # ------------------------------------------------------------ move
 
     def move(self, file_id: int) -> bool:
+        with self._placing:
+            return self._move(file_id)
+
+    def _move(self, file_id: int) -> bool:
         rec, song = self._get(file_id)
         if rec.file_state not in ("verified", "tagged"):
             return False
@@ -318,6 +338,10 @@ class FilesService(FilesServiceBase):
     # ------------------------------------------------------------ missing
 
     def check_missing(self, file_id: int) -> bool:
+        with self._placing:
+            return self._check_missing(file_id)
+
+    def _check_missing(self, file_id: int) -> bool:
         """Before indexing: the file is gone from disk. Indexed: Navidrome no longer
         knows the id or reports the file missing (deleted outside Post-Vinyl)."""
         rec, _ = self._get(file_id)
@@ -370,6 +394,12 @@ class FilesService(FilesServiceBase):
     def re_place(
         self, navidrome_id: str, title: str, artist: str
     ) -> LibrarySong | None:
+        with self._placing:
+            return self._re_place(navidrome_id, title, artist)
+
+    def _re_place(
+        self, navidrome_id: str, title: str, artist: str
+    ) -> LibrarySong | None:
         """After a rename: move the file to where its tags put it (untagged:
         ``<artist>/<title>``), rescan, relink our record. Never overwrites."""
         song = self.library_song(navidrome_id)
@@ -401,6 +431,10 @@ class FilesService(FilesServiceBase):
         return new
 
     def delete_library_file(self, navidrome_id: str) -> None:
+        with self._placing:
+            self._delete_library_file(navidrome_id)
+
+    def _delete_library_file(self, navidrome_id: str) -> None:
         """Remove the file (inside the library only), mark our record deleted,
         rescan (user, 2026-10-30). A later request downloads the song again."""
         song = self.library_song(navidrome_id)

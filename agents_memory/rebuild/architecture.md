@@ -116,7 +116,8 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   credit line can't be split back reliably; with it the matcher rejected real files as
   `no_artist`). Added to `001_initial.sql` directly: nothing from the rebuild is deployed. A
   helpful peer's file: lossless first, then bitrate, then size. Candidates are never stored;
-  `candidates()` re-reads the request's slskd searches by id.
+  `candidates()` re-reads the request's slskd searches by id. A re-request is a fresh ask and
+  runs a new search (user, 2026-10-30, #114).
 - **Loop review fixes (user, 2026-10-29)**: **cancel = drop** (the request stays as `dropped`
   history; the search checks the state before every query, including the first). New
   transition **`searching` → `requested`** (`states.release`): a crashed search is released
@@ -152,7 +153,8 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   moving the new one. **Navidrome's music folder is the library only** (`ND_MUSICFOLDER=/music/library`;
   test stack switched, the server's compose left alone for now). Navidrome is reached as the
   first PV admin with their stored (encrypted) Navidrome password. A file failing verification
-  (not_found / not_audio / duration) keeps the code in `verification` and stays `downloaded`.
+  (not_found / not_audio / duration / truncated: smaller than 0.8 × bitrate × length, not for
+  FLAC; user 2026-10-30, #114) keeps the code in `verification` and stays `downloaded`.
   Folders are the YAML `files` section.
 - **Tagging (#104, user 2026-10-29)**: recording from `song_identity` (MBID) or ListenBrainz's
   name lookup with the **requester's** token (accepted when our main artist is in LB's credit

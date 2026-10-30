@@ -37,10 +37,18 @@ class SlskdCleanup:
         self._root = Path(settings.music_dir) / settings.slskd_downloads_dir
         self._ours = self._root / DESTINATION_ROOT
         self._store = SlskdStore()
+        self._down = False  # an outage is logged once
 
     def tick(self) -> int:
         """One round; returns how many transfers were forgotten."""
-        known = {t.id for t in self._client.list_downloads()}
+        try:
+            known = {t.id for t in self._client.list_downloads()}
+            self._down = False
+        except SlskdError as e:  # slskd down: tidy the disk, forget transfers later
+            if not self._down:
+                log.warning("slskd cleanup: can't list transfers (%s)", e)
+            self._down = True
+            known = set()
         with self._db.transaction() as conn:
             ended = self._store.ended_attempts(conn)
         forgotten = 0

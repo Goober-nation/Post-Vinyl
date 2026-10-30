@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 
 from app.clients.slskd import (
@@ -10,6 +11,7 @@ from app.clients.slskd import (
     QueueResult,
     SearchState,
     SlskdClientBase,
+    SlskdError,
     SlskdNotFound,
     Transfer,
 )
@@ -28,8 +30,12 @@ class FakeSlskdClient(SlskdClientBase):
         self.offline_peers: set[str] = set()
         self.destinations: list[str | None] = []
         self.places: dict[str, int] = {}  # transfer id → the peer's queue position
+        self.log_out_on_queue = False  # slskd going away just as a file is queued
+        self.on_app_state: Callable[[], None] | None = None  # runs inside app_state
 
     def app_state(self) -> AppState:
+        if self.on_app_state:
+            self.on_app_state()
         return self.state
 
     def start_search(self, query: str, response_limit: int, idle_timeout_s: int) -> str:
@@ -68,6 +74,13 @@ class FakeSlskdClient(SlskdClientBase):
         search_id: str | None = None,
         destination: str | None = None,
     ) -> QueueResult:
+        if self.log_out_on_queue:
+            self.state = AppState(logged_in=False, has_parent=False)
+        if not self.state.logged_in:  # what slskd 0.26.2 answered live (#115)
+            raise SlskdError(
+                'POST /transfers/downloads/batches: HTTP 500 "The server connection '
+                'must be connected and logged in"'
+            )
         if username in self.offline_peers:
             raise SlskdNotFound(f"User {username} appears to be offline")
         self.destinations.append(destination)
