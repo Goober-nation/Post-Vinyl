@@ -34,19 +34,6 @@
   --ok: #74b29f; --warn: #9097a3; --err: #d97b7b; --live: #e0a15a; /* warm: only for what is happening now */
   --wave: #2a303b; --wave-done: var(--accent);
 }
-[data-theme="light"] {
-  --bg: #f4f5f7;
-  --surface: #FFFFFF;
-  --surface-2: #eceef2;
-  --line: #dde1e7;
-  --text: #14181f;
-  --text-muted: #5a6270;
-  --accent: #2f5f94;
-  --accent-fill: #2f5f94;
-  --on-accent: #FFFFFF;
-  --ok: #217A63; --warn: #5a6270; --err: #B23A3A; --live: #9a5b12;
-  --wave: #cfd4dc; --wave-done: var(--accent);
-}
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 400 var(--text-md)/1.5 var(--font-ui); }
@@ -306,7 +293,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
     <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><b style="font-weight:500">Teardrop</b> <span class="muted">· Massive Attack</span></span>
     <div class="bar" aria-hidden="true"><span></span></div><span class="mono muted">62%</span></div>
   <span class="muted">3 downloading · 11 waiting</span>
-  <button class="icon-btn" id="theme" aria-label="Switch light/dark">◐</button>
+  
 </footer>
 
 <script>
@@ -354,7 +341,6 @@ function show() {
   document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === tab.dataset.s));
 }
 addEventListener("hashchange", show); show();
-document.getElementById("theme").onclick = () => { const r = document.documentElement; r.dataset.theme = r.dataset.theme === "dark" ? "light" : "dark"; };
 </script>
 </body>
 </html>

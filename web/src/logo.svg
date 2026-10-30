@@ -1,10 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 32 32">
-  <!-- Post-Vinyl mark: a square record with slightly rounded corners, two grooves, a warm label -->
-  <rect x="1" y="1" width="30" height="30" rx="4" fill="#2a2f39" stroke="#3a414d"/>
-  <g fill="none" stroke="#4a5260" stroke-width="1">
+  <!-- Post-Vinyl mark: a square record with slightly rounded corners, two grooves, a warm label.
+       Light sleeve-paper body with a dark rim, so it stands out on dark and light browser bars. -->
+  <rect x="1" y="1" width="30" height="30" rx="4" fill="#e6e0d2" stroke="#1f232b" stroke-width="1.2"/>
+  <g fill="none" stroke="#b3ab99" stroke-width="1">
     <rect x="4.5" y="4.5" width="23" height="23" rx="3"/>
     <rect x="8" y="8" width="16" height="16" rx="2"/>
   </g>
-  <circle cx="16" cy="16" r="6" fill="#e8aa62"/>
-  <circle cx="16" cy="16" r="1.4" fill="#2a2f39"/>
+  <circle cx="16" cy="16" r="6" fill="#d98a2b"/>
+  <circle cx="16" cy="16" r="1.4" fill="#1f232b"/>
 </svg>

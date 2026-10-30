@@ -23,7 +23,6 @@
 @plugin "daisyui/theme" {
   name: "harbour-dark";
   default: true;
-  prefersdark: true;
   color-scheme: dark;
   --color-base-100: #0c0e12; /* page */
   --color-base-200: #13161c; /* panels, row hover */
@@ -55,49 +54,11 @@
   --noise: 0;
 }
 
-@plugin "daisyui/theme" {
-  name: "harbour-light";
-  color-scheme: light;
-  --color-base-100: #f4f5f7;
-  --color-base-200: #ffffff;
-  --color-base-300: #eceef2;
-  --color-base-content: #14181f;
-  --color-primary: #2f5f94;
-  --color-primary-content: #ffffff;
-  --color-secondary: #eceef2;
-  --color-secondary-content: #14181f;
-  --color-accent: #2f5f94;
-  --color-accent-content: #ffffff;
-  --color-neutral: #dde1e7;
-  --color-neutral-content: #14181f;
-  --color-info: #2f5f94;
-  --color-info-content: #ffffff;
-  --color-success: #217a63;
-  --color-success-content: #ffffff;
-  --color-warning: #91661a;
-  --color-warning-content: #ffffff;
-  --color-error: #b23a3a;
-  --color-error-content: #ffffff;
-  --radius-selector: 3px;
-  --radius-field: 3px;
-  --radius-box: 6px;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 0;
-  --noise: 0;
-}
-
 /* Tokens daisyUI has no slot for */
-[data-theme="harbour-dark"], :root:not([data-theme]) {
+:root {
   --live: #e0a15a; /* warm: only for what is happening now */
   --line: #262b35;
   --muted: #9097a3;
-}
-[data-theme="harbour-light"] {
-  --live: #9a5b12;
-  --line: #dde1e7;
-  --muted: #5a6270;
 }
 
 @theme {
@@ -284,7 +245,7 @@
     @apply mb-2 flex items-center gap-4 text-muted;
   }
   .file {
-    @apply grid cursor-pointer grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-3 rounded-[3px] px-2 py-1.5 hover:bg-base-200 md:grid-cols-[20px_minmax(0,1fr)_70px_70px_120px];
+    @apply grid cursor-pointer grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-3 rounded-[3px] px-2 py-1.5 hover:bg-base-200 md:grid-cols-[20px_minmax(0,1fr)_80px_120px_auto];
   }
   .file .path {
     @apply truncate font-mono;
@@ -296,6 +257,15 @@
   /* settings: label left, control right */
   .setting {
     @apply grid grid-cols-1 gap-2 border-b border-line py-4 md:grid-cols-[1fr_280px] md:gap-6;
+  }
+
+  /* Search and slskd tabs: the column stays centred on the window; from xl up the rail
+     is fixed to the window's right edge and the column narrows to clear it */
+  .center-main {
+    @apply mx-auto w-full max-w-3xl px-4 pt-6 pb-24 md:px-6 xl:max-w-[min(48rem,calc(100vw-2*(18rem+3vw+1.5rem)))] xl:px-0;
+  }
+  .side-rail {
+    @apply px-4 pb-24 md:px-6 xl:fixed xl:top-20 xl:right-[3vw] xl:max-h-[calc(100vh-6rem)] xl:w-72 xl:overflow-y-auto xl:p-0;
   }
 
   /* bottom activity bar: the "player bar" of a download app */

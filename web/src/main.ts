@@ -2,8 +2,10 @@ import "./style.css";
 import { ApiError, api, whenLoggedOut, type Schemas } from "./api";
 import { h } from "./dom";
 import { loginPage } from "./login";
+import { searchPage } from "./search";
+import { slskdPage } from "./slskd";
 import logoUrl from "./logo.svg";
-import { applyTheme, iconButton, page } from "./ui";
+import { page } from "./ui";
 
 // Hash routes (#/downloads…): a reload stays on the same tab; the session
 // cookie keeps the login (user, 2026-10-30).
@@ -23,7 +25,7 @@ const root = document.getElementById("app")!;
 let me: Schemas["Me"] | null = null;
 
 function currentTab(): Tab {
-  const path = location.hash.replace(/^#\/?/, "");
+  const path = location.hash.replace(/^#\/?/, "").split("?")[0];
   if (import.meta.env.DEV && path === KIT.path) return KIT;
   return TABS.find((t) => t.path === path) ?? TABS[0];
 }
@@ -52,7 +54,6 @@ function render(): void {
     },
     "Log out",
   );
-  const dark = document.documentElement.dataset.theme !== "harbour-light";
   root.replaceChildren(
     h(
       "header",
@@ -63,10 +64,6 @@ function render(): void {
         "div",
         { class: "ml-auto flex items-center gap-3" },
         h("span", { class: "hidden text-muted sm:inline" }, me.username),
-        iconButton(dark ? "Light theme" : "Dark theme", "◐", () => {
-          applyTheme(dark ? "harbour-light" : "harbour-dark");
-          render();
-        }),
         logout,
       ),
     ),
@@ -86,6 +83,8 @@ function content(tab: Tab): HTMLElement {
   // Admin-only parts are shown to everyone and refuse for non-admins (user,
   // 2026-10-30); the API's 403 stays the real guard.
   if (tab.adminOnly && !me?.is_admin) return page([adminsOnly()]);
+  if (tab.path === "search") return searchPage();
+  if (tab.path === "slskd") return slskdPage();
   return page([h("p", { class: "text-muted" }, `${tab.label}: coming in milestone 8.`)]);
 }
 
@@ -97,7 +96,6 @@ function logo(): HTMLImageElement {
   return h("img", { src: logoUrl, alt: "", class: "size-7 md:size-9" });
 }
 
-applyTheme();
 whenLoggedOut(() => {
   me = null;
   render();

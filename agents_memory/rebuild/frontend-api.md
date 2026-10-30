@@ -7,6 +7,10 @@ milestones 9–11 and are built there. The list guides the API; it doesn't limit
 
 Decisions (user, 2026-10-30):
 - **Download cart lives in the browser**; one batch call sends it.
+- **One search for songs, albums and artists** (user, 2026-10-30): a single box (plus an
+  optional artist that narrows songs and albums) runs the three catalog searches at once and
+  shows them as sections on one page (top 4 artists, top 6 albums, all songs; "Show all"
+  expands). Each section loads and fails on its own. Built in #121.
 - **Live updates by polling** (1–2 s while a tab is open); successful (200) polling calls are
   **not written to the access log**.
 - **Each checked slskd file becomes its own request and song**, built from the file's data
@@ -124,8 +128,8 @@ Decisions (user, 2026-10-30):
   download activity where SoundCloud has its player; the waveform progress was tried and dropped, user 2026-10-30: progress is "62% · 1.2 MB/s" as text), in calm
   deep blue: navy page, one blue accent, hairline borders, flat surfaces, 3–6 px corners; no
   gradients, glass, glow or soft oversized cards. Fonts IBM Plex Sans + Plex Mono, bundled
-  (@fontsource), so no request leaves the origin. Themes `harbour-dark` (default) and
-  `harbour-light` in `web/src/style.css`; components in `web/src/ui.ts`; every one on `#/kit`
+  (@fontsource), so no request leaves the origin. Theme `harbour-dark` in
+  `web/src/style.css` (**dark only**: the light theme was dropped, user 2026-10-31); components in `web/src/ui.ts`; every one on `#/kit`
   in `npm run dev`; the static mockup is `web/design/mockup.html`. A state is always a dot
   plus words, never colour alone. The ui-ux-pro-max skill was used for its rules (contrast,
   focus, density, reduced motion); its suggested indigo/green palette was rejected as generic.
@@ -133,7 +137,8 @@ Decisions (user, 2026-10-30):
   (`#0C0E12` page, `#13161C` panels) with a desaturated blue accent (`#7EA3CF`), because the
   navy was too blue ("eye burns"); every text pair checked at ≥ 5.6:1. Identity, all from the
   record world:
-  - **Logo**: a square record with slightly rounded corners, grooves and a warm amber label
+  - **Logo**: a square record with slightly rounded corners, grooves and a warm amber label, on
+    a light sleeve-paper body with a dark rim so it stands out on dark browser bars (user, 2026-10-31)
     (`web/src/logo.svg`, also the favicon). **Wordmark and page titles in Forta**, the legacy
     app's logo font (OFL, copied with its licence to `web/src/fonts/`); body stays IBM Plex.
   - **Record motif**: what is happening now shows a small turning record (still with reduced

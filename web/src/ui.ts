@@ -62,7 +62,8 @@ export function tag(text: string, tone?: Tone): HTMLElement {
 /** The cover's colour, or initials until covers come from Navidrome. */
 export function cover(title: string, art?: string): HTMLElement {
   if (art) return h("span", { class: "cover", style: `--art:${art}`, "aria-hidden": "true" });
-  const initials = title.split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2);
+  const words = title.replace(/[^\p{L}\p{N}\s]/gu, "").split(/\s+/).filter(Boolean);
+  const initials = words.map((w) => w[0]).join("").slice(0, 2);
   return h("span", { class: "cover", "aria-hidden": "true" }, initials.toUpperCase());
 }
 
@@ -179,20 +180,4 @@ export function toast(text: string, tone: "ok" | "err" = "ok"): void {
   );
   toasts.append(el);
   if (tone === "ok") setTimeout(() => el.remove(), 4000);
-}
-
-const THEME_KEY = "pv-theme";
-type Theme = "harbour-dark" | "harbour-light";
-/** Dark by default (and when the system asks), light on request; kept per browser. */
-export function applyTheme(theme?: Theme): void {
-  let saved: string | null = null;
-  try {
-    if (theme) localStorage.setItem(THEME_KEY, theme);
-    saved = localStorage.getItem(THEME_KEY);
-  } catch {
-    // storage blocked: the system preference decides
-  }
-  const light = matchMedia("(prefers-color-scheme: light)").matches;
-  document.documentElement.dataset.theme =
-    theme ?? (saved === "harbour-light" || saved === "harbour-dark" ? saved : light ? "harbour-light" : "harbour-dark");
 }
