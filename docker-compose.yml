@@ -75,7 +75,8 @@ services:
   postvinyl:
     build: .
     container_name: postvinyl
-    restart: unless-stopped
+    # a bad config stops after 3 tries instead of looping; a real crash still restarts
+    restart: on-failure:3
     ports:
       - "8092:8000"
     environment:
