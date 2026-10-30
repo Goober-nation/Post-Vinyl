@@ -14,7 +14,7 @@ from app.clients.catalog import CatalogBusy, CatalogError, Track
 from app.clients.catalog_fake import FakeCatalog
 from app.config import ConfigError, load_sources
 from app.services.catalog import SEARCH_LIMIT, CatalogService, CatalogUnavailable
-from app.services.sources import SourcePreferences, UnknownSource
+from app.services.sources import SourceOff, SourcePreferences, UnknownSource
 from app.stores.database import Database
 from app.stores.requests import RequestsStore
 from app.stores.songs import SongFields, SongsStore
@@ -110,7 +110,7 @@ def test_all_sources_failing_raises_but_all_empty_is_no_result(setup: Setup) -> 
     with pytest.raises(CatalogUnavailable):
         svc.search_tracks(uid, "Feather")
     prefs.set_for_user(uid, "catalog", [], ["musicbrainz", "deezer"])
-    with pytest.raises(CatalogUnavailable, match="without sources"):
+    with pytest.raises(SourceOff, match="without sources"):
         svc.search_tracks(uid, "Feather")
 
 
@@ -125,7 +125,7 @@ def test_order_follows_user_preference(setup: Setup) -> None:
 def test_no_sources_is_a_soft_error_and_writes_no_history(setup: Setup) -> None:
     svc, prefs, db, uid, _, _ = setup
     prefs.set_for_user(uid, "catalog", [], ["musicbrainz", "deezer", "listenbrainz"])
-    with pytest.raises(CatalogUnavailable, match="unavailable without sources"):
+    with pytest.raises(SourceOff, match="unavailable without sources"):
         svc.search_tracks(uid, "Feather")
     with db.transaction() as conn:
         assert RequestsStore().catalog_history(conn, uid, 1, 10) == []
@@ -232,10 +232,12 @@ def test_resolve_and_browse_refuse_a_disabled_source(setup: Setup) -> None:
     svc, prefs, _, uid, _, dz = setup
     dz.tracks["d1"] = track("deezer", "d1")
     prefs.set_for_user(uid, "catalog", [], ["deezer"])
-    with pytest.raises(UnknownSource):
+    with pytest.raises(SourceOff):
         svc.resolve(uid, "deezer", "d1")
-    with pytest.raises(UnknownSource):
+    with pytest.raises(SourceOff):
         svc.edition_tracks(uid, "deezer", "e1")
+    with pytest.raises(UnknownSource):
+        svc.edition_tracks(uid, "nope", "e1")
 
 
 def test_resolve_passes_catalog_errors_up(setup: Setup) -> None:

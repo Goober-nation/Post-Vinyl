@@ -124,6 +124,15 @@ def free_path(target: Path) -> Path:
     return candidate
 
 
+def _numbered(path: Path, target: Path) -> bool:
+    """``path`` is one of ``target``'s "(2)", "(3)"… names."""
+    return (
+        path.parent == target.parent
+        and path.suffix == target.suffix
+        and re.fullmatch(re.escape(target.stem) + r" \(\d+\)", path.stem) is not None
+    )
+
+
 class FilesServiceBase(ABC):
     @abstractmethod
     def verify(self, file_id: int) -> bool: ...
@@ -409,6 +418,8 @@ class FilesService(FilesServiceBase):
         names = Song(0, title, artist, title, artist, None, None, None, None, None)
         ext = src.suffix.lstrip(".").lower() or "audio"
         target = self._library / layout(tags, names, ext, bool(_first(tags, "title")))
+        if _numbered(src, target.resolve()):  # already its free name: stays put
+            target = src
         if target.resolve() != src:
             target = free_path(target)
             target.parent.mkdir(parents=True, exist_ok=True)

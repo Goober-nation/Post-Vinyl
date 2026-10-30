@@ -23,7 +23,7 @@ from app.services.requests import (
     SongNotFound,
 )
 from app.services.requests_fake import FakeRequestService
-from app.services.sources import SourcePreferences, UnknownSource
+from app.services.sources import SourceOff, SourcePreferences, UnknownSource
 from app.stores.database import Database
 from app.stores.requests import RequestsStore
 from app.stores.songs import SongFields, SongsStore
@@ -203,8 +203,10 @@ def test_catalog_errors(cat: Cat) -> None:
     with pytest.raises(CatalogUnavailable, match="answered"):
         cat.svc.search_tracks(cat.user, "Feather")
     cat.set_enabled([])
-    with pytest.raises(CatalogUnavailable, match="unavailable without sources"):
+    with pytest.raises(SourceOff, match="unavailable without sources"):
         cat.svc.search_tracks(cat.user, "Feather")
+    with pytest.raises(SourceOff, match="musicbrainz is turned off"):
+        cat.svc.album_editions(cat.user, "musicbrainz", "a1")
 
 
 def test_catalog_resolve_and_browse(cat: Cat) -> None:
@@ -215,10 +217,12 @@ def test_catalog_resolve_and_browse(cat: Cat) -> None:
     assert cat.svc.resolve(cat.user, "musicbrainz", "m1").id == song.id
     cat.dz.tracks["d1"] = track("deezer", "d1")
     cat.set_enabled(["musicbrainz"])
-    with pytest.raises(UnknownSource):
+    with pytest.raises(SourceOff):
         cat.svc.resolve(cat.user, "deezer", "d1")
-    with pytest.raises(UnknownSource):
+    with pytest.raises(SourceOff):
         cat.svc.edition_tracks(cat.user, "deezer", "e1")
+    with pytest.raises(UnknownSource):
+        cat.svc.edition_tracks(cat.user, "nope", "e1")
 
 
 def test_catalog_query_checks_and_order(cat: Cat) -> None:

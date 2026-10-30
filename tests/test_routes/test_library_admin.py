@@ -8,6 +8,7 @@ on each scan (the same path keeps its id, as Navidrome 0.64.2 does).
 from __future__ import annotations
 
 import hashlib
+import shutil
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -253,6 +254,20 @@ def test_no_match_then_strip_moves_by_the_new_names(env: Env) -> None:
                        json={"title": "Nothing Like It", "artist": "Nobody"}, headers=SAME)  # fmt: skip
     assert r.json()["file"]["id"] == nd_id("Nobody/Nothing Like It.flac")
     assert not (FLAC(env.library / "Nobody/Nothing Like It.flac").tags or {})
+
+
+def test_a_rename_to_the_same_names_leaves_a_numbered_file_in_place(env: Env) -> None:
+    sid = song_id(env)
+    blocker = env.library / "Nobody/Nothing Like It.flac"
+    blocker.parent.mkdir(parents=True)
+    shutil.copy(env.library / HAND_ADDED, blocker)  # someone else's file
+    names = {"title": "Nothing Like It", "artist": "Nobody"}
+    r = env.alice.post(f"/api/library/files/{sid}/strip", json=names, headers=SAME)
+    assert r.json()["file"]["id"] == nd_id("Nobody/Nothing Like It (2).flac")
+    sid = r.json()["file"]["id"]
+    r = env.alice.post(f"/api/library/files/{sid}/strip", json=names, headers=SAME)
+    assert r.json()["file"]["id"] == nd_id("Nobody/Nothing Like It (2).flac")
+    assert not (env.library / "Nobody/Nothing Like It (3).flac").exists()
 
 
 def test_the_missing_check_waits_for_a_rename_in_progress(env: Env) -> None:

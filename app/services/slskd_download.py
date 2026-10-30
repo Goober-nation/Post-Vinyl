@@ -348,7 +348,7 @@ class SlskdDownloader:
             self._cancel(attempt)
             self._watch.pop(attempt.id, None)
             with self._db.transaction(write=True) as conn:
-                self._store.end_attempt(conn, attempt.id, "failed", self._now())
+                self._store.end_attempt(conn, attempt.id, "skipped", self._now())
                 self._downloads.set_state(conn, download.id, "cancelled")
             return
         now = self._clock()
