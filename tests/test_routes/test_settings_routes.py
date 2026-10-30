@@ -38,7 +38,7 @@ def test_schema_for_all_install_settings_for_admins_only(tmp_path: Path) -> None
     schema = bob.get("/api/settings/schema").json()
     assert {f["key"] for f in schema["user"]} >= {
         "sources.catalog",
-        "downloads.page_size",
+        "lists.page_size",
     }
     assert any(f["key"] == "slskd.searches_per_minute" and f["max"] == 10
                for f in schema["install"])  # fmt: skip

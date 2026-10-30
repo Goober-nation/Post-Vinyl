@@ -41,7 +41,9 @@ Decisions (user, 2026-10-30):
     backed up first; the new values apply **at the next restart** (the API says so).
   - **Folders** (`files`) are shown, not editable: they must match the Docker mounts.
   - **Per-user settings**: source order and off per kind; how many results a catalog search
-    shows; the downloads tab's default state filter and page size.
+    shows; the downloads tab's default state filter; `lists.page_size`, the page size of every
+    list (was `downloads.page_size`, renamed 2026-10-31, user: "call it page size"; no
+    migration, an old stored value falls back to the default).
   - **Schema**: per field its key, section, type (int, text, choice, ordered list), min/max/step,
     choices, default, help and whether it applies now or at restart, generated from the settings
     dataclasses so it can't drift from the code.

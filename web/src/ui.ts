@@ -194,14 +194,14 @@ export function pager(page: number, pages: number, count: string, go: (page: num
   );
 }
 
-// One page size for every list: the user's "downloads.page_size" setting
+// One page size for every list: the user's "lists.page_size" setting
 // (read at login and after Settings are saved).
 let size = 20;
 export const pageSize = () => size;
 export async function loadPageSize(): Promise<void> {
   try {
     const s = await api<Record<string, unknown>>("GET", "/api/me/settings");
-    if (typeof s["downloads.page_size"] === "number") size = s["downloads.page_size"];
+    if (typeof s["lists.page_size"] === "number") size = s["lists.page_size"];
   } catch {
     // keep the last size
   }

@@ -134,7 +134,7 @@ keys; all are checked before any is stored (`422` names the first that doesn't f
 | Call | Who | Takes | Answers |
 |---|---|---|---|
 | `GET /api/settings/schema` | user | | `{user: [field], install: [field]}` |
-| `GET /api/me/settings` | user | | `{key: value}`: source order and off per kind (`{order, off}`), `catalog.results_per_search`, `downloads.page_size`, `downloads.state` |
+| `GET /api/me/settings` | user | | `{key: value}`: source order and off per kind (`{order, off}`), `catalog.results_per_search`, `lists.page_size` (every list), `downloads.state` |
 | `PUT /api/me/settings` | user | `{changes: {key: value}}` | the new values; they apply at once |
 | `GET /api/admin/settings` | admin | | `{values, restart_pending}`: the config file's values and which of them the running app doesn't use yet |
 | `PUT /api/admin/settings` | admin | `{changes: {key: value}}` | the same. Written to the config file: only the changed lines, comments kept, a backup made next to it; applies at the next restart. Folders aren't editable (they match the Docker mounts) |
