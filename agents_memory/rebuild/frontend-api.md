@@ -105,9 +105,20 @@ Decisions (user, 2026-10-30):
   session cookie and the Origin/CSRF check (#88) work unchanged, no CORS.
 - **Development**: `npm run dev` (Vite dev server, live reload) on the host, proxying `/api` to
   the app; no extra container.
-- **To do when milestone 8 starts**: let the default-deny middleware serve the static files
-  (at least the login page's HTML/JS/CSS) without a session; **drop beets from the
-  `Dockerfile`** (old app's leftover: the comment and the `PATH` note; user, 2026-10-30).
+- **Built in #119** (2026-10-30): `web/` (Vite builds to `web/dist`, which `create_app` mounts
+  at `/` when it exists). Default deny lets `GET /` and `/assets/*` through without a session
+  (no data in them); everything else stays denied. Beets was already gone from the `Dockerfile`.
+  **TypeScript stays on 5.x**: openapi-typescript 7.13 declares a `typescript ^5` peer, which
+  `npm ci` in `node:22-slim` enforces, and TypeScript 7 lacks the JS compiler API it uses (live
+  2026-10-30); lift the cap when openapi-typescript supports a newer one.
+- **Hash routes** (`#/slskd`, `#/downloads`…; user, 2026-10-30): a reload keeps the tab, the
+  session cookie keeps the login.
+- **Admin-only parts are shown to everyone** and refuse with "Admins only" for non-admins (user,
+  2026-10-30, replacing "hide them"); the API's 403 stays the real guard.
+- Commands, from `web/`: `npm ci`; `npm run build` (`tsc --noEmit` + Vite);
+  `PV_API=<the app's PV_PUBLIC_ORIGIN> npm run dev` (proxies `/api`, sending that origin so the
+  CSRF check passes); `PV_API=… npm run gen:api` against an app run with `PV_DEV=1` after any
+  API change.
 - Design: tokens first (colors with light + dark, a UI font and a monospace font for paths and
   peer names, type/spacing/radius scales, compact density for the tables), then the ~15 shared
   components, then mockups of the hardest screens (slskd tab, downloads queue, settings).

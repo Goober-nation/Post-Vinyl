@@ -1,3 +1,13 @@
+# The frontend (#119): Node only builds it; neither Node nor node_modules ships.
+FROM node:22-slim AS web
+
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
+
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
@@ -13,6 +23,7 @@ WORKDIR /app
 
 COPY --from=builder /root/.local /home/postvinyl/.local
 COPY app/ ./app/
+COPY --from=web /web/dist ./web/dist/
 
 # Post-Vinyl's own folders, named so they don't collide with other apps' (#118)
 RUN mkdir -p /postvinyl/data /postvinyl/config \

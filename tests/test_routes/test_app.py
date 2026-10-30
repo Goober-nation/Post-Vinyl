@@ -150,3 +150,20 @@ def test_lifespan_starts_and_stops_core_workers(tmp_path: Path) -> None:
     with TestClient(app, base_url=ORIGIN):
         assert workers.calls == ["start"]
     assert workers.calls == ["start", "stop"]
+
+
+def test_web_files_open_without_session(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dist = tmp_path / "dist"
+    (dist / "assets").mkdir(parents=True)
+    (dist / "index.html").write_text("<p>login</p>")
+    (dist / "assets" / "app.js").write_text("1")
+    monkeypatch.setattr("app.main.WEB_DIST", dist)
+    client = client_for(tmp_path)
+    assert client.get("/").text == "<p>login</p>"
+    assert client.get("/assets/app.js").status_code == 200
+    assert client.get("/index.html").status_code == 401  # only / and /assets/
+    assert client.get("/api/auth/me").status_code == 401
+    login(client)
+    assert client.get("/api/auth/me").status_code == 200  # the API still wins

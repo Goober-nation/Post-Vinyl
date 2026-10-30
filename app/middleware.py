@@ -23,6 +23,12 @@ OPEN_ROUTES = frozenset({("POST", "/api/auth/login"), ("GET", "/api/system/ping"
 DEV_OPEN_PATHS = frozenset({"/docs", "/openapi.json", "/docs/oauth2-redirect"})
 
 
+def is_web_file(method: str, path: str) -> bool:
+    """The frontend's files (Vite puts all but index.html under /assets/) hold
+    no data, and the login page needs them before there is a session (#119)."""
+    return method in ("GET", "HEAD") and (path == "/" or path.startswith("/assets/"))
+
+
 def request_origin(request: Request) -> str | None:
     origin = request.headers.get("origin")
     if origin:
@@ -44,7 +50,11 @@ def make_guard(
         method, path = request.method, request.url.path
         if method in UNSAFE_METHODS and request_origin(request) != public_origin:
             return JSONResponse({"detail": "cross-site request refused"}, 403)
-        if (method, path) in OPEN_ROUTES or (dev and path in DEV_OPEN_PATHS):
+        if (
+            (method, path) in OPEN_ROUTES
+            or (dev and path in DEV_OPEN_PATHS)
+            or is_web_file(method, path)
+        ):
             return await call_next(request)
         token = request.cookies.get(SESSION_COOKIE)
         user = await run_in_threadpool(auth.authenticate, token) if token else None
