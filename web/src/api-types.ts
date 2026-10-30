@@ -748,6 +748,11 @@ export interface components {
             name: string;
             /** Disambiguation */
             disambiguation: string;
+            /**
+             * Cover Id
+             * @default
+             */
+            cover_id: string;
         };
         /** AttemptView */
         AttemptView: {

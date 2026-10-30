@@ -65,6 +65,7 @@ class Artist:
     id: str
     name: str
     disambiguation: str
+    cover_id: str = ""  # a picture the source's image lookup takes (#127); "" none
 
 
 @dataclass(frozen=True)

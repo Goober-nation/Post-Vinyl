@@ -198,6 +198,7 @@ function artistRow(a: Schemas["Artist"]): HTMLElement {
   const to = { browse: "artist", source: a.source, id: a.id, name: a.name, artist: a.name };
   return opens(row({
     title: a.name,
+    cover: coverOf(a.source, a.cover_id ?? ""),
     artist: a.disambiguation || " ",
     action: link(`Albums by ${a.name}`, to),
   }), to);

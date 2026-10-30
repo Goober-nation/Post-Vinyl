@@ -47,6 +47,7 @@ _RECORD_TYPES = {
 }
 
 _MD5 = re.compile(r"[0-9a-f]{32}")
+_PICTURE = re.compile(r"/images/artist/([0-9a-f]{32})/")
 _rate_lock = threading.Lock()
 _last_call = 0.0
 
@@ -92,6 +93,13 @@ def parse_album(raw: dict[str, Any], artist: str = "") -> Album:
         first_release_date=raw.get("release_date") or "",
         cover_id=raw.get("md5_image") or "",
     )
+
+
+def artist_picture(raw: dict[str, Any]) -> str:
+    """``artist/<id>`` for the artist's picture: artists carry no ``md5_image``,
+    the id sits in their picture URLs (live 2026-10-31); "" when none."""
+    m = _PICTURE.search(raw.get("picture_small") or "")
+    return f"artist/{m.group(1)}" if m else ""
 
 
 class DeezerClient(CatalogSource):
@@ -157,6 +165,7 @@ class DeezerClient(CatalogSource):
                 id=str(a["id"]),
                 name=a.get("name", ""),
                 disambiguation="",
+                cover_id=artist_picture(a),
             )
             for a in self._search("artist", name, limit)
         ]
@@ -196,12 +205,15 @@ class DeezerClient(CatalogSource):
         ]
 
     def cover(self, cover_id: str, size: int) -> bytes | None:
-        """An album image from Deezer's image server by its ``md5_image`` id,
-        ``size`` px square (#127). Checked live 2026-10-31: any square size is
-        served; an unknown id redirects to a placeholder, taken as none."""
-        if not _MD5.fullmatch(cover_id):
+        """An image from Deezer's image server, ``size`` px square (#127): an
+        album's by its ``md5_image`` id, an artist's as ``artist/<id>``.
+        Checked live 2026-10-31: any square size is served; an unknown id
+        redirects to a placeholder, taken as none."""
+        kind, _, image = cover_id.rpartition("/")
+        if kind not in ("", "artist") or not _MD5.fullmatch(image):
             return None
-        url = f"{self._images}/images/cover/{cover_id}/{size}x{size}-000000-80-0-0.jpg"
+        folder = "artist" if kind else "cover"
+        url = f"{self._images}/images/{folder}/{image}/{size}x{size}-000000-80-0-0.jpg"
         try:
             resp = self._http.get(url, timeout=self._timeout, allow_redirects=False)
         except requests.RequestException as e:

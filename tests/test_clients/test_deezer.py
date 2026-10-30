@@ -265,3 +265,25 @@ def test_cover_refuses_anything_but_an_image_id(
     client = DeezerClient()
     monkeypatch.setattr(client._http, "get", lambda *a, **k: pytest.fail("no call"))
     assert client.cover("../../etc", 120) is None
+
+
+def test_artist_pictures_come_from_their_picture_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = {"id": 1069, "name": "Portishead",
+           "picture_small": f"https://cdn-images.dzcdn.net/images/artist/{MD5}/56x56-000000-80-0-0.jpg"}  # fmt: skip
+    assert deezer.artist_picture(raw) == f"artist/{MD5}"
+    assert deezer.artist_picture({"id": 1}) == ""
+    client = DeezerClient()
+    urls: list[str] = []
+
+    def get(url: str, timeout: float, allow_redirects: bool) -> ImageResp:
+        urls.append(url)
+        return ImageResp(200, "image/jpeg", b"pic")
+
+    monkeypatch.setattr(client._http, "get", get)
+    assert client.cover(f"artist/{MD5}", 120) == b"pic"
+    assert urls == [
+        f"https://cdn-images.dzcdn.net/images/artist/{MD5}/120x120-000000-80-0-0.jpg"
+    ]
+    assert client.cover(f"playlist/{MD5}", 120) is None and len(urls) == 1

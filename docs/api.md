@@ -62,7 +62,7 @@ user's `catalog.results_per_search` setting.
 | `GET /api/catalog/{source}/artists/{artist_id}/albums` | user | | `[album]` |
 | `GET /api/catalog/{source}/albums/{album_id}/editions` | user | | `[edition]` |
 | `GET /api/catalog/{source}/editions/{edition_id}/tracks` | user | | `[track]` with disc and position |
-| `GET /api/catalog/{source}/covers/{cover_id}` | user | `size?` (32–600 px, default 120) | the cover a track, album or edition names in its `cover_id`, from that source's images (Deezer's own; MusicBrainz's from the Cover Art Archive); cached a week by the browser; never stored; `404` when there is none, `404` while the source is off |
+| `GET /api/catalog/{source}/covers/{cover_id}` | user | `size?` (32–600 px, default 120) | the cover a track, album, edition or artist names in its `cover_id` (artist pictures: Deezer only), from that source's images (Deezer's own; MusicBrainz's from the Cover Art Archive); cached a week by the browser; never stored; `404` when there is none, `404` while the source is off |
 | `POST /api/requests` | user | `{source, track_id, origin_id?}` | `201` the request, already handed to the download source |
 | `POST /api/requests/batch` | user | `{items: [{source, track_id, origin_id?}]}` (1–100: the browser's cart) | `207` one `{source, track_id, status, request?, error?}` per item |
 
