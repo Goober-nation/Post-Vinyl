@@ -36,14 +36,13 @@ import argparse
 import json
 import re
 import sys
+import tomllib
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-
-import tomllib
 
 from app.services.interfaces.musicbrainz import MBRecording
 from app.services.musicbrainz_client import MusicBrainzClient

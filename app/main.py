@@ -139,7 +139,7 @@ def create_app(
     return app
 
 
-POLLED = ("/api/downloads", "/api/slskd/searches", "/api/requests")
+POLLED = ("/api/downloads", "/api/slskd/searches", "/api/requests", "/api/system/ping")
 
 
 class QuietPolls(logging.Filter):

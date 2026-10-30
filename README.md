@@ -80,54 +80,25 @@ endpoint, see [`docs/api.md`](docs/api.md). For running your own stack, see
 
 ## Quick start
 
-1. Run the setup script:
+The same commands work in bash, PowerShell and the macOS terminal. Needs Docker Compose 2.24 or newer.
+
+1. Copy `.env.example` to `.env` and fill it in. `MUSIC_HOST_DIR` must be a folder that exists
+   (Docker silently mounts an empty one otherwise); `PV_PUBLIC_ORIGIN` is the address you open the
+   app at, e.g. `http://localhost:8092`. Generate `PV_SECRET_KEY` once and back it up outside the
+   database (losing it loses every stored secret):
    ```bash
-   ./setup.sh
+   docker compose run --rm --no-deps postvinyl python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
    ```
-   It creates `.env` from the template, then stops and asks you to set `MUSIC_HOST_DIR` to your real
-   music library path — it never guesses this, since Docker will silently mount an empty directory for
-   a bind-mount path that doesn't exist. Edit `.env` and run `./setup.sh` again; it'll then generate
-   slskd's API key and print the next command. `config/config.toml` already ships with sane defaults,
-   so nothing else needs copying.
-2. Start the stack:
+2. Copy `config/post-vinyl.example.yaml` to `config/post-vinyl.yaml` (each value is explained in it).
+3. Create the first admin (Navidrome's and Post-Vinyl's), once. Navidrome stays unpublished while it runs:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.setup.yml run --rm setup
+   docker compose down
+   ```
+4. Start the stack:
    ```bash
    docker compose up -d
    ```
-3. Open `http://localhost:8092`. A setup wizard opens automatically on first visit and walks you
-   through the rest:
-   - **Navidrome** — enter a username/password; the wizard creates the admin account (or verifies it,
-     if one already exists) and saves the credentials. Navidrome shows as "disabled" in service health
-     until the app restarts and picks them up — the wizard offers a "Restart app now" button right
-     there so you don't have to go find it in Config.
-   - **Soulseek** — enter a username/password for slskd to log into the Soulseek network with (logging
-     in for the first time *is* how a new username registers — there's no separate signup). Saving
-     needs one manual `docker compose up -d slskd` (Post-Vinyl has no Docker access to do this
-     itself — and it must be `up -d`, not `restart`: restart keeps the container's old environment
-     instead of re-reading `.env`, so the new login silently never takes effect), then "Check
-     connection" tells you if it connected or if that username's already taken by someone else.
-   - **ListenBrainz** (optional) — a link to get a token, plus fields to save it. Skip it if you don't
-     want recommendations yet; you can fill this in later.
-   
-   Every step can be skipped and revisited later from **Config → Re-run setup**. After the wizard, a
-   short tutorial overlay points out what each tab does.
-
-See [`docs/deployment.md`](docs/deployment.md) for what each `.env` value means, VPN/proxy notes,
-remote-access guidance (Tailscale), and troubleshooting.
-
-### Windows
-
-`setup.sh` needs a real shell, so you'll need WSL2 with Docker Desktop's WSL2 integration enabled
-for your distro. From inside WSL2:
-
-```bash
-git clone git@github.com:Goober-nation/Post-Vinyl.git
-cd Post-Vinyl
-./setup.sh # follow the instructions, then run again
-docker compose up -d
-```
-
-`MUSIC_HOST_DIR` in `.env` must be a path as seen from inside WSL2 — e.g. a library on your `C:`
-drive is `/mnt/c/Users/you/Music`, not `C:\Users\you\Music`.
 
 ## Tests
 

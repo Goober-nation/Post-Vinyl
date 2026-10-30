@@ -128,6 +128,23 @@ def test_install_settings_say_what_waits_for_a_restart(cfg: Path) -> None:
     assert file_values(cfg)["workers.cleanup_every_seconds"] == 120
 
 
+def test_a_read_only_config_folder_refuses_without_naming_it(
+    cfg: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    running = Settings("db", "nd", "https://x", sources=load_sources(cfg),
+                       config_path=str(cfg))  # fmt: skip
+
+    def read_only(*_: object) -> None:  # what a :ro mount raises (live #113)
+        raise OSError(30, "Read-only file system", str(cfg.parent / ".x.new"))
+
+    monkeypatch.setattr("app.services.settings.write_values", read_only)
+    with pytest.raises(ConfigError) as e:
+        InstallSettings(running, lambda: NOW).set(
+            {"workers.cleanup_every_seconds": 120}
+        )
+    assert str(e.value) == "can't write post-vinyl.yaml: Read-only file system"
+
+
 def test_user_settings_default_check_everything_first_and_drive_sources(
     tmp_path: Path,
 ) -> None:
