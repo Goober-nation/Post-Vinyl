@@ -173,6 +173,22 @@
   .cover {
     @apply grid size-10 flex-none place-items-center rounded-[3px] bg-(--art,var(--color-base-300)) text-xs font-semibold text-muted;
   }
+  /* search shelves: artist and album tiles, paged with round buttons */
+  .tile {
+    @apply cursor-pointer rounded-[6px] p-2 transition-colors hover:bg-base-200;
+  }
+  .tile > .cover {
+    @apply aspect-square size-auto w-full rounded-[4px] text-2xl;
+  }
+  .tile-row {
+    @apply flex items-center gap-3;
+  }
+  .tile-row > .cover {
+    @apply size-16 w-16 text-sm;
+  }
+  .shelf-btn {
+    @apply grid size-8 flex-none cursor-pointer place-items-center rounded-full md:size-10 border border-line text-xl text-muted hover:border-base-content hover:text-base-content disabled:cursor-default disabled:opacity-30;
+  }
   .row.selected {
     @apply bg-base-200;
     box-shadow: inset 2px 0 0 var(--art, var(--color-accent));

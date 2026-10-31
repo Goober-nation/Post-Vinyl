@@ -5,7 +5,7 @@
 import { ApiError, api, type Schemas } from "./api";
 import { cart, CART_MAX, type CartEntry } from "./cart";
 import { h } from "./dom";
-import { button, iconButton, paged, pageHead, railSection, row, state, toast } from "./ui";
+import { button, cover, iconButton, paged, pageHead, railSection, row, state, toast } from "./ui";
 
 type View =
   | { q: string }
@@ -77,12 +77,12 @@ function searchResults(view: { q: string }): HTMLElement[] {
   return [
     section("Artists", gone,  async () => {
       const r = await api<Schemas["Results_Artist_"]>("GET", `/api/catalog/artists?name=${enc(view.q)}`);
-      return [r.items.map(artistRow), r.source];
-    }),
+      return [r.items.map(artistTile), r.source];
+    }, (tiles) => carousel(tiles, 3, "grid grid-cols-3 gap-4")),
     section("Albums", gone,  async () => {
       const r = await api<Schemas["Results_Album_"]>("GET", `/api/catalog/albums?title=${enc(view.q)}`);
-      return [r.items.map(albumRow), r.source];
-    }),
+      return [r.items.map(albumTile), r.source];
+    }, (tiles) => carousel(tiles, 6, "grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3")),
     section("Songs", gone,  async () => {
       const r = await api<Schemas["Results_Track_"]>("GET", `/api/catalog/tracks?title=${enc(view.q)}`);
       return [r.items.map((t) => trackRow(t, r.origin_id)), r.source];
@@ -91,7 +91,12 @@ function searchResults(view: { q: string }): HTMLElement[] {
   ];
 }
 
-function section(title: string, onEmpty: (() => void) | null, load: () => Promise<[HTMLElement[], string | null]>): HTMLElement {
+function section(
+  title: string,
+  onEmpty: (() => void) | null,
+  load: () => Promise<[HTMLElement[], string | null]>,
+  show: (rows: HTMLElement[]) => HTMLElement = (rows) => paged(rows, ["result", "results"]),
+): HTMLElement {
   const body = h("div", {}, h("p", { class: "py-2 text-muted", role: "status" }, "Searching…"));
   const head = h("h2", { class: "rail-title flex items-baseline gap-3" }, title);
   void load().then(
@@ -102,7 +107,7 @@ function section(title: string, onEmpty: (() => void) | null, load: () => Promis
         return;
       }
       if (source) head.append(h("span", { class: "text-xs normal-case" }, `from ${SOURCE_NAMES[source] ?? source}`));
-      body.replaceChildren(paged(rows, ["result", "results"]));
+      body.replaceChildren(show(rows));
     },
     // 409 a source is off, 502 a source failed, 503 none answered: shown as said
     (e) => body.replaceChildren(h("div", { role: "alert", class: "alert alert-error" }, e instanceof ApiError ? e.message : "Can't reach Post-Vinyl.")),
@@ -133,7 +138,7 @@ function browseResults(view: Exclude<View, { q: string }>): HTMLElement {
 const SOURCE_NAMES: Record<string, string> = { musicbrainz: "MusicBrainz", deezer: "Deezer", listenbrainz: "ListenBrainz" };
 
 // a result's cover through Post-Vinyl, from the source that answered (#127)
-const coverOf = (source: string, coverId: string) => (coverId ? `/api/catalog/${enc(source)}/covers/${coverId}?size=80` : undefined);
+const coverOf = (source: string, coverId: string, size = 80) => (coverId ? `/api/catalog/${enc(source)}/covers/${coverId}?size=${size}` : undefined);
 const year = (date: string) => date.slice(0, 4);
 const length = (s: number | null) => (s == null ? "" : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`);
 const meta = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" · ");
@@ -194,14 +199,55 @@ function albumRow(a: Schemas["Album"]): HTMLElement {
   }), to);
 }
 
-function artistRow(a: Schemas["Artist"]): HTMLElement {
+/** A few results at a time in a grid, with round ‹ › buttons beside it to
+ *  page through the rest (the search page's shelves, user, 2026-10-31). */
+function carousel(items: HTMLElement[], perPage: number, cls: string): HTMLElement {
+  const grid = h("div", { class: `${cls} min-w-0 flex-1` });
+  const pages = Math.ceil(items.length / perPage);
+  const step = (glyph: string, label: string) => h("button", { type: "button", class: "shelf-btn", "aria-label": label }, glyph);
+  const prev = step("‹", "Previous results");
+  const next = step("›", "More results");
+  let page = 0;
+  const show = () => {
+    grid.replaceChildren(...items.slice(page * perPage, (page + 1) * perPage));
+    prev.toggleAttribute("disabled", page === 0);
+    next.toggleAttribute("disabled", page >= pages - 1);
+  };
+  prev.addEventListener("click", () => (page--, show()));
+  next.addEventListener("click", () => (page++, show()));
+  show();
+  // a single page keeps the buttons' room, so the shelves line up
+  if (pages <= 1) [prev, next].forEach((b) => b.classList.add("invisible"));
+  return h("div", { class: "flex items-center gap-1 md:gap-3" }, prev, grid, next);
+}
+
+/** An artist as a sleeve: the big square picture, the name under it. */
+function artistTile(a: Schemas["Artist"]): HTMLElement {
   const to = { browse: "artist", source: a.source, id: a.id, name: a.name, artist: a.name };
-  return opens(row({
-    title: a.name,
-    cover: coverOf(a.source, a.cover_id ?? ""),
-    artist: a.disambiguation || " ",
-    action: link(`Albums by ${a.name}`, to),
-  }), to);
+  return h(
+    "button",
+    { type: "button", class: "tile min-w-0 text-left", title: a.disambiguation || a.name, "aria-label": `Albums by ${a.name}`, onclick: () => go(to) },
+    cover(a.name, coverOf(a.source, a.cover_id ?? "", 300)),
+    h("div", { class: "title mt-2" }, a.name),
+    a.disambiguation && h("div", { class: "sub text-xs" }, a.disambiguation),
+  );
+}
+
+/** An album: a small cover with the title and "by" credit beside it. */
+function albumTile(a: Schemas["Album"]): HTMLElement {
+  const to = { browse: "album", source: a.source, id: a.id, name: a.title, artist: a.artist };
+  return h(
+    "button",
+    { type: "button", class: "tile tile-row min-w-0 text-left", "aria-label": `Editions of ${a.title} by ${a.artist}`, onclick: () => go(to) },
+    cover(a.title, coverOf(a.source, a.cover_id ?? "", 160)),
+    h(
+      "div",
+      { class: "min-w-0" },
+      h("div", { class: "title" }, a.title),
+      h("div", { class: "sub" }, h("span", { class: "credit" }, a.artist)),
+      h("div", { class: "sub text-xs" }, meta(year(a.first_release_date), a.primary_type)),
+    ),
+  );
 }
 
 function editionRow(e: Schemas["Edition"], artist: string): HTMLElement {

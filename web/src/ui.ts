@@ -71,7 +71,7 @@ export function cover(title: string, src?: string): HTMLElement {
     img.addEventListener("load", () => {
       img.classList.remove("opacity-0");
       const colour = coverColour(img);
-      const holder = el.closest<HTMLElement>(".row, .activity");
+      const holder = el.closest<HTMLElement>(".row, .activity, .tile");
       if (colour && holder) holder.style.setProperty("--art", colour);
     });
     img.addEventListener("error", () => img.remove()); // no cover: the initials stay
