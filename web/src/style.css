@@ -290,3 +290,23 @@
     box-shadow: inset 0 2px 0 var(--art, transparent); /* the current download's cover colour */
   }
 }
+
+/* Two handles on one track: only the thumbs take the pointer. */
+.range-pair {
+  position: relative;
+  height: 1.5rem;
+}
+.range-handle {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: none;
+  pointer-events: none;
+  accent-color: var(--color-accent);
+}
+.range-handle::-webkit-slider-thumb {
+  pointer-events: auto;
+}
+.range-handle::-moz-range-thumb {
+  pointer-events: auto;
+}
