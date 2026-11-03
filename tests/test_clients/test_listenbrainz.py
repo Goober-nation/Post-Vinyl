@@ -218,9 +218,11 @@ def test_radio_parse_skips_tracks_without_a_recording(
     good = {
         "title": "T", "creator": "A", "album": "B", "duration": 196000,
         "identifier": [f"https://musicbrainz.org/recording/{MBID}"],
+        "extension": {"https://musicbrainz.org/doc/jspf#track": {
+            "release_identifier": "https://musicbrainz.org/release/rel-1"}},
     }  # fmt: skip
     body = {"payload": {"jspf": {"playlist": {"track": [good, {"title": "no id"}]}}}}
     client, calls = client_returning(monkeypatch, FakeResp(200, body))
     [track] = client.radio("Radiohead", "medium", "tok")
-    assert (track.mbid, track.length_s) == (MBID, 196.0)
+    assert (track.mbid, track.length_s, track.release_mbid) == (MBID, 196.0, "rel-1")
     assert calls[0][2]["params"] == {"prompt": "artist:(Radiohead)", "mode": "medium"}

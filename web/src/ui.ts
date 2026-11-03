@@ -245,14 +245,15 @@ export async function loadPageSize(): Promise<void> {
   }
 }
 
-/** A list that arrives whole, shown a page at a time. */
-export function paged(items: Node[], noun: [string, string], cls = "rows", perPage = pageSize()): HTMLElement {
+/** A list that arrives whole, shown a page at a time. A row given as a function
+ *  is built when its page opens, so its cover loads only then. */
+export function paged(items: (Node | (() => Node))[], noun: [string, string], cls = "rows", perPage = pageSize()): HTMLElement {
   const list = h("div", { class: cls });
   const el = h("div", {}, list);
   const pages = Math.max(1, Math.ceil(items.length / perPage));
   const count = `${items.length} ${items.length === 1 ? noun[0] : noun[1]}`;
   const show = (page: number) => {
-    list.replaceChildren(...items.slice((page - 1) * perPage, page * perPage));
+    list.replaceChildren(...items.slice((page - 1) * perPage, page * perPage).map((i) => (typeof i === "function" ? i() : i)));
     el.replaceChildren(list, pager(page, pages, count, (p) => {
       show(p);
       el.scrollIntoView({ block: "nearest" });

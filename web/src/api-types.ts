@@ -1269,6 +1269,8 @@ export interface components {
             album: string | null;
             /** Length S */
             length_s: number | null;
+            /** Release Mbid */
+            release_mbid?: string | null;
         };
         /** RadioTrackIn */
         RadioTrackIn: {
@@ -1282,6 +1284,8 @@ export interface components {
             album?: string | null;
             /** Length S */
             length_s?: number | null;
+            /** Release Mbid */
+            release_mbid?: string | null;
         };
         /** RecCheckOut */
         RecCheckOut: {

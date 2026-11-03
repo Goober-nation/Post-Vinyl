@@ -28,6 +28,7 @@ import requests
 USER_AGENT = "PostVinyl/0.1 ( https://github.com/Goober-nation/Post-Vinyl )"
 _MAX_MBIDS_PER_POST = 1000
 _MAX_RECOMMENDATIONS = 1000
+_JSPF_TRACK = "https://musicbrainz.org/doc/jspf#track"
 _MAX_LOOKUP_CHARS = 250
 _INC = "artist release tag"
 _RETRIES_ON_429 = 2
@@ -93,6 +94,7 @@ class RadioTrack:
     artist: str
     album: str | None
     length_s: float | None
+    release_mbid: str | None = None
 
 
 class ListenBrainzClientBase(ABC):
@@ -126,12 +128,15 @@ def parse_radio_track(raw: dict[str, Any]) -> RadioTrack | None:
     if not (mbid and raw.get("title") and raw.get("creator")):
         return None
     duration = raw.get("duration")
+    extension = (raw.get("extension") or {}).get(_JSPF_TRACK) or {}
+    release = extension.get("release_identifier") or ""
     return RadioTrack(
         mbid=mbid,
         title=raw["title"],
         artist=raw["creator"],
         album=raw.get("album"),
         length_s=duration / 1000 if isinstance(duration, int) else None,
+        release_mbid=release.rstrip("/").rsplit("/", 1)[-1] or None,
     )
 
 

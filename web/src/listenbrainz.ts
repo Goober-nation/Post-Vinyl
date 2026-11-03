@@ -16,6 +16,9 @@ function failed(err: unknown): void {
   toast(err instanceof ApiError ? err.message : "Can't reach Post-Vinyl.", "err");
 }
 
+// through Post-Vinyl, from the Cover Art Archive
+const coverOf = (release?: string | null) => (release ? `/api/catalog/musicbrainz/covers/release/${release}?size=80` : undefined);
+
 const day = (seconds: number) => new Date(seconds * 1000).toISOString().slice(0, 10);
 
 export function listenbrainzPage(): HTMLElement {
@@ -81,7 +84,7 @@ function recsPane(): HTMLElement {
     try {
       const tracks = await api<Schemas["LbTrack"][]>("GET", `/api/lb/recs/${lists.value}/tracks?first=${first}&last=${last}`);
       if (mine !== token) return;
-      const rows = tracks.map((t) => row({ title: t.title ?? "", artist: t.artist ?? "", album: t.album ?? undefined, side: String(t.rank) }));
+      const rows = tracks.map((t) => () => row({ title: t.title ?? "", artist: t.artist ?? "", album: t.album ?? undefined, side: String(t.rank), cover: coverOf(t.release_mbid) }));
       preview.replaceChildren(
         h("p", { class: "mb-2" }, `${tracks.length} songs will be pulled`),
         field("Playlist name", name),
@@ -148,7 +151,7 @@ function radioPane(): HTMLElement {
     const chosen = () => tracks.slice(Math.max(Number(from.value), 1) - 1, Number(to.value));
     function draw(): void {
       const songs = chosen();
-      list.replaceChildren(h("p", { class: "mb-2" }, `${songs.length} songs will be pulled`), paged(songs.map((t) => row({ title: t.title, artist: t.artist, album: t.album ?? undefined })), ["song", "songs"]));
+      list.replaceChildren(h("p", { class: "mb-2" }, `${songs.length} songs will be pulled`), paged(songs.map((t) => () => row({ title: t.title, artist: t.artist, album: t.album ?? undefined, cover: coverOf(t.release_mbid) })), ["song", "songs"]));
     }
     const pull = async () => {
       try {

@@ -34,6 +34,7 @@ class RadioTrackIn(BaseModel):
     artist: str = Field(min_length=1, max_length=500)
     album: str | None = None
     length_s: float | None = None
+    release_mbid: str | None = Field(default=None, pattern=UUID)
 
 
 class NewRecsPull(BaseModel):
@@ -120,7 +121,7 @@ def pull_recs(body: NewRecsPull, user: UserDep, core: CoreDep) -> PullOut:
 @router.post("/api/pulls/radio", status_code=201)
 def pull_radio(body: NewRadioPull, user: UserDep, core: CoreDep) -> PullOut:
     service = pulls(core)
-    chosen = [RadioTrack(t.mbid, t.title, t.artist, t.album, t.length_s)
+    chosen = [RadioTrack(t.mbid, t.title, t.artist, t.album, t.length_s, t.release_mbid)
               for t in body.tracks]  # fmt: skip
     pull = service.pull_radio(user.id, body.artist, body.level, chosen, body.name)
     return view_of(service, user.id, pull.id)
