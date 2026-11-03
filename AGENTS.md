@@ -17,6 +17,7 @@ it, the rebuild notes win.
    - `design-notes-compilation.md`: search & matching decisions
    - `search-test-v2.md`: normalization test + search benchmark rerun
    - `live-runs-log.md`: past runs on the test stack
+   - `lb-pulls.md`: ListenBrainz recs + radio pulls (proposed)
 4. Check the current GitHub milestone and its issues (`gh issue list --milestone "<title>"`).
 5. Check the branch (`git branch --show-current`); see Branches below.
 6. If the user gives a free-form idea mid-session, say which milestone/issue it belongs to (or that it

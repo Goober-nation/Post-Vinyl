@@ -18,6 +18,7 @@ class User:
     username: str
     nd_password_enc: str
     lb_token_enc: str | None
+    lb_username: str | None
     is_admin: int
     status: str
     created_at: int
