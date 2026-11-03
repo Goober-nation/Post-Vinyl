@@ -53,7 +53,9 @@ def test_origin_user_knows_pulls(db: Database) -> None:
 def test_items_stay_in_order_and_settle(db: Database) -> None:
     with db.transaction(write=True) as conn:
         pull = recs(conn)
-        store.add_items(conn, pull.id, [NewItem("m1", "a", "b"), NewItem("m2", None, None)])
+        store.add_items(
+            conn, pull.id, [NewItem("m1", "a", "b"), NewItem("m2", None, None)]
+        )
         first = store.next_queued(conn, pull.id)
         assert first is not None and first.position == 1
         assert not store.is_settled(conn, pull.id)

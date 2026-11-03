@@ -1,4 +1,4 @@
-# ListenBrainz pulls: recs + radio (proposed 2026-11-04, not built)
+# ListenBrainz pulls: recs + radio (built 2026-11-04, milestone 9, live run pending)
 
 A new milestone between 8 (frontend) and 9 (approval inbox + Postradio). One **ListenBrainz** tab with
 two sub-tabs, **Recs** and **Radio**. Both end the same way: a named **pull** of songs that
@@ -7,7 +7,6 @@ download in the background and appear in one Navidrome playlist as they arrive.
 Limits (user, 2026-11-04): one user queueing at a time, one pull per user at a time. No queue
 management beyond that. Pulls skip the approval inbox: the user picks the songs directly.
 
-Status: the process is the user's; "Proposed" items are open.
 
 ## What ListenBrainz returns (live, 2026-11-04)
 
@@ -58,11 +57,12 @@ dispatch start them all at once, in front of later user requests.
 
 So a pull's songs wait in `pull_items`, and a new **`pull_feeder`** worker moves them on:
 
-- Every few seconds: if no user request is waiting, searching or downloading, take the next
-  `queued` item of the oldest running pull, resolve it to a song, create its request, dispatch.
+- Every 5 s: if no request is waiting or searching (a request in `midDownload` doesn't block, so a
+  slow peer queue can't stall the pull), take the next `queued` item of the oldest running pull,
+  resolve it to a song, create its request, dispatch.
 - A song already in the library is `reused`: no request, straight to the playlist.
-- One item in flight at a time. User requests therefore always go first, without changing
-  dispatch. A running item finishes before a new user request starts.
+- One item before a download at a time. User requests therefore always go first, without changing
+  dispatch. A search already running finishes before a new user request starts.
 - Cancel marks the pull cancelled and the feeder stops. Only a request not yet downloading is dropped.
 - Failed songs (`notFound`, `notDownloaded`, `badDownload`) stay out of the playlist; the pull
   shows counts. A restart loses nothing, the state is in the database.
@@ -142,13 +142,13 @@ How it connects:
 | Layer | Change |
 |---|---|
 | `clients/listenbrainz.py` | `recommendations(name)`, `lb_radio(token, prompt, mode)` (+ fake) |
-| `clients/navidrome.py` | create, replace and delete a playlist (+ fake; check against 0.64.2 first) |
+| `clients/navidrome.py` | `save_playlist`: create or replace (+ fake; source checked at 0.64.2) |
 | `core/` | excluded-version filter on titles (reuse the matcher's rules); default names |
 | `stores/pulls.py` | the tables above; `RequestsStore.origin_user` learns pulls |
-| `services/pulls.py` | check for new, preview, pull, cancel, status; ABC + fake |
+| `services/pulls.py` | check for new, preview, pull, cancel, status, feed; ABC |
 | `services/playlists.py` | only writer to Navidrome playlists: indexed songs of the pull, in position order, full rewrite. Milestones 10–11 extend it |
 | `services/requests.py` | `lb_recs`, `lb_radio` join `REQUEST_SOURCES` |
-| `workers/` | `pull_feeder`; the file pipeline calls the playlist rewrite after indexing |
+| `workers/` | `pull-feeder` and `pull-playlists`, every 5 s; items carry `in_playlist`, so no pipeline trigger is needed |
 | `routes/pulls.py` | `POST /api/lb/recs/check`, `GET /api/lb/recs`, `GET /api/lb/recs/{id}/tracks`, `GET /api/lb/radio`, `POST`/`GET /api/pulls`, `POST /api/pulls/{id}/cancel` |
 | `web/src/listenbrainz.ts` | the tab, on `rebuild/frontend` (not merged into `rebuild/base` yet) |
 

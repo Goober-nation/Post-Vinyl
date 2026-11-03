@@ -4,6 +4,7 @@ import { h } from "./dom";
 import { loginPage } from "./login";
 import { searchPage } from "./search";
 import { slskdPage } from "./slskd";
+import { listenbrainzPage } from "./listenbrainz";
 import { downloadsPage } from "./downloads";
 import { filesPage } from "./files";
 import { settingsPage } from "./settings";
@@ -17,6 +18,7 @@ type Tab = { path: string; label: string; adminOnly?: boolean };
 const TABS: Tab[] = [
   { path: "search", label: "Search" },
   { path: "slskd", label: "slskd" },
+  { path: "listenbrainz", label: "ListenBrainz" },
   { path: "downloads", label: "Downloads" },
   { path: "files", label: "Files" },
   { path: "settings", label: "Settings" },
@@ -89,6 +91,7 @@ function content(tab: Tab): HTMLElement {
   if (tab.adminOnly && !me?.is_admin) return page([adminsOnly()]);
   if (tab.path === "search") return searchPage();
   if (tab.path === "slskd") return slskdPage();
+  if (tab.path === "listenbrainz") return listenbrainzPage();
   if (tab.path === "downloads" && me) return downloadsPage(me);
   if (tab.path === "files" && me) return filesPage(me);
   if (tab.path === "settings" && me) return settingsPage(me);

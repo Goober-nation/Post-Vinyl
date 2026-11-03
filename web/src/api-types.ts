@@ -305,6 +305,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lb/recs/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check */
+        post: operations["check_api_lb_recs_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lb/recs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists */
+        get: operations["lists_api_lb_recs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lb/recs/{last_updated}/tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tracks */
+        get: operations["tracks_api_lb_recs__last_updated__tracks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lb/radio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Radio */
+        get: operations["radio_api_lb_radio_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulls/recs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pull Recs */
+        post: operations["pull_recs_api_pulls_recs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulls/radio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pull Radio */
+        post: operations["pull_radio_api_pulls_radio_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** History */
+        get: operations["history_api_pulls_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulls/{pull_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel */
+        post: operations["cancel_api_pulls__pull_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/slskd/searches": {
         parameters: {
             query?: never;
@@ -884,6 +1020,38 @@ export interface components {
             /** Restart Pending */
             restart_pending: string[];
         };
+        /** LbList */
+        LbList: {
+            /** Last Updated */
+            last_updated: number;
+            /** Pulled At */
+            pulled_at: number;
+            /** Songs */
+            songs: number;
+        };
+        /** LbTrack */
+        LbTrack: {
+            /** Rank */
+            rank: number;
+            /** Recording Mbid */
+            recording_mbid: string;
+            /** Score */
+            score: number;
+            /** Latest Listened At */
+            latest_listened_at: string | null;
+            /** Title */
+            title: string | null;
+            /** Artist */
+            artist: string | null;
+            /** Artist Mbids */
+            artist_mbids: string | null;
+            /** Album */
+            album: string | null;
+            /** Release Mbid */
+            release_mbid: string | null;
+            /** Length S */
+            length_s: number | null;
+        };
         /** LibraryFile */
         LibraryFile: {
             /** Id */
@@ -938,6 +1106,31 @@ export interface components {
         /** Moved */
         Moved: {
             file: components["schemas"]["LibraryFile"] | null;
+        };
+        /** NewRadioPull */
+        NewRadioPull: {
+            /** Artist */
+            artist: string;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "easy" | "medium" | "hard";
+            /** Tracks */
+            tracks: components["schemas"]["RadioTrackIn"][];
+            /** Name */
+            name?: string | null;
+        };
+        /** NewRecsPull */
+        NewRecsPull: {
+            /** Last Updated */
+            last_updated: number;
+            /** First Rank */
+            first_rank: number;
+            /** Last Rank */
+            last_rank: number;
+            /** Name */
+            name?: string | null;
         };
         /** NewRequest */
         NewRequest: {
@@ -996,6 +1189,29 @@ export interface components {
             /** Place In Queue */
             place_in_queue: number | null;
         };
+        /** PullOut */
+        PullOut: {
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** State */
+            state: string;
+            /** Created At */
+            created_at: number;
+            /** Total */
+            total: number;
+            /** Queued */
+            queued: number;
+            /** Downloading */
+            downloading: number;
+            /** In Playlist */
+            in_playlist: number;
+            /** Failed */
+            failed: number;
+        };
         /** QueueItem */
         QueueItem: {
             /** Id */
@@ -1040,6 +1256,38 @@ export interface components {
         QueueState: {
             /** Paused */
             paused: boolean;
+        };
+        /** RadioTrack */
+        RadioTrack: {
+            /** Mbid */
+            mbid: string;
+            /** Title */
+            title: string;
+            /** Artist */
+            artist: string;
+            /** Album */
+            album: string | null;
+            /** Length S */
+            length_s: number | null;
+        };
+        /** RadioTrackIn */
+        RadioTrackIn: {
+            /** Mbid */
+            mbid: string;
+            /** Title */
+            title: string;
+            /** Artist */
+            artist: string;
+            /** Album */
+            album?: string | null;
+            /** Length S */
+            length_s?: number | null;
+        };
+        /** RecCheckOut */
+        RecCheckOut: {
+            /** New */
+            new: boolean;
+            list: components["schemas"]["LbList"] | null;
         };
         /**
          * ReleaseRef
@@ -1866,6 +2114,229 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_api_lb_recs_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecCheckOut"];
+                };
+            };
+        };
+    };
+    lists_api_lb_recs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LbList"][];
+                };
+            };
+        };
+    };
+    tracks_api_lb_recs__last_updated__tracks_get: {
+        parameters: {
+            query?: {
+                first?: number;
+                last?: number;
+            };
+            header?: never;
+            path: {
+                last_updated: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LbTrack"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    radio_api_lb_radio_get: {
+        parameters: {
+            query: {
+                artist: string;
+                level?: "easy" | "medium" | "hard";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioTrack"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pull_recs_api_pulls_recs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewRecsPull"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pull_radio_api_pulls_radio_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewRadioPull"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    history_api_pulls_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullOut"][];
+                };
+            };
+        };
+    };
+    cancel_api_pulls__pull_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pull_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullOut"];
                 };
             };
             /** @description Validation Error */
