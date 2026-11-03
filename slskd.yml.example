@@ -1,10 +1,9 @@
-# slskd configuration reference for Musica.
+# slskd configuration reference for Post-Vinyl.
 #
 # slskd's *actual* runtime config lives in ./slskd_config/ (bind-mounted to
 # /app inside the container — see docker-compose.yml), which is entirely
 # gitignored because it holds live state alongside config. This file is the
-# tracked reference companion, mirroring the config.toml / config.toml.example
-# pattern used for the musica app itself.
+# tracked reference companion.
 #
 # slskd is currently configured almost entirely via environment variables in
 # docker-compose.yml (the SLSKD_* vars on the `slskd` service), not via this

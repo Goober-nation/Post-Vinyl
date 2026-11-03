@@ -67,6 +67,7 @@ services:
   postvinyl-proxy:
     image: ginuerzh/gost:latest
     container_name: postvinyl-proxy
+    # unfortunately needed for russian users to get data from Listenbrainz & Musicbrainz endpoints
     command: "-L=http://:8080 -F=socks5://${MUSICA_PROXY_USER}:${MUSICA_PROXY_PASS}@${MUSICA_PROXY_SOCKS_HOST}:${MUSICA_PROXY_SOCKS_PORT}"
     restart: unless-stopped
     networks:
@@ -75,7 +76,7 @@ services:
   postvinyl:
     build: .
     container_name: postvinyl
-    # a bad config stops after 3 tries instead of looping; a real crash still restarts
+    # bad configs stop after 3 tries; a real crash still restarts
     restart: on-failure:3
     ports:
       - "8092:8000"
