@@ -1,214 +1,169 @@
-# Post-Vinyl v0.1 🎉
+# Post-Vinyl
 
-## TL;DR
+[![GitHub License](https://img.shields.io/github/license/Goober-nation/Post-Vinyl)](LICENSE)
+[![GitHub Repo stars](https://img.shields.io/github/stars/Goober-nation/Post-Vinyl)](https://github.com/Goober-nation/Post-Vinyl)
 
-Post-Vinyl is an opinionated self-hosted music library that tries to simplify hosting your own music. Search for a song/album/artist (or
-let it pull ListenBrainz recommendations on its own), and it takes care of the rest:
+Post-Vinyl is a self-hosted music downloader and library manager. Search for a song, album or artist, or pull your ListenBrainz recommendations, and it finds the right file on Soulseek, tags it, files it and adds it to your Navidrome library.
 
-**MusicBrainz search → Soulseek download → beets tag/file → Navidrome library**, hands-off.
+## Features
 
-1. You search MusicBrainz (or a recommendation category fires automatically) for a recording, album,
-   or artist.
-2. Post-Vinyl resolves that to the *actual* canonical release and searches Soulseek for a matching
-   file — not just whatever a random peer's file happens to be labeled.
-3. The download is pulled in over the Soulseek network via [slskd](https://github.com/slskd/slskd).
-4. [beets](https://beets.io/) tags, renames, and files the completed download into your library
-   automatically, pinned to the release Post-Vinyl actually resolved.
-5. [Navidrome](https://www.navidrome.org/) indexes it — the track shows up in your library and, for
-   recommendations, in its category playlist — ready to stream from any Subsonic-compatible app. For 
-   computer usage I just use the Navidrome web app, but [Feishin](https://github.com/jeffvli/feishin/releases)
-   has many cool features, like an equalizer and granular settings, as well as being (to my knowledge) the only 
-   Navidrome app that can create smart .nsp playlists inside its UI. 
-   For mobile use i have tested literally everything there is on the IOS app store, and found 
-   [Arpeggi](https://github.com/argie-w/Arpeggi-App) to be the absolute best looking and feeling app there is. 
-   Honorable mention to [Yuzic](https://github.com/eftpmc/yuzic) for being (as far as I know)
-   the only player to atempt to integrate slskd downloading directly within the mobile app, though i did not get is to work for me.
+- **Search & Download**: Search MusicBrainz and Deezer for songs, albums and artists, fill a cart, and download. Post-Vinyl picks the peer and checks the file really is the song you asked for.
+- **Careful Matching**: Live versions, covers, remixes, karaoke and the like are skipped unless that's what you asked for.
+- **ListenBrainz Recommendations**: Keep each of your 1000-song recommendation lists, choose a range, preview the songs, and pull them into a named playlist.
+- **ListenBrainz Radio**: Pick an artist and a level (easy, medium or hard), reroll until you like it, and pull it into a playlist.
+- **Your Requests Go First**: Pulls download in the background, behind anything you ask for yourself. Cancel one at any time.
+- **Honest Tags**: Tags come from MusicBrainz and ListenBrainz lookups only, with no guessing.
+- **Soulseek Tab**: Search Soulseek directly and pick the exact files yourself.
+- **File Management**: Browse, rename and delete files in your library.
+- **Multi-user**: Log in with your Navidrome account. Each user has their own requests, sources, settings and ListenBrainz token.
 
-**You interact with it** through a small web UI (manual search, download queue, recs status, config)
-and its REST API — see [`docs/api.md`](docs/api.md). Everything also runs unattended: recommendations
-pull on a schedule, favorites sync both ways with ListenBrainz, and completed imports need no manual
-step.
+## How It Works
 
-**Docker is a prerequisite** — Post-Vinyl ships as a Docker Compose stack (Navidrome + slskd + the app
-itself) and isn't designed to be run any other way. See [`docs/deployment.md`](docs/deployment.md) to
-get it running.
+1. **Post-Vinyl** turns your request into a real song through MusicBrainz or Deezer and searches Soulseek through **slskd**.
+2. It ranks the peers, downloads the best match, verifies the file, tags it and moves it into your library.
+3. **Navidrome** indexes the song, ready to stream from any Subsonic app. Songs from a pull also join that pull's playlist.
 
-**On Soulseek sharing**: slskd shares your library back to the Soulseek network by default, same as
-the official client. That's a good thing, not a side effect to work around — Soulseek only works
-because everyone using it shares back; being a good peer is what keeps the network alive for
-everyone, including you.
+For listening I use the Navidrome web app or [Feishin](https://github.com/jeffvli/feishin/releases) on a computer, and [Arpeggi](https://github.com/argie-w/Arpeggi-App) on iOS.
 
----
+## Self-Hosting with Docker
 
-Post-Vinyl automates a self-hosted music library: it pulls recommendations from ListenBrainz, finds and
-downloads matching tracks over Soulseek (via [slskd](https://github.com/slskd/slskd)), tags and files
-them with [beets](https://beets.io/), and serves the result through
-[Navidrome](https://www.navidrome.org/). You can also search and download manually, or browse
-MusicBrainz and queue a specific recording or album directly.
+Post-Vinyl ships as a Docker Compose stack: the app, Navidrome and slskd.
 
-It is one Docker Compose stack that wires those four systems together and adds the glue none of them
-provide on their own: a search-and-download pipeline tuned for Soulseek's quirks, three
-recommendation categories with their own pull/rotation logic, and a small web UI to watch and control
-all of it.
+### Prerequisites
 
-For how it works internally, see [`docs/architecture.md`](docs/architecture.md). For every HTTP
-endpoint, see [`docs/api.md`](docs/api.md). For running your own stack, see
-[`docs/deployment.md`](docs/deployment.md).
+- Docker with Compose 2.24 or newer
+- A music folder containing the empty folders `library/` and `downloads/complete/soulseek/`. slskd won't start without the downloads folder.
 
----
+### Quick Start
 
-## What it does
+The same commands work in bash, PowerShell and the macOS terminal.
 
-- **Recommendations** — three ListenBrainz-backed categories, each with its own pool, pull cadence,
-  and destination playlist:
-  - **Comfort Zone** — your top/similar-artist recommendations (1000-track rotating pool).
-  - **Fresh Picks** — new releases, not personalized (a global feed, by design).
-  - **Deep Cuts** — ListenBrainz's own weekly-generated "Daily Jams"/periodic-jams playlists.
-  
-  Each category can be pulled on a timer or manually from the UI. See
-  [`docs/architecture.md#recommendations`](docs/architecture.md#recommendations) for the pull/dedup
-  mechanics of each.
-- **Manual search & download** — search Soulseek directly and queue any result.
-- **MusicBrainz browse & download** — search MusicBrainz for a recording, album, or artist and queue a
-  download resolved to that canonical release, not just whatever a peer's file happens to be tagged as.
-- **Automatic tagging & filing** — every completed download is handed to beets, which tags, renames,
-  and moves it into your library (or the matching recommendation category folder).
-- **Navidrome sync** — starred (loved) tracks push a ListenBrainz "love"; tracks moved to Navidrome's
-  Trash playlist get deleted from disk and sent a ListenBrainz "hate".
-- **Live status** — an SSE event stream and small web UI show searches, transfers, and recs pulls as
-  they happen.
+1. Copy `.env.example` to `.env` and fill it in (see [Environment Variables](#environment-variables)). Generate `PV_SECRET_KEY` once:
 
-## Quick start
-
-The same commands work in bash, PowerShell and the macOS terminal. Needs Docker Compose 2.24 or newer.
-
-1. Copy `.env.example` to `.env` and fill it in (table below). Generate `PV_SECRET_KEY` once and
-   back it up outside the database (losing it loses every stored secret):
    ```bash
    docker compose run --rm --no-deps postvinyl python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
    ```
-2. Create the first admin (Navidrome's and Post-Vinyl's), once. Navidrome stays unpublished while it runs:
+
+   Back the key up outside the database. Losing it loses every stored secret.
+
+2. Create the first admin, which is both the Navidrome and the Post-Vinyl admin. Navidrome stays unpublished while this runs:
+
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.setup.yml run --rm setup
+   ```
+
+   ```bash
    docker compose down
    ```
-3. Start the stack and open `PV_PUBLIC_ORIGIN`:
+
+3. Start the stack:
+
    ```bash
    docker compose up -d
    ```
-   On first start Post-Vinyl creates `postvinyl_config/` and `postvinyl_data/`, writes
-   `postvinyl_config/post-vinyl.yaml` from `post-vinyl.example.yaml` (each value is explained in it;
-   restart after editing), and hands both folders to `PUID`/`PGID`.
 
-### Environment variables
+### Initial Setup
 
-Each can go in `.env` (read through `${...}` in `docker-compose.yml`) or straight into the service's
-`environment:` in `docker-compose.yml`. Keep secrets in `.env`, since compose files get copied and shared.
+1. Open `PV_PUBLIC_ORIGIN` (`http://localhost:8092` by default) and log in with your Navidrome account.
+2. Search for something and download it.
+3. For recommendations and radio, add your ListenBrainz token in **Settings**.
+
+| Service | Default address |
+|---|---|
+| Post-Vinyl | `http://localhost:8092` |
+| Navidrome | `http://localhost:8090` |
+| slskd | `http://localhost:8091` |
+
+## Configuration
+
+Secrets live in `.env`. Everything else lives in `postvinyl_config/post-vinyl.yaml`, created from [`post-vinyl.example.yaml`](post-vinyl.example.yaml) on first start, with each value explained inside. Admins can also change it under **Settings > Server-wide**. Restart after a change.
+
+Settings under **Settings > Mine** apply only to you, and take effect at once.
+
+### Environment Variables
 
 | Variable | Needed | What it is |
 |---|---|---|
-| `MUSIC_HOST_DIR` | yes | Your music folder; must exist. Navidrome's library is its `library/` subfolder. |
-| `SLSKD_DOWNLOADS_DIR` | yes | Where slskd saves finished downloads inside `/music` (default in `.env.example`). |
+| `MUSIC_HOST_DIR` | yes | Your music folder. Navidrome's library is its `library/` subfolder. |
+| `SLSKD_DOWNLOADS_DIR` | yes | Where slskd saves downloads inside `/music` (default in `.env.example`). |
 | `PV_SECRET_KEY` | yes, secret | Encrypts stored per-user secrets. |
 | `PV_PUBLIC_ORIGIN` | yes | The address people open the app at, `scheme://host[:port]`. |
 | `SLSKD_API_KEY` | yes, secret | Any long random string; slskd and Post-Vinyl share it. |
 | `SLSKD_NETWORK_USERNAME`, `SLSKD_NETWORK_PASSWORD` | yes, secret | Your Soulseek login; the first login registers the name. |
 | `SLSKD_UI_USERNAME`, `SLSKD_UI_PASSWORD` | yes, secret | slskd's own web UI login. |
 | `PV_DATA_DIR` | no | Host folder for the database (default `./postvinyl_data`). |
-| `PUID`, `PGID` | no | The user and group Post-Vinyl runs as and owns its folders with (default `1000`). |
+| `PUID`, `PGID` | no | The user and group Post-Vinyl runs as (default `1000`). |
 | `PV_DEV` | no | `1` serves the API docs at `/docs`; leave empty in production. |
 | `LISTENBRAINZ_TOKEN` | no | Navidrome's own ListenBrainz scrobbling. |
-| `MUSICA_HTTP_PROXY`, `MUSICA_PROXY_*`, `NO_PROXY_LIST` | no | Optional SOCKS5 proxy for Navidrome. |
-
-Inside the container the app's folders are `/postvinyl/data` and `/postvinyl/config`; the image
-defaults `PV_DB_PATH` and `PV_CONFIG_PATH` to files in them. The container starts as root only to
-create them and set their owner, then runs the app as `PUID`/`PGID`.
-
-## Tests
-
-```bash
-pip install -r requirements.txt
-pytest tests/ -v              # test suite
-ruff check app/ && mypy app/  # lint + type check
-```
+| `MUSICA_HTTP_PROXY`, `MUSICA_PROXY_*`, `NO_PROXY_LIST` | no | Optional SOCKS5 proxy. |
 
 ## FAQ
 
-**Do I need a ListenBrainz account for anything besides recommendations?**
-No — search, download, MusicBrainz browsing, and Navidrome sync all work without one. Recommendations
-require `LISTENBRAINZ_TOKEN`/`LISTENBRAINZ_USERNAME` in `.env`; the integration enables automatically
-once both are set (restart required).
+**Do I need a ListenBrainz account?**
+Only for recommendations and radio. Search, download and everything else work without one.
+
+**Do I share files back to Soulseek?**
+Yes. slskd shares your library, the same as the official client. Soulseek only works because everyone shares back.
 
 **Why does one search open thousands of connections?**
-Soulseek search is broadcast network-wide — every peer with a match dials in, which is normal Soulseek
-behavior, not a bug. Post-Vinyl rate-limits and caches searches to keep this manageable; see
-[`docs/architecture.md#search-connection-behavior`](docs/architecture.md#search-connection-behavior).
+Soulseek searches are broadcast, so every peer with a match connects to you. That's normal. Post-Vinyl limits how often it searches, because searching too fast gets the account throttled.
 
-**Does using Post-Vinyl mean I share files back to the Soulseek network?**
-Yes. slskd shares `SLSKD_SHARED_DIR` (your Navidrome library folder) back to the Soulseek network by
-default, the same as the official Soulseek client — you become a peer other users can download from,
-not just a downloader. This is inherent to how the Soulseek network functions.
+**How long does a big pull take?**
+Hours. Searches are limited to 4 a minute, so 1000 songs take over 4 hours at best.
 
-**Why do I need a proxy container?**
-Only if ListenBrainz or Soulseek isn't reachable directly from where you host Post-Vinyl (e.g. a VPS in a
-region without direct access). See [`docs/deployment.md`](docs/deployment.md) for when to use
-`postvinyl-proxy` and when to skip it.
+**What happens when a download fails?**
+Post-Vinyl re-reads the same search and tries the next peer, up to `slskd.candidates_per_download` peers, then marks the request failed. Asking for the song again starts a fresh search.
 
-**Where do config settings actually live?**
-Non-secret settings live in `postvinyl_config/post-vinyl.yaml` (copied from `post-vinyl.example.yaml`,
-which explains each value). Secrets (passwords, tokens, API keys) live only in `.env`. Both are read at
-startup, so restart the container after a change.
+## Known Bugs
 
-**What happens to a download that fails to match anything?**
-Post-Vinyl re-reads the same slskd search and tries the next peer, up to `slskd.candidates_per_download`
-peers, then marks the request failed. Asking for the song again starts a fresh search.
-
-## known bugs
-
-- If you see a download hang in queue forever ocasionally switching to "downloading", just cancel it, it should retry on its own
-
-- You may want to clear slskd_config/incomplete from time to time to get rid of songs that errored in downloads
-
-- 1 letter songs/albums (like "i" by Kendrick Lamar) are able to show up in the search results, but the soulseek search mechanism itself
-really does not like those, so there is a high probability that a wrong track may be downloaded. You can try your hand at the search in the 
-soulseek tab on the ui, but it is also likely to not show up :( This is what the upload feature will be aiming at, so you can 
-source you music elsewhere and upload it to your server using the ui
+- You may want to clear `slskd_config/incomplete` from time to time to remove songs that failed mid-download.
+- One-letter titles (like "i" by Kendrick Lamar) show up in search, but Soulseek's search handles them badly, so a wrong track may be downloaded. Try the Soulseek tab, though it may not show up there either.
 
 ## Planned
 
-Not built yet, roughly in mind for later. Order and scope may change:
+Order and scope may change.
 
-- **Frontend design** — the current UI is functional, not designed; a real visual pass is planned.
-- **User-uploading** — adding tracks to the library directly instead of only via Soulseek/recs.
-- **Built-in system notifications** — surfacing app/service issues (e.g. failed downloads, service
-  outages) without having to watch the logs.
-- **Multi-user support** — currently single-user (one Navidrome account, one ListenBrainz account).
+- Approval inbox and Postradio recommendations
+- Yandex playlists
+- Custom and smart playlists
+- Uploading your own files
+- Notifications for failed downloads and service outages
+
+## API
+
+Every endpoint is listed in [`docs/api.md`](docs/api.md).
+
+## Development
+
+```bash
+pip install -r requirements.txt
+```
+
+```bash
+pytest tests/ -v
+```
+
+```bash
+ruff check app/ && mypy app/
+```
 
 ## Acknowledgments
 
-Post-Vinyl exists because of the ecosystem it sits on top of:
-
-- **[slskd](https://github.com/slskd/slskd)** — the Soulseek client/daemon and REST API Post-Vinyl drives
-  for all search and download work.
-- **[Navidrome](https://www.navidrome.org/)** — the music server and Subsonic-API library/playlist
-  backend Post-Vinyl reads and writes.
-- **[beets](https://beets.io/)** — the tagging/organizing engine behind every automatic import.
-- **[ListenBrainz](https://listenbrainz.org/)** — the open recommendation and scrobble-feedback service
-  behind Comfort Zone, Fresh Picks, Deep Cuts, and love/hate sync.
-- **[MusicBrainz](https://musicbrainz.org/)** — the open music metadata database behind canonical
-  release resolution, browse/search, and beets' own tagging.
-- The **Soulseek network and its users** — the actual source of every file Post-Vinyl downloads.
+- **[slskd](https://github.com/slskd/slskd)**: the Soulseek client behind every search and download.
+- **[Navidrome](https://www.navidrome.org/)**: the music server.
+- **[ListenBrainz](https://listenbrainz.org/)**: recommendations and radio.
+- **[MusicBrainz](https://musicbrainz.org/)**: song data and tags.
+- **[Deezer](https://www.deezer.com/)**: song data and covers.
+- The **Soulseek network and its users**: the source of every file.
 
 Special thanks to:
 
-- **[Soulbeet](https://github.com/terry90/soulbeet)** - a different service for managing searches and downloads that i took a lot of inspiration from.
-- Madvillainy by madlib and MF DOOM for being the perfect download test subject throughout the development process
-- Macbook Air for not dying on me
-- **ANYBODY** that reaches out (goobernation@duck.com) to report bugs and the general user experience. Know that it would mean a lot to me. You could also use issues to report stuff, highly appreciated as well!
+- **[Soulbeet](https://github.com/terry90/soulbeet)**, a different service for managing searches and downloads that I took a lot of inspiration from.
+- **[Yuzic](https://github.com/eftpmc/yuzic)**, for attempting slskd downloading directly in a mobile app.
+- Madvillainy by Madlib and MF DOOM, for being the perfect download test subject.
+- MacBook Air, for not dying on me.
+- **Anybody** who reaches out (goobernation@duck.com) to report bugs or share how it's going. It would mean a lot.
 
 ## License
 
-Apache License 2.0 — see [`LICENSE`](LICENSE). Forks, modifications, and redistribution are welcome;
-see [`TRADEMARKS.md`](TRADEMARKS.md) for the (informal, non-legal) policy on the project name. No
-warranty; you are responsible for compliance with the Soulseek network's terms and your local laws
-regarding file sharing.
+Apache License 2.0, see [`LICENSE`](LICENSE). Forks, modifications and redistribution are welcome; see [`TRADEMARKS.md`](TRADEMARKS.md) for the informal policy on the name. No warranty. You are responsible for following the Soulseek network's terms and your local laws on file sharing.
