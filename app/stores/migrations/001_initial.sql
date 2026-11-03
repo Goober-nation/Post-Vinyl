@@ -10,6 +10,7 @@ CREATE TABLE users (
     username         TEXT    NOT NULL UNIQUE COLLATE NOCASE,  -- = Navidrome username
     nd_password_enc  TEXT    NOT NULL,          -- encrypted (PV_SECRET_KEY); refreshed each login
     lb_token_enc     TEXT,                      -- encrypted; NULL until the user enters it
+    lb_username      TEXT,                      -- from the token check; cleared with the token
     is_admin         INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0, 1)),  -- from Navidrome
     status           TEXT    NOT NULL DEFAULT 'active'
                              CHECK (status IN ('active', 'needs_reauth')),
@@ -68,7 +69,7 @@ CREATE INDEX idx_song_identity_song ON song_identity(song_id);
 -- where a request came from (optional); type tables reuse the origins id
 CREATE TABLE origins (
     id    INTEGER PRIMARY KEY,
-    kind  TEXT NOT NULL                         -- catalog_search | yandex | …
+    kind  TEXT NOT NULL                         -- catalog_search | lb_recs | lb_radio | yandex | …
 );
 
 -- typed catalog-search history, per user; a repeat bumps last_used_at
@@ -225,3 +226,66 @@ CREATE TABLE setup_state (
     value       TEXT    NOT NULL,
     updated_at  INTEGER NOT NULL
 );
+
+-- ---------------------------------------------------------------- pulls
+
+-- ListenBrainz's recommendation lists: every song of every generation, per user
+CREATE TABLE lb_playlists (
+    user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    last_updated        INTEGER NOT NULL,       -- ListenBrainz's generation marker
+    pulled_at           INTEGER NOT NULL,       -- shown in the dropdown
+    rank                INTEGER NOT NULL,       -- 1-1000
+    recording_mbid      TEXT    NOT NULL,
+    score               REAL    NOT NULL,
+    latest_listened_at  TEXT,
+    title               TEXT,                   -- NULL: ListenBrainz has no metadata for it
+    artist              TEXT,
+    artist_mbids        TEXT,                   -- JSON array
+    album               TEXT,
+    release_mbid        TEXT,
+    length_s            REAL,
+    PRIMARY KEY (user_id, last_updated, rank)
+);
+
+-- one table per way to pull; id reuses the origins id, so requests point here
+CREATE TABLE user_lb_playlists (
+    id                     INTEGER PRIMARY KEY REFERENCES origins(id) ON DELETE CASCADE,
+    user_id                INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name                   TEXT    NOT NULL,
+    lb_last_updated        INTEGER NOT NULL,    -- with user_id, finds rows in lb_playlists
+    first_rank             INTEGER NOT NULL,
+    last_rank              INTEGER NOT NULL,
+    state                  TEXT    NOT NULL DEFAULT 'running'
+                           CHECK (state IN ('running', 'done', 'cancelled')),
+    navidrome_playlist_id  TEXT,                -- set when the first song is indexed
+    created_at             INTEGER NOT NULL
+);
+CREATE INDEX idx_user_lb_playlists_user ON user_lb_playlists(user_id);
+
+CREATE TABLE user_radio_requests (
+    id                     INTEGER PRIMARY KEY REFERENCES origins(id) ON DELETE CASCADE,
+    user_id                INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name                   TEXT    NOT NULL,
+    artist                 TEXT    NOT NULL,
+    level                  TEXT    NOT NULL CHECK (level IN ('easy', 'medium', 'hard')),
+    size                   INTEGER NOT NULL,
+    state                  TEXT    NOT NULL DEFAULT 'running'
+                           CHECK (state IN ('running', 'done', 'cancelled')),
+    navidrome_playlist_id  TEXT,                -- set when the first song is indexed
+    created_at             INTEGER NOT NULL
+);
+CREATE INDEX idx_user_radio_requests_user ON user_radio_requests(user_id);
+
+-- the chosen songs of any pull, and the queue the pull feeder reads
+CREATE TABLE pull_items (
+    origin_id       INTEGER NOT NULL REFERENCES origins(id) ON DELETE CASCADE,
+    position        INTEGER NOT NULL,
+    recording_mbid  TEXT    NOT NULL,
+    title           TEXT,
+    artist          TEXT,
+    state           TEXT    NOT NULL DEFAULT 'queued'
+                    CHECK (state IN ('queued', 'requested', 'reused', 'cancelled')),
+    request_id      INTEGER REFERENCES requests(id),
+    PRIMARY KEY (origin_id, position)
+);
+CREATE INDEX idx_pull_items_request ON pull_items(request_id);
