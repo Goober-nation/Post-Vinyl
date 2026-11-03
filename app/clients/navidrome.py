@@ -127,6 +127,12 @@ class NavidromeClientBase(ABC):
         when Navidrome has none for that id (#126)."""
 
     @abstractmethod
+    def save_playlist(
+        self, session: Session, name: str, song_ids: list[str], playlist_id: str | None
+    ) -> str:
+        """Create a playlist, or replace ``playlist_id``'s songs; returns its id."""
+
+    @abstractmethod
     def find_song_by_path(self, session: Session, path: str) -> Song | None:
         """The song at exactly ``path`` (relative to its library), or None."""
 
@@ -298,3 +304,13 @@ class NavidromeClient(NavidromeClientBase):
         if len(exact) > 1:
             raise NavidromeError(f"{len(exact)} songs at path {path!r}")
         return exact[0] if exact else None
+
+    def save_playlist(
+        self, session: Session, name: str, song_ids: list[str], playlist_id: str | None
+    ) -> str:
+        form: dict[str, Any] = {"songId": song_ids, **self._auth_params(session)}
+        form |= {"playlistId": playlist_id} if playlist_id else {"name": name}
+        # POST: a full playlist doesn't fit in a URL
+        resp = self._request("POST", "/rest/createPlaylist", data=form)
+        body = self._checked("createPlaylist", resp.json()["subsonic-response"])
+        return str(body["playlist"]["id"])

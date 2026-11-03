@@ -193,3 +193,34 @@ def test_fake_needs_a_known_token() -> None:
     assert fake.validate_token("tok").user_name == "user"
     with pytest.raises(ListenBrainzAuthError):
         fake.lookup_recording("A", "T", "bad")
+
+
+def test_recommendations_parse(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = {
+        "last_updated": 1792712200,
+        "mbids": [{"recording_mbid": MBID, "score": 1.04}],
+    }
+    client, calls = client_returning(monkeypatch, FakeResp(200, {"payload": payload}))
+    recs = client.recommendations("a b")
+    assert recs is not None and recs.last_updated == 1792712200
+    assert (recs.recordings[0].mbid, recs.recordings[0].latest_listened_at) == (MBID, None)
+    assert "/user/a%20b/recording" in calls[0][1]
+
+
+def test_recommendations_not_generated_yet(monkeypatch: pytest.MonkeyPatch) -> None:
+    client, _ = client_returning(monkeypatch, FakeResp(204, None))
+    assert client.recommendations("x") is None
+
+
+def test_radio_parse_skips_tracks_without_a_recording(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    good = {
+        "title": "T", "creator": "A", "album": "B", "duration": 196000,
+        "identifier": [f"https://musicbrainz.org/recording/{MBID}"],
+    }  # fmt: skip
+    body = {"payload": {"jspf": {"playlist": {"track": [good, {"title": "no id"}]}}}}
+    client, calls = client_returning(monkeypatch, FakeResp(200, body))
+    [track] = client.radio("Radiohead", "medium", "tok")
+    assert (track.mbid, track.length_s) == (MBID, 196.0)
+    assert calls[0][2]["params"] == {"prompt": "artist:(Radiohead)", "mode": "medium"}

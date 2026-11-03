@@ -186,3 +186,12 @@ def test_cover_art_unknown_id_is_a_json_error_with_http_200(
     client, _ = client_returning(monkeypatch, resp)
     with pytest.raises(NavidromeNotFound):
         client.cover_art(session(), "nope", 80)
+
+
+def test_save_playlist_replaces_by_id_over_post(monkeypatch: pytest.MonkeyPatch) -> None:
+    body = {"subsonic-response": {"status": "ok", "playlist": {"id": "p1"}}}
+    client, calls = client_returning(monkeypatch, FakeResp(200, body))
+    assert client.save_playlist(session(), "n", ["a", "b"], "p1") == "p1"
+    method, _, kwargs = calls[0]
+    assert method == "POST" and kwargs["data"]["songId"] == ["a", "b"]
+    assert kwargs["data"]["playlistId"] == "p1" and "name" not in kwargs["data"]
