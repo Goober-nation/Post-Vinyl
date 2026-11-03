@@ -14,6 +14,7 @@ from app.services.credentials import CredentialsServiceBase
 from app.services.dispatch import DownloadDispatchBase
 from app.services.downloads import DownloadsServiceBase
 from app.services.library import LibraryServiceBase
+from app.services.pulls import PullServiceBase
 from app.services.queue_pause import QueuePauseBase
 from app.services.requests import RequestServiceBase
 from app.services.settings import InstallSettingsBase, UserSettingsBase
@@ -40,6 +41,7 @@ class Core:
     settings: UserSettingsBase | None = None
     install: InstallSettingsBase | None = None
     workers: CoreLoopWorkers | None = None
+    pulls: PullServiceBase | None = None
 
 
 def need(service: T | None, what: str) -> T:

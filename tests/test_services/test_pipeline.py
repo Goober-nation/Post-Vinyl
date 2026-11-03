@@ -326,5 +326,5 @@ def test_core_loop_resumes_then_starts_workers(tmp_path: Path) -> None:
     assert [r for _, r in dispatch.started] == [1, 2]  # resumed, then the waiting one
     assert {w.name for w in loop.workers} == {
         "download-monitor", "file-pipeline", "cleanup", "unverifiable", "missing-check",
-        "redispatch",
+        "redispatch", "pull-feeder", "pull-playlists",
     }  # fmt: skip

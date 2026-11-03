@@ -80,6 +80,24 @@ A request is one song someone asked for, whatever started it. `track_state`: `re
 | `POST /api/requests/{request_id}/drop` | owner | | the request; a running download is cancelled (`409` once it has ended) |
 | `POST /api/requests/{request_id}/re-request` | owner | | the request, handed to the download source again |
 
+## ListenBrainz tab
+
+Recs come from the user's ListenBrainz list, stored per generation (`last_updated`). A pull's songs
+wait behind every user request, and each one joins the pull's Navidrome playlist once indexed.
+Excluded versions never appear. One running pull per user (`409`). All of it needs a stored
+ListenBrainz token (`409`).
+
+| Call | Who | Takes | Answers |
+|---|---|---|---|
+| `POST /api/lb/recs/check` | user | | `{new, list}`: stores the current list if it's new; `list` is `null` until ListenBrainz has generated one |
+| `GET /api/lb/recs` | user | | stored lists, newest first: `last_updated`, `pulled_at`, `songs` |
+| `GET /api/lb/recs/{last_updated}/tracks` | user | `first?`, `last?` (ranks) | the range's songs that may be pulled |
+| `GET /api/lb/radio` | user | `artist`, `level?` (`easy`, `medium`, `hard`) | a fresh radio; each call differs, nothing is stored |
+| `POST /api/pulls/recs` | user | `{last_updated, first_rank, last_rank, name?}` | `201` the pull; default name `recs-<date>` |
+| `POST /api/pulls/radio` | user | `{artist, level, tracks, name?}` | `201` the pull; default name `radio-<artist>-<date>` |
+| `GET /api/pulls` | user | | newest first: `id`, `kind`, `name`, `state`, `created_at`, `total`, `queued`, `downloading`, `in_playlist`, `failed` |
+| `POST /api/pulls/{pull_id}/cancel` | owner | | queued songs leave and requests not yet downloading are dropped; started downloads finish |
+
 ## slskd tab
 
 | Call | Who | Takes | Answers |

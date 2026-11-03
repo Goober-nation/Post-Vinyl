@@ -18,6 +18,8 @@ from app.workers.periodic import Periodic
 
 log = logging.getLogger(__name__)
 
+PULL_EVERY_S = 5
+
 
 class CoreLoopWorkers:
     def __init__(
@@ -27,6 +29,8 @@ class CoreLoopWorkers:
         pipeline: FilePipeline,
         downloads_poll: Callable[[], None],
         cleanup_tick: Callable[[], object],
+        pull_feed: Callable[[], object] = lambda: None,
+        pull_playlists: Callable[[], object] = lambda: None,
     ) -> None:
         self._dispatch = dispatch
         s = settings
@@ -44,6 +48,9 @@ class CoreLoopWorkers:
             Periodic(
                 "redispatch", dispatch.redispatch_waiting, s.redispatch_every_seconds
             ),
+            Periodic("pull-feeder", pull_feed, PULL_EVERY_S),
+            # its own worker: Navidrome being down never holds up the queue
+            Periodic("pull-playlists", pull_playlists, PULL_EVERY_S),
         ]
 
     def start(self) -> None:
