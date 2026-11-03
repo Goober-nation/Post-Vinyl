@@ -78,5 +78,7 @@ class CredentialsService(CredentialsServiceBase):
         if not check.valid:
             raise ValueError("ListenBrainz says this token is invalid")
         with self._db.transaction(write=True) as conn:
-            self._users.set_lb_token(conn, user_id, self._box.encrypt(token))
+            self._users.set_lb_token(
+                conn, user_id, self._box.encrypt(token), check.user_name
+            )
         return CredentialsView(listenbrainz=True, listenbrainz_user=check.user_name)
