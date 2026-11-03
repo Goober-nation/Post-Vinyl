@@ -40,7 +40,7 @@ export function settingsPage(me: Me): HTMLElement {
   const body = h("div", {}, h("p", { class: "text-muted", role: "status" }, "Loading…"));
   const head = pageHead(
     "Settings",
-    filters("Whose settings", [["mine", "Mine"], ["install", "Install"]], which, (v) => (location.hash = `#/settings?of=${v}`)),
+    filters("Whose settings", [["mine", "Mine"], ["install", "Server-wide"]], which, (v) => (location.hash = `#/settings?of=${v}`)),
   );
   void draw(body, which, me);
   return h("div", {}, h("div", { class: "center-main" }, head, body), h("aside", { class: "side-rail rail" }, listenBrainzRail()));
