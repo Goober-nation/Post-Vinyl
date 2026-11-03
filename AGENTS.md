@@ -17,7 +17,7 @@ it, the rebuild notes win.
    - `design-notes-compilation.md`: search & matching decisions
    - `search-test-v2.md`: normalization test + search benchmark rerun
    - `live-runs-log.md`: past runs on the test stack
-   - `lb-pulls.md`: ListenBrainz recs + radio pulls (proposed)
+   - `lb-pulls.md`: ListenBrainz recommendations + radio pulls
 4. Check the current GitHub milestone and its issues (`gh issue list --milestone "<title>"`).
 5. Check the branch (`git branch --show-current`); see Branches below.
 6. If the user gives a free-form idea mid-session, say which milestone/issue it belongs to (or that it
@@ -29,15 +29,15 @@ If anything is unclear or missing, ask before proceeding.
 
 ## Current state
 
-- **`app/`**: the new app, an empty layered skeleton (`clients/`, `stores/`, `core/`, `services/`,
-  `workers/`, `routes/`). Layer rules in `rebuild/architecture.md`.
+- **`app/`**: the new app, layered (`clients/`, `stores/`, `core/`, `services/`, `workers/`,
+  `routes/`). Layer rules in `rebuild/architecture.md`.
+- **`web/`**: the frontend (TypeScript, Vite), served by the app from `web/dist`.
 - **`legacy/`**: the old app and its tests. Reference only: never run, never imported, deleted when
   the rebuild is done. Port pieces from it deliberately (the "stays" rows in `architecture.md` §5).
 - **`scripts/corpus/`** + **`tests/test_scripts/`** + **`tests/fixtures/corpus/`**: the search
   benchmark tooling. `plan.py` and `resolve_seeds.py` still import modules that now only exist in
   `legacy/`, so they're broken until those are ported.
-- No frontend until the core backend is done (milestone 7); test through FastAPI's `/docs`
-  (development only). The frontend is milestone 8; later milestones add their pages as issues.
+- Milestones 1-7 and 9 are done; milestone 8 has #126 and #127 open.
 - The server still runs the old app from `main`.
 
 ---
@@ -54,9 +54,9 @@ If anything is unclear or missing, ask before proceeding.
 
 ## Tracking: milestones + issues
 
-- GitHub milestones 1–11 on `Goober-nation/Post-Vinyl` are the roadmap (normalization research,
+- GitHub milestones 1–12 on `Goober-nation/Post-Vinyl` are the roadmap (normalization research,
   search test v2, service clients, data layer + login, core logic, core loop, wiring + validation,
-  frontend, approval inbox + Postradio, Yandex playlists, custom playlists).
+  frontend, ListenBrainz pulls, approval inbox + Postradio, Yandex playlists, custom playlists).
 - **Issues are created when a milestone starts**, not before. Propose them (description,
   dependencies, how it'll be verified) with `AskUserQuestion` first.
 - Reference dependencies by issue number ("Depends on #12").

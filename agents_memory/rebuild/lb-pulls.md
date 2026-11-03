@@ -1,7 +1,7 @@
-# ListenBrainz pulls: recs + radio (built 2026-11-04, milestone 9, live run pending)
+# ListenBrainz pulls: recommendations + radio (built and live-tested 2026-11-04, milestone 9)
 
-A new milestone between 8 (frontend) and 9 (approval inbox + Postradio). One **ListenBrainz** tab with
-two sub-tabs, **Recs** and **Radio**. Both end the same way: a named **pull** of songs that
+Milestone 9. One **ListenBrainz** tab with
+two sub-tabs, **Recommendations** and **Radio**. Both end the same way: a named **pull** of songs that
 download in the background and appear in one Navidrome playlist as they arrive.
 
 Limits (user, 2026-11-04): one user queueing at a time, one pull per user at a time. No queue
@@ -115,8 +115,10 @@ CREATE TABLE pull_items (                   -- the chosen songs and the shared q
     recording_mbid  TEXT    NOT NULL,
     title           TEXT, artist TEXT,
     state           TEXT NOT NULL DEFAULT 'queued'
-                    CHECK (state IN ('queued', 'requested', 'reused', 'cancelled')),
+                    CHECK (state IN ('queued', 'requested', 'reused', 'failed', 'cancelled')),
     request_id      INTEGER REFERENCES requests(id),
+    song_id         INTEGER REFERENCES songs(id),
+    in_playlist     INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (origin_id, position)
 );
 ```
@@ -133,7 +135,8 @@ How it connects:
 - **Progress**: `pull_items.request_id` → `requests.track_state`. No new request or file states.
 - **Done**: the feeder ends a pull when no item is `queued` and every requested item has ended.
 - **Playlist**: `services/playlists` keeps the items whose song has an `indexed` file, in
-  `position` order, and rewrites the Navidrome playlist.
+  `position` order, and rewrites the Navidrome playlist. A playlist removed in Navidrome is recreated.
+- **Covers**: per page in the tab, through the catalog cover route (`release_mbid`).
 - **Library match**: before requesting, the feeder looks up `song_identity` (`musicbrainz`,
   `recording_mbid`); a song with an `indexed` file becomes `reused`. Decided (user, 2026-11-04).
 
@@ -153,13 +156,3 @@ How it connects:
 | `web/src/listenbrainz.ts` | the tab, on `rebuild/frontend` (not merged into `rebuild/base` yet) |
 
 Playlists are written with the user's own Navidrome session, so they belong to that user.
-
-## Issues (proposed)
-
-1. Client calls: LB recs + radio, Navidrome playlists, live-checked.
-2. Tables + store.
-3. `services/pulls`, the feeder, cancel.
-4. `services/playlists` + pipeline trigger.
-5. Routes.
-6. Frontend tab.
-7. Live run on the test stack, 2 songs per pull type.
