@@ -11,12 +11,14 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.clients.catalog import CatalogError, CatalogNotFound
+from app.clients.listenbrainz import ListenBrainzAuthError, ListenBrainzError
 from app.config import ConfigError
 from app.core.states import IllegalTransition
 from app.services.catalog import CatalogUnavailable
 from app.services.credentials import CredentialCheckUnavailable
 from app.services.downloads import AdminOnly, DownloadNotFound, NotRunning
 from app.services.files import LibraryFileNotFound, NoAdmin
+from app.services.pulls import NoListenBrainzAccount, PullNotFound, PullRunning
 from app.services.queue_pause import QueuePaused
 from app.services.requests import RequestNotFound, SongNotFound, StateChanged
 from app.services.slskd_tab import FileNotInSearch
@@ -44,6 +46,11 @@ STATUS: dict[type[Exception], int] = {
     CatalogError: 502,  # the source failed while browsing
     CatalogUnavailable: 503,  # no source answered, or none enabled
     SourceOff: 409,  # the source this needs is turned off
+    PullNotFound: 404,
+    PullRunning: 409,  # one running pull per user
+    NoListenBrainzAccount: 409,  # no token stored yet
+    ListenBrainzAuthError: 409,  # the stored token stopped working
+    ListenBrainzError: 502,
 }
 
 

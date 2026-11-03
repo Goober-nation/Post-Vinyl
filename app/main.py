@@ -31,6 +31,7 @@ from app.routes import downloads as download_routes
 from app.routes import errors
 from app.routes import library as library_routes
 from app.routes import me as me_routes
+from app.routes import pulls as pull_routes
 from app.routes import requests as request_routes
 from app.routes import settings as settings_routes
 from app.routes import slskd as slskd_routes
@@ -45,6 +46,8 @@ from app.services.encryption import SecretBox
 from app.services.files import FilesService
 from app.services.library import LibraryService
 from app.services.pipeline import FilePipeline
+from app.services.playlists import PlaylistService
+from app.services.pulls import PullService
 from app.services.queue_pause import QueuePause
 from app.services.requests import RequestService
 from app.services.settings import InstallSettings, UserSettings
@@ -83,17 +86,21 @@ def build_core(
     )  # fmt: skip
     pipeline = FilePipeline(db, files, tagging, settings.workers)
     cleanup = SlskdCleanup(db, slskd, settings.files)
-    workers = CoreLoopWorkers(
-        settings.workers, dispatch, pipeline, downloader.poll, cleanup.tick
+    catalog = CatalogService(
+        db,
+        prefs,
+        catalogs,
+        covers={"deezer": deezer.cover, "musicbrainz": caa.thumb},
     )
+    requests = RequestService(db)
+    pulls = PullService(db, lb, catalog, requests, dispatch, box, prefs)
+    workers = CoreLoopWorkers(
+        settings.workers, dispatch, pipeline, downloader.poll, cleanup.tick,
+        pulls.feed, PlaylistService(db, nd, box).sync,
+    )  # fmt: skip
     return Core(
-        CatalogService(
-            db,
-            prefs,
-            catalogs,
-            covers={"deezer": deezer.cover, "musicbrainz": caa.thumb},
-        ),
-        RequestService(db),
+        catalog,
+        requests,
         dispatch,
         SlskdTab(
             db, slskd, gate, searcher, downloader, paused=pause.paused, sources=prefs
@@ -106,6 +113,7 @@ def build_core(
         UserSettings(db, prefs),
         InstallSettings(settings),
         workers,
+        pulls,
     )
 
 
@@ -152,6 +160,7 @@ def create_app(
     app.include_router(system_routes.router)
     app.include_router(catalog_routes.router)
     app.include_router(request_routes.router)
+    app.include_router(pull_routes.router)
     app.include_router(slskd_routes.router)
     app.include_router(download_routes.router)
     app.include_router(admin_routes.router)
@@ -164,7 +173,13 @@ def create_app(
     return app
 
 
-POLLED = ("/api/downloads", "/api/slskd/searches", "/api/requests", "/api/system/ping")
+POLLED = (
+    "/api/downloads",
+    "/api/slskd/searches",
+    "/api/requests",
+    "/api/pulls",
+    "/api/system/ping",
+)
 
 
 class QuietPolls(logging.Filter):

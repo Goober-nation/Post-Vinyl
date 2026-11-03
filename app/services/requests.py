@@ -23,7 +23,7 @@ DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100  # user, 2026-10-29
 MAX_PAGE = 1_000_000  # keeps the SQL offset inside SQLite's integer range
 # where a request can come from besides the Soulseek tab (record_slskd_query)
-REQUEST_SOURCES = frozenset({"catalog", "rec", "yandex"})
+REQUEST_SOURCES = frozenset({"catalog", "rec", "yandex", "lb_recs", "lb_radio"})
 
 
 class RequestNotFound(LookupError):
