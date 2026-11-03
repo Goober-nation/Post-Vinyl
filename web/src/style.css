@@ -291,22 +291,62 @@
   }
 }
 
-/* Two handles on one track: only the thumbs take the pointer. */
+/* Two handles on one track: only the thumbs take the pointer, and the fill
+   between them is drawn here from --from and --to. */
 .range-pair {
   position: relative;
   height: 1.5rem;
+  --thumb: 1.25rem;
+}
+.range-pair::before {
+  content: "";
+  position: absolute;
+  inset: calc(50% - 0.2rem) 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--color-base-300) var(--from),
+    var(--color-accent) var(--from) var(--to),
+    var(--color-base-300) var(--to)
+  );
 }
 .range-handle {
   position: absolute;
   inset: 0;
   width: 100%;
+  height: 100%;
+  margin: 0;
   background: none;
   pointer-events: none;
-  accent-color: var(--color-accent);
+  appearance: none;
+  -webkit-appearance: none;
+}
+.range-handle::-webkit-slider-runnable-track {
+  background: none;
+}
+.range-handle::-moz-range-track {
+  background: none;
 }
 .range-handle::-webkit-slider-thumb {
   pointer-events: auto;
+  -webkit-appearance: none;
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
 }
 .range-handle::-moz-range-thumb {
   pointer-events: auto;
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+}
+.range-handle:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-base-content);
+  outline-offset: 2px;
 }

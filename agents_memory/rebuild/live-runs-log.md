@@ -273,3 +273,10 @@ Also seen live:
   (no paths; upstream detail only).
 
 Not verified: anything already listed in `unverified-live.md`.
+
+## 2026-11-04: ListenBrainz pulls (#134)
+Test stack, real ListenBrainz, Soulseek and Navidrome 0.64.2.
+- Recs: check stored 1000 songs (992 pullable after filtering); a 2-song pull downloaded, tagged, indexed and filled its playlist in about 90 s.
+- Radio: two calls gave different lists; a 2-song pull downloaded both. One stayed out of the playlist because tagging failed (`no_release`) and waits for the retag.
+- Reuse and cancel: a 6-song recs pull reused the 2 library songs, one song reached `midDownload`, cancel left it to finish, and it joined the playlist; 3 queued songs left.
+- Found: titles with dots hid their version word from the filter (`J.A.R. (…) (demo)`); fixed, unit test added.

@@ -32,7 +32,7 @@ management beyond that. Pulls skip the approval inbox: the user picks the songs 
    its pull date; a known one changes nothing. Needs a stored LB token.
 2. Open ListenBrainz → Recs, pick a generation by date from the dropdown.
 3. Set the range with a two-sided slider (from x to y, ranks 1–1000).
-4. Preview: the song count and list. Optional playlist name, default `recs-<pull date>`.
+4. Preview: the song count and list. Optional playlist name, default `recommendations-<pull date>`.
 5. **Pull**: creates the pull (refused if the user has one running).
 6. Songs download in rank order, behind user requests.
 7. Each song that reaches `indexed` joins the pull's Navidrome playlist.
