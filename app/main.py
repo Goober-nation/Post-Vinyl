@@ -8,8 +8,11 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
+from fastapi.staticfiles import StaticFiles
 
 from app.clients.catalog import CatalogSource
 from app.clients.coverart import CoverArtClient
@@ -62,8 +65,8 @@ def build_core(
 ) -> Core:
     """Every client and service, built once; the same graph the live loop test runs."""
     prefs = SourcePreferences(db, settings.sources)
-    mb = MusicBrainzClient()
-    catalogs: list[CatalogSource] = [mb, DeezerClient()]
+    mb, deezer, caa = MusicBrainzClient(), DeezerClient(), CoverArtClient()
+    catalogs: list[CatalogSource] = [mb, deezer]
     slskd = SlskdClient(settings.slskd_url, settings.slskd_api_key)
     pause = QueuePause(db)
     gate = SlskdGate(slskd, settings.slskd, paused=pause.paused)
@@ -75,7 +78,7 @@ def build_core(
     files = FilesService(db, nd, box, settings.files)
     lb = ListenBrainzClient()
     tagging = TaggingService(
-        db, mb, lb, CoverArtClient(), box, settings.files,
+        db, mb, lb, caa, box, settings.files,
         search=mb, sources=prefs,
     )  # fmt: skip
     pipeline = FilePipeline(db, files, tagging, settings.workers)
@@ -84,7 +87,12 @@ def build_core(
         settings.workers, dispatch, pipeline, downloader.poll, cleanup.tick
     )
     return Core(
-        CatalogService(db, prefs, catalogs),
+        CatalogService(
+            db,
+            prefs,
+            catalogs,
+            covers={"deezer": deezer.cover, "musicbrainz": caa.thumb},
+        ),
         RequestService(db),
         dispatch,
         SlskdTab(
@@ -99,6 +107,21 @@ def build_core(
         InstallSettings(settings),
         workers,
     )
+
+
+WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
+
+
+class WebFiles(StaticFiles):
+    """The built frontend. index.html is rechecked on every load (its asset names
+    change with each build, and a cached one points at files that are gone);
+    the hashed /assets/ files can be cached as usual."""
+
+    def file_response(self, *args: Any, **kwargs: Any) -> Response:
+        response = super().file_response(*args, **kwargs)
+        if response.media_type == "text/html":
+            response.headers["Cache-Control"] = "no-cache"
+        return response
 
 
 def create_app(
@@ -136,6 +159,8 @@ def create_app(
     app.include_router(me_routes.router)
     app.include_router(settings_routes.router)
     errors.register(app)
+    if WEB_DIST.is_dir():  # built by the Dockerfile's web stage or `npm run build`
+        app.mount("/", WebFiles(directory=WEB_DIST, html=True), name="web")
     return app
 
 

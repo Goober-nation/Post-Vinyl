@@ -2,8 +2,8 @@
 
 The schema says per field how to draw it (``config.SchemaField``). A user's
 settings apply at once: their source order and off switches (stored by
-``sources.py``), how many results a catalog search shows, and the downloads
-tab's default filter and page size. The install's settings are the YAML file:
+``sources.py``), how many results a catalog search shows, the page size of
+every list and the downloads tab's default filter. The install's settings are the YAML file:
 an admin edit rewrites only the changed lines (comments stay), keeps a backup
 and applies at the next restart; the folders are shown, never edited.
 """
@@ -61,11 +61,11 @@ def user_schema(prefs: SourcePreferences) -> list[SchemaField]:
             applies="now",
         ),
         SchemaField(
-            "downloads.page_size",
-            "downloads",
+            "lists.page_size",  # every list pages by it (user, 2026-10-31)
+            "lists",
             "int",
             20,
-            "Downloads shown per page.",
+            "Rows per page in every list.",
             10,
             100,
             10,

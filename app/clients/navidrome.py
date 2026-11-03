@@ -84,6 +84,13 @@ class Song:
     size: int
     suffix: str
     missing: bool  # file gone from disk but still in the index
+    has_cover: bool = False  # Navidrome found art for it (embedded or a folder image)
+
+
+@dataclass(frozen=True)
+class Cover:
+    data: bytes
+    content_type: str
 
 
 class NavidromeClientBase(ABC):
@@ -115,6 +122,11 @@ class NavidromeClientBase(ABC):
         Returns rows ``start``..``end`` (exclusive) and the total."""
 
     @abstractmethod
+    def cover_art(self, session: Session, song_id: str, size: int) -> Cover:
+        """The song's cover, ``size`` px on its longer side; NavidromeNotFound
+        when Navidrome has none for that id (#126)."""
+
+    @abstractmethod
     def find_song_by_path(self, session: Session, path: str) -> Song | None:
         """The song at exactly ``path`` (relative to its library), or None."""
 
@@ -144,6 +156,7 @@ def parse_song(raw: dict[str, Any]) -> Song:
         size=raw.get("size", 0),
         suffix=raw.get("suffix", ""),
         missing=bool(raw.get("missing")),
+        has_cover=bool(raw.get("hasCoverArt")),
     )
 
 
@@ -189,7 +202,12 @@ class NavidromeClient(NavidromeClientBase):
         return parse_session(self._request("POST", path, json=body).json())
 
     def _subsonic(self, session: Session, endpoint: str, **params: Any) -> Any:
-        params |= {
+        params |= self._auth_params(session)
+        resp = self._request("GET", f"/rest/{endpoint}", params=params)
+        return self._checked(endpoint, resp.json()["subsonic-response"])
+
+    def _auth_params(self, session: Session) -> dict[str, Any]:
+        return {
             "u": session.username,
             "t": session.subsonic_token,
             "s": session.subsonic_salt,
@@ -197,8 +215,10 @@ class NavidromeClient(NavidromeClientBase):
             "c": _CLIENT_NAME,
             "f": "json",
         }
-        resp = self._request("GET", f"/rest/{endpoint}", params=params)
-        body = resp.json()["subsonic-response"]
+
+    @staticmethod
+    def _checked(endpoint: str, body: dict[str, Any]) -> Any:
+        """Subsonic answers its errors as HTTP 200 with ``status: failed``."""
         if body.get("status") != "ok":
             err = body.get("error") or {}
             code = err.get("code")
@@ -211,6 +231,17 @@ class NavidromeClient(NavidromeClientBase):
                 raise NavidromeNotFound(msg)
             raise NavidromeError(msg)
         return body
+
+    def cover_art(self, session: Session, song_id: str, size: int) -> Cover:
+        # 0.64.2 (live 2026-10-31): the song id works as is; an unknown id is
+        # HTTP 200 with a JSON error (code 70), an image is image/*
+        params = {"id": song_id, "size": size} | self._auth_params(session)
+        resp = self._request("GET", "/rest/getCoverArt", params=params)
+        kind = resp.headers.get("Content-Type", "")
+        if not kind.startswith("image/"):
+            self._checked("getCoverArt", resp.json()["subsonic-response"])
+            raise NavidromeError(f"/rest/getCoverArt: not an image ({kind})")
+        return Cover(resp.content, kind)
 
     def _native_response(
         self, session: Session, endpoint: str, **params: Any

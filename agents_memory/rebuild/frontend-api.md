@@ -7,6 +7,10 @@ milestones 9–11 and are built there. The list guides the API; it doesn't limit
 
 Decisions (user, 2026-10-30):
 - **Download cart lives in the browser**; one batch call sends it.
+- **One search for songs, albums and artists** (user, 2026-10-30): a single box (plus an
+  optional artist that narrows songs and albums) runs the three catalog searches at once and
+  shows them as sections on one page (top 4 artists, top 6 albums, all songs; "Show all"
+  expands). Each section loads and fails on its own. Built in #121.
 - **Live updates by polling** (1–2 s while a tab is open); successful (200) polling calls are
   **not written to the access log**.
 - **Each checked slskd file becomes its own request and song**, built from the file's data
@@ -37,7 +41,9 @@ Decisions (user, 2026-10-30):
     backed up first; the new values apply **at the next restart** (the API says so).
   - **Folders** (`files`) are shown, not editable: they must match the Docker mounts.
   - **Per-user settings**: source order and off per kind; how many results a catalog search
-    shows; the downloads tab's default state filter and page size.
+    shows; the downloads tab's default state filter; `lists.page_size`, the page size of every
+    list (was `downloads.page_size`, renamed 2026-10-31, user: "call it page size"; no
+    migration, an old stored value falls back to the default).
   - **Schema**: per field its key, section, type (int, text, choice, ordered list), min/max/step,
     choices, default, help and whether it applies now or at restart, generated from the settings
     dataclasses so it can't drift from the code.
@@ -105,10 +111,47 @@ Decisions (user, 2026-10-30):
   session cookie and the Origin/CSRF check (#88) work unchanged, no CORS.
 - **Development**: `npm run dev` (Vite dev server, live reload) on the host, proxying `/api` to
   the app; no extra container.
-- **To do when milestone 8 starts**: let the default-deny middleware serve the static files
-  (at least the login page's HTML/JS/CSS) without a session; **drop beets from the
-  `Dockerfile`** (old app's leftover: the comment and the `PATH` note; user, 2026-10-30).
-- Design: tokens first (colors with light + dark, a UI font and a monospace font for paths and
+- **Built in #119** (2026-10-30): `web/` (Vite builds to `web/dist`, which `create_app` mounts
+  at `/` when it exists). Default deny lets `GET /` and `/assets/*` through without a session
+  (no data in them); everything else stays denied. Beets was already gone from the `Dockerfile`.
+  **TypeScript stays on 5.x**: openapi-typescript 7.13 declares a `typescript ^5` peer, which
+  `npm ci` in `node:22-slim` enforces, and TypeScript 7 lacks the JS compiler API it uses (live
+  2026-10-30); lift the cap when openapi-typescript supports a newer one.
+- **Hash routes** (`#/slskd`, `#/downloads`…; user, 2026-10-30): a reload keeps the tab, the
+  session cookie keeps the login.
+- **Admin-only parts are shown to everyone** and refuse with "Admins only" for non-admins (user,
+  2026-10-30, replacing "hide them"); the API's 403 stays the real guard.
+- Commands, from `web/`: `npm ci`; `npm run build` (`tsc --noEmit` + Vite);
+  `PV_API=<the app's PV_PUBLIC_ORIGIN> npm run dev` (proxies `/api`, sending that origin so the
+  CSRF check passes); `PV_API=… npm run gen:api` against an app run with `PV_DEV=1` after any
+  API change.
+- **Design kit built in #120** (user approved the direction, 2026-10-30): SoundCloud's layout
+  (top bar with tabs and search, a main list with a right rail, a fixed bottom bar showing
+  download activity where SoundCloud has its player; the waveform progress was tried and dropped, user 2026-10-30: progress is "62% · 1.2 MB/s" as text), in calm
+  deep blue: navy page, one blue accent, hairline borders, flat surfaces, 3–6 px corners; no
+  gradients, glass, glow or soft oversized cards. Fonts IBM Plex Sans + Plex Mono, bundled
+  (@fontsource), so no request leaves the origin. Theme `harbour-dark` in
+  `web/src/style.css` (**dark only**: the light theme was dropped, user 2026-10-31); components in `web/src/ui.ts`; every one on `#/kit`
+  in `npm run dev`; the static mockup is `web/design/mockup.html`. A state is always a dot
+  plus words, never colour alone. The ui-ux-pro-max skill was used for its rules (contrast,
+  focus, density, reduced motion); its suggested indigo/green palette was rejected as generic.
+- **Identity and palette (user, 2026-10-30)**, replacing the navy above: blue-tinted charcoal
+  (`#0C0E12` page, `#13161C` panels) with a desaturated blue accent (`#7EA3CF`), because the
+  navy was too blue ("eye burns"); every text pair checked at ≥ 5.6:1. Identity, all from the
+  record world:
+  - **Logo**: a square record with slightly rounded corners, grooves and a warm amber label, on
+    a light sleeve-paper body with a dark rim so it stands out on dark browser bars (user, 2026-10-31)
+    (`web/src/logo.svg`, also the favicon). **Wordmark and page titles in Forta**, the legacy
+    app's logo font (OFL, copied with its licence to `web/src/fonts/`); body stays IBM Plex.
+  - **Record motif**: what is happening now shows a small turning record (still with reduced
+    motion). **Warm amber `--live`** is used only for live things (downloading, progress, the
+    logo's label); blue stays for actions, links, focus and the active tab. Queued = hollow dot.
+  - **Sleeve typography**: side/track before titles (`A3`), artists as small-caps credits,
+    catalogue numbers (`PV-0142`), small-caps rail headings.
+  - **Album art colour**: the chrome stays neutral; a song's cover colour (`--art`) tints its
+    cover, the selected row's edge and the bottom bar's top edge (real cover colours from
+    Navidrome's art when the tabs are built).
+- Earlier plan: tokens first (colors with light + dark, a UI font and a monospace font for paths and
   peer names, type/spacing/radius scales, compact density for the tables), then the ~15 shared
   components, then mockups of the hardest screens (slskd tab, downloads queue, settings).
   Soulbeet (Dioxus fullstack, Rust → WebAssembly, Tailwind v4, WebSocket push) was looked at;

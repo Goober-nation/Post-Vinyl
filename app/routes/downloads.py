@@ -28,7 +28,7 @@ def queue(
     mine = core.settings.get(user.id) if core.settings else {}
     if state is None:
         state = mine.get("downloads.state", "")
-    page_size = page_size or mine.get("downloads.page_size", DEFAULT_PAGE_SIZE)
+    page_size = page_size or mine.get("lists.page_size", DEFAULT_PAGE_SIZE)
     state = state or None
     return svc.page(user.id, bool(user.is_admin), everyone=everyone, state=state,
                     page=page, page_size=page_size)  # fmt: skip

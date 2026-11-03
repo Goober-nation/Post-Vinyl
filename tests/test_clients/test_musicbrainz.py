@@ -76,7 +76,7 @@ def test_search_quotes_phrases(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_user_agent_names_this_project() -> None:
-    ua = MusicBrainzClient()._http.headers["User-Agent"]
+    ua = str(MusicBrainzClient()._http.headers["User-Agent"])
     assert ua.startswith("PostVinyl/") and "Goober-nation/Post-Vinyl" in ua
 
 
@@ -273,3 +273,18 @@ def test_search_hit_keeps_the_video_flag(monkeypatch: pytest.MonkeyPatch) -> Non
     client, _ = client_returning(monkeypatch, FakeResp(200, {"recordings": hits}))
     video, plain = client.search_tracks("x")
     assert video.video is True and plain.video is False
+
+
+# ------------------------------------------------------------ covers (#127)
+
+
+def test_cover_ids_name_a_release_or_release_group() -> None:
+    hit = musicbrainz.parse_search_hit(
+        {"id": "r1", "title": "T", "releases": [{"id": "rel-1"}, {"id": "rel-2"}]}
+    )
+    assert hit.cover_id == "release/rel-1"  # the first release it is on
+    assert musicbrainz.parse_search_hit({"id": "r1", "title": "T"}).cover_id == ""
+    assert (
+        musicbrainz.parse_release_group({"id": "rg-1"}).cover_id == "release-group/rg-1"
+    )
+    assert musicbrainz.parse_release({"id": "rel-1"}).cover_id == "release/rel-1"

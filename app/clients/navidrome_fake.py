@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.clients.navidrome import (
+    Cover,
     NavidromeAuthError,
     NavidromeClientBase,
     NavidromeForbidden,
@@ -22,6 +23,7 @@ class FakeNavidromeClient(NavidromeClientBase):
         self.songs: dict[str, Song] = {}
         self.pending: list[Song] = []
         self.scans = 0
+        self.covers: dict[str, bytes] = {}  # song id -> image (JPEG bytes)
 
     def _session(self, username: str) -> Session:
         return Session(
@@ -72,6 +74,12 @@ class FakeNavidromeClient(NavidromeClientBase):
         if song_id not in self.songs:
             raise NavidromeNotFound(f"GET /api/song/{song_id}: HTTP 404")
         return self.songs[song_id]
+
+    def cover_art(self, session: Session, song_id: str, size: int) -> Cover:
+        self._check(session)
+        if song_id not in self.covers:
+            raise NavidromeNotFound(f"/rest/getCoverArt: subsonic error 70 {song_id}")
+        return Cover(self.covers[song_id], "image/jpeg")
 
     def find_song_by_path(self, session: Session, path: str) -> Song | None:
         self._check(session)

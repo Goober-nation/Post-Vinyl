@@ -62,6 +62,7 @@ user's `catalog.results_per_search` setting.
 | `GET /api/catalog/{source}/artists/{artist_id}/albums` | user | | `[album]` |
 | `GET /api/catalog/{source}/albums/{album_id}/editions` | user | | `[edition]` |
 | `GET /api/catalog/{source}/editions/{edition_id}/tracks` | user | | `[track]` with disc and position |
+| `GET /api/catalog/{source}/covers/{cover_id}` | user | `size?` (32–600 px, default 120) | the cover a track, album, edition or artist names in its `cover_id` (artist pictures: Deezer only), from that source's images (Deezer's own; MusicBrainz's from the Cover Art Archive); cached a week by the browser; never stored; `404` when there is none, `404` while the source is off |
 | `POST /api/requests` | user | `{source, track_id, origin_id?}` | `201` the request, already handed to the download source |
 | `POST /api/requests/batch` | user | `{items: [{source, track_id, origin_id?}]}` (1–100: the browser's cart) | `207` one `{source, track_id, status, request?, error?}` per item |
 
@@ -92,7 +93,7 @@ A request is one song someone asked for, whatever started it. `track_state`: `re
 
 | Call | Who | Takes | Answers |
 |---|---|---|---|
-| `GET /api/downloads` | user | `state?` (`""` = all), `everyone?` (admins), `page`, `page_size?` | newest first: song, `track_state`, `state` (`queued`, `downloading`, `completed`, `failed`, `cancelled`), `attempts`, the running attempt (peer, peer path, rank) and its live `progress` (`state`, `bytes_transferred`, `size`, `average_speed`, `place_in_queue`). Without `state` / `page_size` the user's own defaults apply |
+| `GET /api/downloads` | user | `state?` (`""` = all), `everyone?` (admins), `page`, `page_size?` | newest first: song, `track_state`, `state` (`queued`, `downloading`, `completed`, `failed`, `cancelled`), `attempts`, the running attempt (peer, peer path, rank), `library_id` (the song's Navidrome id once its file is indexed: its cover) and its live `progress` (`state`, `bytes_transferred`, `size`, `average_speed`, `place_in_queue`). Without `state` / `page_size` the user's own defaults apply |
 | `GET /api/downloads/{download_id}` | owner, admin | | the same, every attempt with its `outcome`, and the peer is asked its queue place when the transfer waits in it |
 | `POST /api/downloads/{download_id}/next-peer` | owner, admin | | skips the running peer (not counted against it) and queues the next one; `409` when nothing is running |
 | `GET /api/admin/queue` | admin | | `{paused}` |
@@ -109,11 +110,12 @@ library.
 
 | Call | Who | Takes | Answers |
 |---|---|---|---|
-| `GET /api/library/files` | user | `q?` (title, album, artists), `page`, `page_size` | songs with `file_id` / `file_state` where Post-Vinyl downloaded them |
+| `GET /api/library/files` | user | `q?` (title, album, artists), `page`, `page_size` | songs with `has_cover`, and `file_id` / `file_state` where Post-Vinyl downloaded them |
 | `POST /api/library/files/{song_id}/rename` | admin | `{title, artist, album_artist?, album?, year?, track?, disc?}` | `{match, recording_id, release_id, via, tags, has_cover}` or `{match: false}` |
 | `POST /api/library/files/{song_id}/apply` | admin | `{recording_id, release_id}` | `{file}`: the song under its new id (`null` if Navidrome doesn't list it yet) |
 | `POST /api/library/files/{song_id}/strip` | admin | `{title, artist}` | `{file}` at `<artist>/<title>` |
 | `DELETE /api/library/files/{song_id}` | admin | | `204`; the file goes, Navidrome rescans; a later request downloads it again |
+| `GET /api/library/files/{song_id}/cover` | user | `size?` (32–600 px, default 160) | the song's cover image from Navidrome (`has_cover` on the song says it has one), cached a day by the browser; never stored; `404` when there is none |
 
 ## Administering
 
@@ -134,7 +136,7 @@ keys; all are checked before any is stored (`422` names the first that doesn't f
 | Call | Who | Takes | Answers |
 |---|---|---|---|
 | `GET /api/settings/schema` | user | | `{user: [field], install: [field]}` |
-| `GET /api/me/settings` | user | | `{key: value}`: source order and off per kind (`{order, off}`), `catalog.results_per_search`, `downloads.page_size`, `downloads.state` |
+| `GET /api/me/settings` | user | | `{key: value}`: source order and off per kind (`{order, off}`), `catalog.results_per_search`, `lists.page_size` (every list), `downloads.state` |
 | `PUT /api/me/settings` | user | `{changes: {key: value}}` | the new values; they apply at once |
 | `GET /api/admin/settings` | admin | | `{values, restart_pending}`: the config file's values and which of them the running app doesn't use yet |
 | `PUT /api/admin/settings` | admin | `{changes: {key: value}}` | the same. Written to the config file: only the changed lines, comments kept, a backup made next to it; applies at the next restart. Folders aren't editable (they match the Docker mounts) |

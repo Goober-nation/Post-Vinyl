@@ -17,6 +17,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from app.clients.navidrome import Cover
 from app.clients.navidrome import Song as LibrarySong
 from app.services.encryption import SecretBox
 from app.services.files import FilesService
@@ -40,6 +41,7 @@ class LibraryFile:
     missing: bool  # gone from disk, still in Navidrome's index
     file_id: int | None  # Post-Vinyl's record, when it downloaded the song
     file_state: str | None
+    has_cover: bool = False  # Navidrome has art for it: /cover answers an image
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,7 @@ def item(song: LibrarySong, rec: FileRecord | None) -> LibraryFile:
     return LibraryFile(
         song.id, song.title, song.artist, song.album, song.duration, song.suffix,
         song.missing, rec.id if rec else None, rec.file_state if rec else None,
+        song.has_cover,
     )  # fmt: skip
 
 
@@ -94,6 +97,10 @@ class LibraryServiceBase(ABC):
 
     @abstractmethod
     def delete(self, song_id: str) -> None: ...
+
+    @abstractmethod
+    def cover(self, song_id: str, size: int) -> Cover | None:
+        """The song's cover from Navidrome, or None when it has none (#126)."""
 
 
 class LibraryService(LibraryServiceBase):
@@ -156,3 +163,6 @@ class LibraryService(LibraryServiceBase):
 
     def delete(self, song_id: str) -> None:
         self._files.delete_library_file(song_id)
+
+    def cover(self, song_id: str, size: int) -> Cover | None:
+        return self._files.cover(song_id, size)

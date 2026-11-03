@@ -161,7 +161,7 @@ def test_the_queue_opens_with_the_users_own_defaults(env: Env) -> None:
     assert (
         env.alice.get("/api/downloads", params={"state": ""}).json()["total"] == 1
     )  # all
-    env.alice.put("/api/me/settings", json={"changes": {"downloads.page_size": 10}},
+    env.alice.put("/api/me/settings", json={"changes": {"lists.page_size": 10}},
                   headers=SAME)  # fmt: skip
     assert (
         env.alice.get("/api/downloads", params={"state": ""}).json()["page_size"] == 10

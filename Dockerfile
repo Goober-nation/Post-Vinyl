@@ -1,3 +1,13 @@
+# The frontend (#119): Node only builds it; neither Node nor node_modules ships.
+FROM node:22-slim AS web
+
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
+
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
@@ -13,6 +23,7 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY app/ ./app/
 COPY post-vinyl.example.yaml entrypoint.sh ./
+COPY --from=web /web/dist ./web/dist/
 
 # Starts as root only to create Post-Vinyl's folders (named so they don't
 # collide with other apps', #118) and hand them to PUID:PGID; the app itself

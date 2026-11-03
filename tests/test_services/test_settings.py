@@ -160,11 +160,11 @@ def test_user_settings_default_check_everything_first_and_drive_sources(
     assert got["catalog.results_per_search"] == 25 and got["downloads.state"] == ""
     assert got["sources.catalog"] == {"order": ["musicbrainz", "deezer"], "off": []}
     with pytest.raises(ConfigError):
-        svc.set(uid, {"downloads.page_size": 30, "downloads.state": "bogus"})
-    assert svc.get(uid)["downloads.page_size"] == 20  # nothing stored
-    got = svc.set(uid, {"downloads.page_size": 30,
+        svc.set(uid, {"lists.page_size": 30, "downloads.state": "bogus"})
+    assert svc.get(uid)["lists.page_size"] == 20  # nothing stored
+    got = svc.set(uid, {"lists.page_size": 30,
                         "sources.catalog": {"order": ["deezer", "musicbrainz"], "off": ["musicbrainz"]}})  # fmt: skip
-    assert got["downloads.page_size"] == 30
+    assert got["lists.page_size"] == 30
     assert prefs.for_user(uid, "catalog") == ["deezer"]
     assert got["sources.catalog"] == {
         "order": ["deezer", "musicbrainz"],

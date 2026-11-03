@@ -168,7 +168,7 @@ def test_cart_batch_gives_each_item_its_own_result(env: Env) -> None:
     assert (
         env.alice.post("/api/requests/batch", json=big, headers=SAME).status_code == 422
     )
-    empty = {"items": []}
+    empty: dict[str, list[object]] = {"items": []}
     assert (
         env.alice.post("/api/requests/batch", json=empty, headers=SAME).status_code
         == 422
@@ -207,3 +207,58 @@ def test_a_search_shows_as_many_results_as_the_user_asks_for(env: Env) -> None:
     )
     bad = {"changes": {"catalog.results_per_search": 500}}
     assert env.alice.put("/api/me/settings", json=bad, headers=SAME).status_code == 422
+
+
+# ------------------------------------------------------------ covers (#127)
+
+
+def test_a_cover_comes_from_the_sources_own_images(tmp_path: Path) -> None:
+    mb = FakeCatalog("musicbrainz")
+    asked: list[tuple[str, int]] = []
+
+    def caa(cover_id: str, size: int) -> bytes | None:
+        asked.append((cover_id, size))
+        return b"\xff\xd8img" if cover_id == "release/rel-1" else None
+
+    db = Database(tmp_path / "pv.db")
+    db.migrate()
+    nd = FakeNavidromeClient({"alice": ("pw", True)})
+    prefs = SourcePreferences(db, {"catalog": ("musicbrainz",), "download": ("fake",)})
+    core = Core(
+        CatalogService(db, prefs, [mb], covers={"musicbrainz": caa}),
+        RequestService(db), DownloadDispatch(db, prefs, [FakeDownloadSource(db)]),
+        settings=UserSettings(db, prefs),
+    )  # fmt: skip
+    app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ORIGIN),
+                     AuthService(db, nd, SecretBox(generate_key())), core)  # fmt: skip
+    alice = logged_in(app, "alice")
+    r = alice.get("/api/catalog/musicbrainz/covers/release/rel-1", params={"size": 80})
+    assert (r.status_code, r.content, r.headers["content-type"]) == (
+        200,
+        b"\xff\xd8img",
+        "image/jpeg",
+    )
+    assert r.headers["cache-control"].startswith("private") and asked == [
+        ("release/rel-1", 80)
+    ]
+    assert alice.get("/api/catalog/musicbrainz/covers/release/none").status_code == 404
+    assert (
+        alice.get("/api/catalog/deezer/covers/abc").status_code == 404
+    )  # not a source here
+    # switched off for the user: no call goes out
+    r = alice.put(
+        "/api/me/settings",
+        json={
+            "changes": {
+                "sources.catalog": {"order": ["musicbrainz"], "off": ["musicbrainz"]}
+            }
+        },
+        headers=SAME,
+    )
+    assert r.status_code == 200, r.text
+    asked.clear()
+    assert alice.get("/api/catalog/musicbrainz/covers/release/rel-1").status_code in (
+        404,
+        409,
+    )
+    assert asked == []

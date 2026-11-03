@@ -19,3 +19,5 @@ config.toml.example
 .env.example
 navidrome_data/
 slskd_config/
+web/node_modules/
+web/dist/

@@ -14,6 +14,7 @@ comes from them or from legacy on trust:
 
 from __future__ import annotations
 
+import re
 import threading
 import time
 from typing import Any
@@ -45,6 +46,8 @@ _RECORD_TYPES = {
     "compile": ("Album", ("Compilation",)),
 }
 
+_MD5 = re.compile(r"[0-9a-f]{32}")
+_PICTURE = re.compile(r"/images/artist/([0-9a-f]{32})/")
 _rate_lock = threading.Lock()
 _last_call = 0.0
 
@@ -73,6 +76,8 @@ def parse_track(raw: dict[str, Any]) -> Track:
         credits=(((raw.get("artist") or {}).get("name", ""), ""),),
         disc=raw.get("disk_number"),
         position=raw.get("track_position"),
+        # its album's image id: on the track in tracklists, on `album` in searches
+        cover_id=raw.get("md5_image") or (raw.get("album") or {}).get("md5_image", ""),
     )
 
 
@@ -86,16 +91,28 @@ def parse_album(raw: dict[str, Any], artist: str = "") -> Album:
         primary_type=primary,
         secondary_types=secondary,
         first_release_date=raw.get("release_date") or "",
+        cover_id=raw.get("md5_image") or "",
     )
+
+
+def artist_picture(raw: dict[str, Any]) -> str:
+    """``artist/<id>`` for the artist's picture: artists carry no ``md5_image``,
+    the id sits in their picture URLs (live 2026-10-31); "" when none."""
+    m = _PICTURE.search(raw.get("picture_small") or "")
+    return f"artist/{m.group(1)}" if m else ""
 
 
 class DeezerClient(CatalogSource):
     source = "deezer"
 
     def __init__(
-        self, base_url: str = "https://api.deezer.com", timeout_s: float = 15
+        self,
+        base_url: str = "https://api.deezer.com",
+        timeout_s: float = 15,
+        images_url: str = "https://cdn-images.dzcdn.net",
     ) -> None:
         self._base = base_url.rstrip("/")
+        self._images = images_url.rstrip("/")
         self._timeout = timeout_s
         self._http = requests.Session()
 
@@ -148,6 +165,7 @@ class DeezerClient(CatalogSource):
                 id=str(a["id"]),
                 name=a.get("name", ""),
                 disambiguation="",
+                cover_id=artist_picture(a),
             )
             for a in self._search("artist", name, limit)
         ]
@@ -182,8 +200,29 @@ class DeezerClient(CatalogSource):
                 status="",
                 formats=(),
                 track_count=raw.get("nb_tracks", 0),
+                cover_id=raw.get("md5_image") or "",
             )
         ]
+
+    def cover(self, cover_id: str, size: int) -> bytes | None:
+        """An image from Deezer's image server, ``size`` px square (#127): an
+        album's by its ``md5_image`` id, an artist's as ``artist/<id>``.
+        Checked live 2026-10-31: any square size is served; an unknown id
+        redirects to a placeholder, taken as none."""
+        kind, _, image = cover_id.rpartition("/")
+        if kind not in ("", "artist") or not _MD5.fullmatch(image):
+            return None
+        folder = "artist" if kind else "cover"
+        url = f"{self._images}/images/{folder}/{image}/{size}x{size}-000000-80-0-0.jpg"
+        try:
+            resp = self._http.get(url, timeout=self._timeout, allow_redirects=False)
+        except requests.RequestException as e:
+            raise CatalogError(f"GET {url}: {e}") from e
+        if resp.status_code != 200 or not resp.headers.get(
+            "Content-Type", ""
+        ).startswith("image/"):
+            return None
+        return resp.content
 
     def edition_tracks(self, edition_id: str) -> list[Track]:
         return [parse_track(t) for t in self._paged(f"/album/{edition_id}/tracks")]

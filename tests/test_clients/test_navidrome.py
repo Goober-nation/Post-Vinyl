@@ -20,9 +20,14 @@ from app.clients.navidrome_fake import FakeNavidromeClient
 
 class FakeResp:
     def __init__(
-        self, status: int, body: Any = None, headers: dict | None = None
+        self,
+        status: int,
+        body: Any = None,
+        headers: dict | None = None,
+        content: bytes = b"",
     ) -> None:
         self.status_code = status
+        self.content = content
         self.ok = 200 <= status < 300
         self._body = body
         self.headers = headers or {}
@@ -160,3 +165,24 @@ def test_fake_first_admin_only_once() -> None:
         fake.create_admin("other", "pw")
     with pytest.raises(NavidromeAuthError):
         fake.login("admin", "wrong")
+
+
+def test_cover_art_is_the_image_navidrome_streams(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    resp = FakeResp(200, None, {"Content-Type": "image/jpeg"}, b"\xff\xd8img")
+    client, calls = client_returning(monkeypatch, resp)
+    cover = client.cover_art(session(), "s1", 80)
+    assert (cover.data, cover.content_type) == (b"\xff\xd8img", "image/jpeg")
+    params = calls[0][2]["params"]
+    assert (params["id"], params["size"], params["t"]) == ("s1", 80, "tok")
+
+
+def test_cover_art_unknown_id_is_a_json_error_with_http_200(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # 0.64.2, live 2026-10-31: no artwork -> 200, application/json, code 70
+    resp = FakeResp(200, subsonic_failed(70), {"Content-Type": "application/json"})
+    client, _ = client_returning(monkeypatch, resp)
+    with pytest.raises(NavidromeNotFound):
+        client.cover_art(session(), "nope", 80)

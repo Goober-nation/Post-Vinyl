@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from app.dependencies import AdminDep, CoreDep, UserDep, need
@@ -88,3 +88,22 @@ def strip(song_id: str, body: Strip, admin: AdminDep, core: CoreDep) -> Moved:
 @router.delete("/{song_id}", status_code=204)
 def delete(song_id: str, _: AdminDep, core: CoreDep) -> None:
     need(core.library, "the library").delete(song_id)
+
+
+COVER_CACHE = (
+    "private, max-age=86400"  # a song's art rarely changes; the id follows the file
+)
+
+
+@router.get("/{song_id}/cover", response_class=Response,
+            responses={200: {"content": {"image/*": {}}}, 404: {}})  # fmt: skip
+def cover(
+    song_id: str, _: UserDep, core: CoreDep, size: int = Query(160, ge=32, le=600)
+) -> Response:
+    """The song's cover from Navidrome, never stored (#126); 404 when it has none."""
+    art = need(core.library, "the library").cover(song_id, size)
+    if art is None:
+        raise HTTPException(404, "no cover for this song")
+    return Response(
+        art.data, media_type=art.content_type, headers={"Cache-Control": COVER_CACHE}
+    )

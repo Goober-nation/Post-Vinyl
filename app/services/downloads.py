@@ -75,6 +75,7 @@ class QueueItem:
     attempts: int
     current: AttemptView | None  # the running attempt
     progress: Progress | None
+    library_id: str | None = None  # Navidrome's song id once its file is indexed
 
 
 @dataclass(frozen=True)
@@ -152,7 +153,7 @@ class DownloadsService(DownloadsServiceBase):
             row.id, row.request_id, row.username, row.source, row.state,
             row.track_state, row.title, row.artist, row.created_at, row.completed_at,
             len(attempts), view(running) if running else None,
-            self._progress(running, ask_place) if running else None,
+            self._progress(running, ask_place) if running else None, row.library_id,
         )  # fmt: skip
 
     def page(
