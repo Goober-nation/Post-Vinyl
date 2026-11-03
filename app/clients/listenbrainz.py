@@ -8,6 +8,9 @@ Checked against the ListenBrainz server source (``master``) and live
 - The name -> MBID lookup needs a user token (``Authorization: Token …``),
   answers 200 with or without a match, and caps the names at 250 characters.
 - ``validate-token`` answers HTTP 200 with ``valid: false`` for a bad token.
+- Recommendations need no token and return at most 1000 recordings, no names;
+  204 = none generated yet. ``last_updated`` marks a generation. LB Radio needs
+  a user token and answers JSPF (live and server source, 2026-11-04).
 - Rate limit is per window, reported in ``X-RateLimit-Remaining`` and
   ``X-RateLimit-Reset-In`` (seconds); 429 when exceeded.
 """
@@ -18,11 +21,13 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
 USER_AGENT = "PostVinyl/0.1 ( https://github.com/Goober-nation/Post-Vinyl )"
 _MAX_MBIDS_PER_POST = 1000
+_MAX_RECOMMENDATIONS = 1000
 _MAX_LOOKUP_CHARS = 250
 _INC = "artist release tag"
 _RETRIES_ON_429 = 2
@@ -68,6 +73,28 @@ class TokenCheck:
     user_name: str | None
 
 
+@dataclass(frozen=True)
+class RecommendedRecording:
+    mbid: str
+    score: float
+    latest_listened_at: str | None
+
+
+@dataclass(frozen=True)
+class Recommendations:
+    last_updated: int  # identifies this generation of the user's list
+    recordings: tuple[RecommendedRecording, ...]
+
+
+@dataclass(frozen=True)
+class RadioTrack:
+    mbid: str
+    title: str
+    artist: str
+    album: str | None
+    length_s: float | None
+
+
 class ListenBrainzClientBase(ABC):
     @abstractmethod
     def recording_metadata(self, mbids: list[str]) -> dict[str, RecordingMetadata]:
@@ -81,6 +108,31 @@ class ListenBrainzClientBase(ABC):
 
     @abstractmethod
     def validate_token(self, token: str) -> TokenCheck: ...
+
+    @abstractmethod
+    def recommendations(self, user_name: str) -> Recommendations | None:
+        """The user's list, best first; None until ListenBrainz has generated one."""
+
+    @abstractmethod
+    def radio(self, artist: str, level: str, token: str) -> list[RadioTrack]:
+        """A fresh LB Radio for ``artist``; level is easy, medium or hard."""
+
+
+def parse_radio_track(raw: dict[str, Any]) -> RadioTrack | None:
+    identifiers = raw.get("identifier") or []
+    if isinstance(identifiers, str):
+        identifiers = [identifiers]
+    mbid = identifiers[0].rstrip("/").rsplit("/", 1)[-1] if identifiers else ""
+    if not (mbid and raw.get("title") and raw.get("creator")):
+        return None
+    duration = raw.get("duration")
+    return RadioTrack(
+        mbid=mbid,
+        title=raw["title"],
+        artist=raw["creator"],
+        album=raw.get("album"),
+        length_s=duration / 1000 if isinstance(duration, int) else None,
+    )
 
 
 def _tag_names(rows: list[dict[str, Any]] | None) -> tuple[str, ...]:
@@ -154,7 +206,7 @@ class ListenBrainzClient(ListenBrainzClientBase):
             raise ListenBrainzError(
                 f"{method} {path}: HTTP {resp.status_code} {resp.text[:200]}"
             )
-        return resp.json()
+        return None if resp.status_code == 204 else resp.json()
 
     def recording_metadata(self, mbids: list[str]) -> dict[str, RecordingMetadata]:
         result: dict[str, RecordingMetadata] = {}
@@ -201,3 +253,25 @@ class ListenBrainzClient(ListenBrainzClientBase):
         return TokenCheck(
             valid=bool(data.get("valid")), user_name=data.get("user_name")
         )
+
+    def recommendations(self, user_name: str) -> Recommendations | None:
+        path = f"/cf/recommendation/user/{quote(user_name, safe='')}/recording"
+        data = self._call("GET", path, params={"count": _MAX_RECOMMENDATIONS})
+        if data is None:
+            return None
+        payload = data["payload"]
+        return Recommendations(
+            last_updated=payload["last_updated"],
+            recordings=tuple(
+                RecommendedRecording(
+                    m["recording_mbid"], m["score"], m.get("latest_listened_at")
+                )
+                for m in payload["mbids"]
+            ),
+        )
+
+    def radio(self, artist: str, level: str, token: str) -> list[RadioTrack]:
+        params = {"prompt": f"artist:({artist})", "mode": level}
+        data = self._call("GET", "/explore/lb-radio", token=token, params=params)
+        tracks = data["payload"]["jspf"]["playlist"]["track"]
+        return [t for t in map(parse_radio_track, tracks) if t]

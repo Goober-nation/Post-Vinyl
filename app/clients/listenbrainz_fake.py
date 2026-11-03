@@ -5,6 +5,8 @@ from __future__ import annotations
 from app.clients.listenbrainz import (
     ListenBrainzAuthError,
     ListenBrainzClientBase,
+    RadioTrack,
+    Recommendations,
     RecordingMetadata,
     TokenCheck,
 )
@@ -17,6 +19,8 @@ class FakeListenBrainzClient(ListenBrainzClientBase):
     def __init__(self) -> None:
         self.recordings: dict[str, RecordingMetadata] = {}
         self.tokens: dict[str, str] = {}
+        self.recs: dict[str, Recommendations] = {}  # by user name
+        self.radio_tracks: list[RadioTrack] = []
 
     def recording_metadata(self, mbids: list[str]) -> dict[str, RecordingMetadata]:
         return {m: self.recordings[m] for m in mbids if m in self.recordings}
@@ -39,3 +43,11 @@ class FakeListenBrainzClient(ListenBrainzClientBase):
     def validate_token(self, token: str) -> TokenCheck:
         user = self.tokens.get(token)
         return TokenCheck(valid=user is not None, user_name=user)
+
+    def recommendations(self, user_name: str) -> Recommendations | None:
+        return self.recs.get(user_name)
+
+    def radio(self, artist: str, level: str, token: str) -> list[RadioTrack]:
+        if token not in self.tokens:
+            raise ListenBrainzAuthError("GET /explore/lb-radio: HTTP 401")
+        return self.radio_tracks

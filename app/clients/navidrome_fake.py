@@ -24,6 +24,7 @@ class FakeNavidromeClient(NavidromeClientBase):
         self.pending: list[Song] = []
         self.scans = 0
         self.covers: dict[str, bytes] = {}  # song id -> image (JPEG bytes)
+        self.playlists: dict[str, tuple[str, str, list[str]]] = {}  # id -> owner, name, songs
 
     def _session(self, username: str) -> Session:
         return Session(
@@ -96,3 +97,13 @@ class FakeNavidromeClient(NavidromeClientBase):
             key=lambda s: s.title.lower(),
         )  # fmt: skip
         return hits[start:end], len(hits)
+
+    def save_playlist(
+        self, session: Session, name: str, song_ids: list[str], playlist_id: str | None
+    ) -> str:
+        self._check(session)
+        if playlist_id and playlist_id not in self.playlists:
+            raise NavidromeNotFound(f"playlist {playlist_id}")
+        pid = playlist_id or f"pl-{len(self.playlists) + 1}"
+        self.playlists[pid] = (session.username, name, list(song_ids))
+        return pid
