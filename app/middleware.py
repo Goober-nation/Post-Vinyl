@@ -2,8 +2,9 @@
 
 Every request needs a valid session cookie unless its route is on the
 allowlist. State-changing methods also need an ``Origin`` (or, failing that,
-``Referer``) matching the app's public origin; a request with neither is
-refused (user, 2026-10-28).
+``Referer``) matching the app's public origin, or its own ``Host`` when no
+public origin is set; a request with neither is refused (user, 2026-10-28,
+optional 2026-11-04).
 """
 
 from __future__ import annotations
@@ -41,6 +42,13 @@ def request_origin(request: Request) -> str | None:
     return None
 
 
+def same_origin(request: Request, public_origin: str) -> bool:
+    origin = request_origin(request)
+    if public_origin:
+        return origin == public_origin
+    return origin is not None and urlsplit(origin).netloc == request.headers.get("host")
+
+
 def make_guard(
     auth: AuthServiceBase, public_origin: str, dev: bool
 ) -> Callable[[Request, Callable[[Request], Awaitable[Response]]], Awaitable[Response]]:
@@ -48,7 +56,7 @@ def make_guard(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         method, path = request.method, request.url.path
-        if method in UNSAFE_METHODS and request_origin(request) != public_origin:
+        if method in UNSAFE_METHODS and not same_origin(request, public_origin):
             return JSONResponse({"detail": "cross-site request refused"}, 403)
         if (
             (method, path) in OPEN_ROUTES

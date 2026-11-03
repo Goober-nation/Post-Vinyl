@@ -10,7 +10,8 @@ the generated reference at `/docs` and `/openapi.json` (exact request and respon
   `pv_session` cookie (HttpOnly, Secure, SameSite=Lax, 30 days, sliding). Everything except
   login and `GET /api/system/ping` needs it: no cookie → `401`.
 - **Same origin**: every `POST`, `PUT`, `PATCH` and `DELETE` needs an `Origin` (or, failing that,
-  `Referer`) header equal to the app's public origin, else `403`.
+  `Referer`) header equal to `PV_PUBLIC_ORIGIN`, or to the request's own host when that's unset,
+  else `403`.
 - **Admins** are Navidrome admins. An admin-only call by anyone else → `403`.
 - **A user only sees their own** requests, searches and downloads; someone else's → `404`.
 - **Errors** answer `{"detail": "..."}`:

@@ -146,7 +146,7 @@ def load_files(path: Path) -> FilesSettings:
 class Settings:
     db_path: str
     navidrome_url: str
-    public_origin: str  # e.g. https://music.example.com; the CSRF check compares to it
+    public_origin: str  # e.g. https://music.example.com; "" = the CSRF check compares to Host
     dev: bool = False  # serves /docs
     # enabled sources per kind, in priority order (user, 2026-10-29)
     sources: dict[str, tuple[str, ...]] = field(
@@ -167,8 +167,9 @@ class Settings:
                 raise ConfigError(f"{name} is not set")
             return value
 
-        origin = required("PV_PUBLIC_ORIGIN").rstrip("/")
-        if not origin.startswith(("https://", "http://")) or origin.count("/") != 2:
+        origin = os.environ.get("PV_PUBLIC_ORIGIN", "").strip().rstrip("/")
+        valid = origin.startswith(("https://", "http://")) and origin.count("/") == 2
+        if origin and not valid:
             raise ConfigError(
                 f"PV_PUBLIC_ORIGIN must be scheme://host[:port], got {origin!r}"
             )

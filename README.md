@@ -64,7 +64,7 @@ The same commands work in bash, PowerShell and the macOS terminal.
 
 ### Initial Setup
 
-1. Open `PV_PUBLIC_ORIGIN` (`http://localhost:8092` by default) and log in with your Navidrome account.
+1. Open `http://localhost:8092` and log in with your Navidrome account.
 2. Search for something and download it.
 3. For recommendations and radio, add your ListenBrainz token in **Settings**.
 
@@ -87,10 +87,9 @@ Settings under **Settings > Mine** apply only to you, and take effect at once.
 | `MUSIC_HOST_DIR` | yes | Your music folder. Navidrome's library is its `library/` subfolder. |
 | `SLSKD_DOWNLOADS_DIR` | yes | Where slskd saves downloads inside `/music` (default in `.env.example`). |
 | `PV_SECRET_KEY` | yes, secret | Encrypts stored per-user secrets. |
-| `PV_PUBLIC_ORIGIN` | yes | The address people open the app at, `scheme://host[:port]`. |
 | `SLSKD_API_KEY` | yes, secret | Any long random string; slskd and Post-Vinyl share it. |
-| `SLSKD_NETWORK_USERNAME`, `SLSKD_NETWORK_PASSWORD` | yes, secret | Your Soulseek login; the first login registers the name. |
-| `SLSKD_UI_USERNAME`, `SLSKD_UI_PASSWORD` | yes, secret | slskd's own web UI login. |
+| `SLSKD_NETWORK_USERNAME`, `SLSKD_NETWORK_PASSWORD` | yes, secret | Your Soulseek login, also used for slskd's web UI; the first login registers the name. |
+| `PV_PUBLIC_ORIGIN` | no | The one address people open the app at, `scheme://host[:port]`. Stricter protection against forged requests; set it when the app is public, or if your reverse proxy changes the `Host` header. |
 | `PV_DATA_DIR` | no | Host folder for the database (default `./postvinyl_data`). |
 | `PUID`, `PGID` | no | The user and group Post-Vinyl runs as (default `1000`). |
 | `PV_DEV` | no | `1` serves the API docs at `/docs`; leave empty in production. |
