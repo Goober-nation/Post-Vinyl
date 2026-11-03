@@ -23,7 +23,7 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   data carried over).
 - **No frontend until the core backend is done** (milestone 7): testing through FastAPI's
   **`/docs`** (Swagger UI), allowed in development only (exempt from default deny there). The
-  frontend is milestone 8 (user, 2026-10-28); milestones 9–11 each add their own page.
+  frontend is milestone 8 (user, 2026-10-28); milestones 9–12 each add their own page.
 
 ## Swappable sources (user, 2026-10-28)
 - **Download sources are pluggable.** Core asks a generic **`DownloadSource`** to "get this
@@ -335,6 +335,12 @@ a replacement file resets any state to `downloaded` (the hand-off trigger, in SQ
    auth alongside stores (phase-1 decision).
 5. **`workers/`**, then **`routes/`** + default-deny middleware.
 6. **Validation** on the test stack (`work-plan.md` rules; `live-runs-log.md`).
+
+## 6b. ListenBrainz pulls (built 2026-11-04, milestone 9)
+
+User-picked batches from ListenBrainz recommendations or radio: see `lb-pulls.md`. They skip the
+approval inbox and **are** origins (one table per kind, id from `origins`), unlike the Postradio
+recommendations below. `services/playlists` already exists for them; §7 and §8 extend it.
 
 ## 7. Source modules: Postradio recs and Yandex import (decided 2026-10-27, not built)
 

@@ -559,3 +559,7 @@ Decided 2026-10-03:
   `bad_peer_threshold` doesn't retroactively block peers already over the new value until they
   fail again.
 - `last_seen` dropped — write-only, and held the time of the last *failure* despite the name.
+
+## Pull tables (2026-11-04)
+`lb_playlists`, `user_lb_playlists`, `user_radio_requests`, `pull_items` and `users.lb_username`:
+see `lb-pulls.md`. `app/stores/migrations/001_initial.sql` is the current schema.

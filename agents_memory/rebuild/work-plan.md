@@ -6,7 +6,8 @@ link**. Design lives in this folder (`core-db-redesign.md`, `users-auth.md`,
 the leftovers. Tracking: **GitHub issues + milestones** (user, 2026-10-26). Milestones 1–10 created 2026-10-27 on
 Goober-nation/Post-Vinyl (public, self-contained descriptions): 1 normalization research, 2 search
 test v2, 3 service clients, 4 data layer + login, 5 core logic, 6 core loop, 7 wiring +
-validation, 8 frontend, 9 approval inbox + Postradio, 10 Yandex playlists, 11 custom playlists
+validation, 8 frontend, 9 ListenBrainz pulls (inserted 2026-11-04), 10 approval inbox + Postradio,
+11 Yandex playlists, 12 custom playlists
 (frontend inserted after 7 and the rest renumbered, user, 2026-10-28). Issues are
 created when a milestone starts.
 
