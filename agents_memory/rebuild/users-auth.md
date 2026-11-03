@@ -57,6 +57,7 @@ header in `app/main.py`). The old `users`/`sessions` tables were dropped in migr
     Unknown paths also return 401 (deny before 404).
   - **CSRF** (user, 2026-10-28): POST/PUT/PATCH/DELETE need `Origin` equal to
     `PV_PUBLIC_ORIGIN`, else `Referer`'s origin; neither → 403. Login is checked too.
+    `PV_PUBLIC_ORIGIN` is optional (user, 2026-11-04): unset, the origin's host must equal `Host`.
   - Cookie: HttpOnly, Secure, SameSite=Lax, Path=/, Max-Age 30 days. Login errors: 401 wrong
     credentials, 429 + `Retry-After` when locked, 503 when Navidrome is down.
 - **No setup endpoint; Navidrome is never empty** (user, 2026-10-28; **interim**: the user finds

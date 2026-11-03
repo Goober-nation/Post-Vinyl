@@ -107,6 +107,20 @@ def test_docs_only_in_dev(tmp_path: Path) -> None:
     assert client_for(tmp_path / "dev", dev=True).get("/docs").status_code == 200
 
 
+def test_without_a_public_origin_the_host_decides(tmp_path: Path) -> None:
+    db = Database(tmp_path / "pv.db")
+    db.migrate()
+    auth = AuthService(db, FakeNavidromeClient({"alice": ("pw", False)}), SecretBox(generate_key()))
+    app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ""), auth)
+    client = TestClient(app, base_url=ORIGIN)
+    body = {"username": "alice", "password": "pw"}
+    url = "/api/auth/login"
+    assert client.post(url, json=body, headers=SAME).status_code == 200
+    evil = {"Origin": "https://evil.example"}
+    assert client.post(url, json=body, headers=evil).status_code == 403
+    assert client.post(url, json=body).status_code == 403
+
+
 def test_settings_refuse_missing_or_bad_values(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PV_DB_PATH", "pv.db")
     monkeypatch.setenv("PV_NAVIDROME_URL", "http://nd:4533")
@@ -118,7 +132,8 @@ def test_settings_refuse_missing_or_bad_values(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setenv("PV_PUBLIC_ORIGIN", "https://music.example/app")
     with pytest.raises(ConfigError):
         Settings.from_env()
-    monkeypatch.setenv("PV_PUBLIC_ORIGIN", "https://music.example")
+    monkeypatch.delenv("PV_PUBLIC_ORIGIN")
+    assert Settings.from_env().public_origin == ""
     monkeypatch.delenv("PV_NAVIDROME_URL")
     with pytest.raises(ConfigError, match="PV_NAVIDROME_URL"):
         Settings.from_env()
