@@ -93,7 +93,7 @@ ListenBrainz token (`409`).
 | `GET /api/lb/recs` | user | | stored lists, newest first: `last_updated`, `pulled_at`, `songs` |
 | `GET /api/lb/recs/{last_updated}/tracks` | user | `first?`, `last?` (ranks) | the range's songs that may be pulled |
 | `GET /api/lb/radio` | user | `artist`, `level?` (`easy`, `medium`, `hard`) | a fresh radio; each call differs, nothing is stored |
-| `POST /api/pulls/recs` | user | `{last_updated, first_rank, last_rank, name?}` | `201` the pull; default name `recs-<date>` |
+| `POST /api/pulls/recs` | user | `{last_updated, first_rank, last_rank, name?}` | `201` the pull; default name `recommendations-<date>` |
 | `POST /api/pulls/radio` | user | `{artist, level, tracks, name?}` | `201` the pull; default name `radio-<artist>-<date>` |
 | `GET /api/pulls` | user | | newest first: `id`, `kind`, `name`, `state`, `created_at`, `total`, `queued`, `downloading`, `in_playlist`, `failed` |
 | `POST /api/pulls/{pull_id}/cancel` | owner | | queued songs leave and requests not yet downloading are dropped; started downloads finish |

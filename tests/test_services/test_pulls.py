@@ -17,6 +17,7 @@ from app.clients.listenbrainz import (
 )
 from app.clients.listenbrainz_fake import FakeListenBrainzClient
 from app.clients.navidrome_fake import FakeNavidromeClient
+from app.core.pulls import is_excluded
 from app.services.catalog import CatalogService
 from app.services.dispatch import DownloadDispatch
 from app.services.download_source_fake import FakeDownloadSource
@@ -135,9 +136,14 @@ def test_excluded_versions_stay_out(env: Env) -> None:
         env.pulls.pull_radio(env.user, "A", "easy", env.lb.radio_tracks, None)
 
 
+def test_a_dot_in_the_title_doesnt_hide_the_version() -> None:
+    assert is_excluded("J.A.R. (Jason Andrew Relva) (demo)")
+    assert not is_excluded("Mr. Brightside")
+
+
 def test_default_name_and_one_running_pull(env: Env) -> None:
     start_recs(env)
-    assert env.pulls.pulls(env.user)[0].pull.name == "recs-1970-01-02"
+    assert env.pulls.pulls(env.user)[0].pull.name == "recommendations-1970-01-02"
     with pytest.raises(PullRunning):
         env.pulls.pull_recs(env.user, 77, 1, 1, None)
 
@@ -223,7 +229,7 @@ def test_pull_ends_and_playlist_follows_indexed_songs(env: Env) -> None:
         done.append(f"nd-{n}")
         env.playlists.sync()
         [(owner, name, songs)] = env.nd.playlists.values()
-        assert (owner, name, songs) == ("alice", "recs-1970-01-02", done)
+        assert (owner, name, songs) == ("alice", "recommendations-1970-01-02", done)
     env.pulls.feed()
     view = env.pulls.pulls(env.user)[0]
     assert view.pull.state == "done" and view.counts.in_playlist == 3

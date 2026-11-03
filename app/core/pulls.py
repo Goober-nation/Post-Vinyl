@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import time
 
-from app.core.matcher import excluded_word
+from app.core.matcher import version_hit, words
 
 
 def is_excluded(title: str) -> bool:
     """An excluded version: pulls pick for the user, so none get in."""
-    return excluded_word(title, "") is not None
+    return version_hit(words(title), []) is not None
 
 
 def _date(now: int) -> str:
@@ -17,7 +17,7 @@ def _date(now: int) -> str:
 
 
 def recs_name(now: int) -> str:
-    return f"recs-{_date(now)}"
+    return f"recommendations-{_date(now)}"
 
 
 def radio_name(artist: str, now: int) -> str:

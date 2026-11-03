@@ -20,7 +20,7 @@ const day = (seconds: number) => new Date(seconds * 1000).toISOString().slice(0,
 
 export function listenbrainzPage(): HTMLElement {
   const sub = new URLSearchParams(location.hash.split("?")[1] ?? "").get("tab") === "radio" ? "radio" : "recs";
-  const tabs = filters("Pull from", [["recs", "Recs"], ["radio", "Radio"]], sub, (v) => (location.hash = `#/listenbrainz?tab=${v}`));
+  const tabs = filters("Pull from", [["recs", "Recommendations"], ["radio", "Radio"]], sub, (v) => (location.hash = `#/listenbrainz?tab=${v}`));
   return h(
     "div",
     {},
@@ -33,8 +33,13 @@ function nameInput(placeholder: string): HTMLInputElement {
   return h("input", { class: "input w-full", placeholder, maxlength: "200", "aria-label": "Playlist name" });
 }
 
-function field(label: string, control: Node): HTMLElement {
-  return h("label", { class: "mb-4 block" }, h("span", { class: "mb-1 block text-muted" }, label), control);
+function tall(b: HTMLButtonElement): HTMLButtonElement {
+  b.classList.remove("btn-sm"); // the same height as the fields beside it
+  return b;
+}
+
+function field(label: string, control: Node, cls = "mb-4 block"): HTMLElement {
+  return h("label", { class: cls }, h("span", { class: "mb-1 block text-muted" }, label), control);
 }
 
 // ── recs ────────────────────────────────────────────────────────────────
@@ -45,9 +50,12 @@ function rangePicker(onChange: (first: number, last: number) => void): HTMLEleme
   const from = handle("First song", 1);
   const to = handle("Last song", 100);
   const shown = h("output", { class: "font-mono" });
+  const pair = h("div", { class: "range-pair" }, from, to);
   const moved = (keepFrom: boolean) => {
     if (Number(from.value) > Number(to.value)) (keepFrom ? (to.value = from.value) : (from.value = to.value));
     shown.textContent = `${from.value} – ${to.value}`;
+    pair.style.setProperty("--from", `${((Number(from.value) - 1) / (MAX_RANK - 1)) * 100}%`);
+    pair.style.setProperty("--to", `${((Number(to.value) - 1) / (MAX_RANK - 1)) * 100}%`);
   };
   from.oninput = () => moved(true);
   to.oninput = () => moved(false);
@@ -56,19 +64,19 @@ function rangePicker(onChange: (first: number, last: number) => void): HTMLEleme
   to.onchange = done;
   moved(true);
   queueMicrotask(done);
-  return h("div", { class: "mb-4" }, h("div", { class: "range-pair" }, from, to), shown);
+  return h("div", { class: "mb-4" }, pair, shown);
 }
 
 function recsPane(): HTMLElement {
-  const lists = h("select", { class: "select w-full", "aria-label": "Recommendation list" });
+  const lists = h("select", { class: "select w-full", "aria-label": "Recommendations" });
   const preview = h("div");
   let range: [number, number] = [1, 100];
   let token = 0;
-  const name = nameInput("recs-<today>");
+  const name = nameInput("recommendations-<today>");
 
   const show = async () => {
     const mine = ++token;
-    if (!lists.value) return preview.replaceChildren(h("p", { class: "text-muted" }, "No list yet. Check for one."));
+    if (!lists.value) return preview.replaceChildren(h("p", { class: "text-muted" }, "No recommendations yet. Check for new ones."));
     const [first, last] = range;
     try {
       const tracks = await api<Schemas["LbTrack"][]>("GET", `/api/lb/recs/${lists.value}/tracks?first=${first}&last=${last}`);
@@ -76,9 +84,9 @@ function recsPane(): HTMLElement {
       const rows = tracks.map((t) => row({ title: t.title ?? "", artist: t.artist ?? "", album: t.album ?? undefined, side: String(t.rank) }));
       preview.replaceChildren(
         h("p", { class: "mb-2" }, `${tracks.length} songs will be pulled`),
-        paged(rows, ["song", "songs"]),
         field("Playlist name", name),
-        button("Pull", pull, "primary"),
+        h("div", { class: "mb-4" }, button("Pull", pull, "primary")),
+        paged(rows, ["song", "songs"]),
       );
     } catch (err) {
       failed(err);
@@ -106,7 +114,7 @@ function recsPane(): HTMLElement {
   const check = async () => {
     try {
       const r = await api<Schemas["RecCheckOut"]>("POST", "/api/lb/recs/check");
-      toast(r.new ? "New list found" : r.list ? "No new list yet" : "ListenBrainz has no list for you yet");
+      toast(r.new ? "New recommendations found" : r.list ? "No new recommendations yet" : "ListenBrainz has no recommendations for you yet");
       await load(r.list?.last_updated);
     } catch (err) {
       failed(err);
@@ -117,7 +125,7 @@ function recsPane(): HTMLElement {
   return h(
     "div",
     {},
-    h("div", { class: "mb-4 flex gap-2" }, lists, button("Check for new", check)),
+    h("div", { class: "mb-4 flex gap-2" }, lists, tall(button("Check for new", check))),
     rangePicker((first, last) => ((range = [first, last]), void show())),
     preview,
   );
@@ -153,10 +161,10 @@ function radioPane(): HTMLElement {
     };
     draw();
     preview.replaceChildren(
-      h("div", { class: "mb-4 flex items-center gap-2" }, field("Start", from), field("End", to), button("Reroll", () => void roll())),
-      list,
+      h("div", { class: "mb-4 flex items-end gap-2" }, field("Start", from, "block"), field("End", to, "block"), tall(button("Reroll", () => void roll()))),
       field("Playlist name", name),
-      button("Pull", pull, "primary"),
+      h("div", { class: "mb-4" }, button("Pull", pull, "primary")),
+      list,
     );
   };
   const roll = async () => {
