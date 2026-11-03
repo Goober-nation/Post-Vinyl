@@ -159,9 +159,10 @@ class RequestsStore:
     def origin_user(self, conn: sqlite3.Connection, origin_id: int) -> int | None:
         """The user an origin belongs to; None when unknown (or a kind with no user yet)."""
         row = conn.execute(
-            """SELECT c.user_id FROM origins o
-               JOIN catalog_searches c ON c.id = o.id WHERE o.id = ?""",
-            (origin_id,),
+            """SELECT user_id FROM catalog_searches WHERE id = :id
+               UNION ALL SELECT user_id FROM user_lb_playlists WHERE id = :id
+               UNION ALL SELECT user_id FROM user_radio_requests WHERE id = :id""",
+            {"id": origin_id},
         ).fetchone()
         return int(row["user_id"]) if row else None
 

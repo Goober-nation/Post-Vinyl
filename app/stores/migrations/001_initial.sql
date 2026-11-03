@@ -90,7 +90,7 @@ CREATE TABLE requests (
     user_id       INTEGER NOT NULL REFERENCES users(id),
     song_id       INTEGER REFERENCES songs(id),   -- typed Soulseek search: set when a file is
                                                 --   queued (matched, or a song from the file)
-    source        TEXT    NOT NULL,             -- slskd | catalog | rec | yandex | …
+    source        TEXT    NOT NULL,             -- slskd | catalog | rec | lb_recs | lb_radio | yandex | …
     origin_id     INTEGER REFERENCES origins(id) ON DELETE SET NULL,
     query         TEXT,                         -- typed query, or "artist – title"
     track_state   TEXT    NOT NULL DEFAULT 'requested' CHECK (track_state IN (
@@ -284,8 +284,11 @@ CREATE TABLE pull_items (
     title           TEXT,
     artist          TEXT,
     state           TEXT    NOT NULL DEFAULT 'queued'
-                    CHECK (state IN ('queued', 'requested', 'reused', 'cancelled')),
+                    CHECK (state IN ('queued', 'requested', 'reused', 'failed', 'cancelled')),
     request_id      INTEGER REFERENCES requests(id),
+    song_id         INTEGER REFERENCES songs(id),
+    in_playlist     INTEGER NOT NULL DEFAULT 0 CHECK (in_playlist IN (0, 1)),
     PRIMARY KEY (origin_id, position)
 );
 CREATE INDEX idx_pull_items_request ON pull_items(request_id);
+CREATE INDEX idx_pull_items_song    ON pull_items(song_id);

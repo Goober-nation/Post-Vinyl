@@ -77,10 +77,15 @@ class UsersStore:
         return [User(**r) for r in rows]
 
     def set_lb_token(
-        self, conn: sqlite3.Connection, user_id: int, lb_token_enc: str | None
+        self,
+        conn: sqlite3.Connection,
+        user_id: int,
+        lb_token_enc: str | None,
+        lb_username: str | None = None,
     ) -> None:
         conn.execute(
-            "UPDATE users SET lb_token_enc = ? WHERE id = ?", (lb_token_enc, user_id)
+            "UPDATE users SET lb_token_enc = ?, lb_username = ? WHERE id = ?",
+            (lb_token_enc, lb_username, user_id),
         )
 
     def set_status(self, conn: sqlite3.Connection, user_id: int, status: str) -> None:
