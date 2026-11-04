@@ -31,8 +31,6 @@ backlog/
 .claude/
 .pytest_cache/
 .coverage
-agents_memory/*
-!agents_memory/rebuild/
 
 # macOS Finder metadata — never useful to anyone, drops into any dir a
 # macOS user browses to (repo root, app/, tests/)
@@ -48,3 +46,6 @@ skills-lock.json
 
 # Pending documentation notes, local only (AGENTS.md)
 docs/docs_updates/
+
+# Local agent notes
+agents_memory/

@@ -136,9 +136,9 @@ After any implementation work, give the user the exact commands to run and exerc
 
 ## Agent memory
 
-- `agents_memory/rebuild/`: **committed**, the rebuild's design history, kept as is. Current facts
+- `agents_memory/rebuild/`: **local only** (gitignored), the rebuild's design history, kept as is. Current facts
   go through `docs/docs_updates/` into `docs/`.
-- `agents_memory/MEMORY.md` + `agents_memory/topics/`: **local only** (gitignored). `MEMORY.md` holds
+- `agents_memory/MEMORY.md` + `agents_memory/topics/`: **local only**. `MEMORY.md` holds
   short durable facts and preferences; `topics/` holds API notes (slskd, Navidrome, ListenBrainz…),
   read on demand.
 - No session logs or scratchpads: progress goes into issue comments, decisions into
