@@ -17,6 +17,7 @@ No beets, no Picard. Decided with the user, 2026-10-29:
   file: it stays ``verified`` and the files service moves it untagged.
 
 Formats: FLAC, MP3, M4A/MP4, Ogg Vorbis/Opus (cover art not written for Ogg).
+No new cover leaves the file's old one in place.
 """
 
 from __future__ import annotations
@@ -158,7 +159,8 @@ def _as_list(value: Any) -> list[str]:
 
 def _write_vorbis(audio: Any, tags: dict[str, Any], cover: bytes | None) -> None:
     kept = {k: v for k, v in (audio.tags or {}).items()
-            if k.lower().startswith(_KEEP_VORBIS)}  # fmt: skip
+            if k.lower().startswith(_KEEP_VORBIS)
+            or k.lower() == "metadata_block_picture"}  # fmt: skip
     if audio.tags is None:
         audio.add_tags()
     audio.tags.clear()
@@ -166,12 +168,11 @@ def _write_vorbis(audio: Any, tags: dict[str, Any], cover: bytes | None) -> None
         audio.tags[k] = v
     for k, v in tags.items():
         audio.tags[k] = _as_list(v)
-    if isinstance(audio, FLAC):
+    if isinstance(audio, FLAC) and cover:  # no new cover: the old one stays
         audio.clear_pictures()
-        if cover:
-            pic = Picture()
-            pic.type, pic.mime, pic.data = 3, "image/jpeg", cover
-            audio.add_picture(pic)
+        pic = Picture()
+        pic.type, pic.mime, pic.data = 3, "image/jpeg", cover
+        audio.add_picture(pic)
 
 
 def _write_id3(path: Path, tags: dict[str, Any], cover: bytes | None) -> None:
@@ -181,6 +182,7 @@ def _write_id3(path: Path, tags: dict[str, Any], cover: bytes | None) -> None:
         id3 = ID3()
     keep = [f for f in id3.values()
             if f.FrameID in ("USLT", "RVA2")
+            or (f.FrameID == "APIC" and not cover)  # no new cover: the old one stays
             or (f.FrameID == "TXXX" and f.desc.lower().startswith("replaygain_"))]  # fmt: skip
     id3.clear()
     for f in keep:
@@ -214,7 +216,8 @@ def _write_mp4(audio: MP4, tags: dict[str, Any], cover: bytes | None) -> None:
         audio.add_tags()
     assert audio.tags is not None
     kept = {k: v for k, v in audio.tags.items()
-            if k == "©lyr" or k.lower().startswith("----:com.apple.itunes:replaygain_")}  # fmt: skip
+            if k == "©lyr" or (k == "covr" and not cover)
+            or k.lower().startswith("----:com.apple.itunes:replaygain_")}  # fmt: skip
     audio.tags.clear()
     audio.tags.update(kept)
     for key, atom in _MP4_TEXT.items():
@@ -424,6 +427,17 @@ class TaggingService(TaggingServiceBase):
             return None
         tags, cover = self._build(info, chosen, f"rename suggestion {mbid}")
         return Suggestion(mbid, chosen.id, via, tags, cover is not None)
+
+    def record_retag(
+        self, file_id: int, recording_id: str, release_id: str, tags: dict[str, Any]
+    ) -> None:
+        """A library file tagged by hand: its tagging succeeded after all."""
+        with self._db.transaction(write=True) as conn:
+            self._files.add_tagging(
+                conn, file_id, "tagged", int(self._clock()),
+                mb_recording_id=recording_id, mb_release_id=release_id,
+                tags_written=tags,
+            )  # fmt: skip
 
     def tags_for(
         self, user_id: int, recording_id: str, release_id: str

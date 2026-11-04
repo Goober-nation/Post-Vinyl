@@ -1,7 +1,8 @@
 // slskd tab (#122): a typed Soulseek search, polled until slskd says it is
 // complete, then every file grouped by peer with the matcher's marks; checked
 // files are queued as exactly those files (one request + song each). The
-// search shown lives in the hash (#/slskd?id=<request id>).
+// search shown lives in the hash (#/slskd?id=<request id>); the last one stays
+// for the browser session, so leaving the tab doesn't lose it.
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
 import { button, filters, iconButton, paged, pageHead, railSection, state, tag, toast } from "./ui";
@@ -10,8 +11,20 @@ const POLL_MS = 1500; // polling while the tab is open (user, 2026-10-30)
 
 type Pick = Schemas["PickedFile"];
 
-export function slskdPage(): HTMLElement {
+const LAST_SEARCH = "pv-last-slskd-search";
+
+function currentSearch(): number {
   const id = Number(new URLSearchParams(location.hash.split("?")[1] ?? "").get("id")) || 0;
+  try {
+    if (id) sessionStorage.setItem(LAST_SEARCH, String(id));
+    return id || Number(sessionStorage.getItem(LAST_SEARCH)) || 0;
+  } catch {
+    return id; // no storage: only the hash remembers
+  }
+}
+
+export function slskdPage(): HTMLElement {
+  const id = currentSearch();
   const picks: Pick[] = [];
   const picked = h("div");
   const rail = h("aside", { class: "side-rail rail" }, picked, recentRail());

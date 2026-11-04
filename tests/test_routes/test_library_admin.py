@@ -11,7 +11,7 @@ import hashlib
 import shutil
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -146,7 +146,7 @@ def env(tmp_path: Path) -> Env:
                              search=search, sources=prefs)  # fmt: skip
     core = Core(
         FakeCatalogService(), RequestService(db), FakeDownloadDispatch(),
-        library=LibraryService(db, files, tagging, box), admin=AdminService(db),
+        library=LibraryService(db, files, tagging, box), admin=AdminService(db, nd, box),
         credentials=CredentialsService(db, lb, box, prefs),
     )  # fmt: skip
     app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ORIGIN), auth, core)
@@ -251,6 +251,24 @@ def test_rename_suggests_via_listenbrainz_then_apply_retags_and_moves(env: Env) 
         f"library/{new_rel}",
         nd_id(new_rel),
     )
+
+
+def test_a_failed_tagging_is_flagged_and_retried_from_the_file_name(env: Env) -> None:
+    fid = track_by_us(env)
+    with env.db.transaction(write=True) as conn:
+        FilesStore().add_tagging(conn, fid, "failTag", NOW, error="no_recording")
+        UsersStore().set_lb_token(conn, env.alice_id, env.box.encrypt("good"))
+    assert env.alice.get("/api/library/files").json()["items"][0]["tag_failed"]
+    sid = song_id(env)
+    assert env.bob.post(f"/api/library/files/{sid}/retag", headers=SAME).status_code == 403
+    url = f"/api/library/files/{sid}/retag"
+    assert env.alice.post(url, headers=SAME).status_code == 422  # names no artist
+    assert (env.library / HAND_ADDED).exists()
+    env.nd.songs[sid] = replace(env.nd.songs[sid], title="Feather", artist="Nujabes")
+    r = env.alice.post(url, headers=SAME)
+    assert r.status_code == 200 and not r.json()["file"]["tag_failed"]
+    new_rel = "Nujabes/Modal Soul (2005)/04 Feather.flac"
+    assert FLAC(env.library / new_rel)["album"] == ["Modal Soul"]
 
 
 def test_rename_falls_back_to_musicbrainz_and_respects_sources(env: Env) -> None:
@@ -379,6 +397,64 @@ def test_peers_and_users_are_admin_only_and_show_no_secrets(env: Env) -> None:
     users = env.alice.get("/api/admin/users").json()
     assert [u["username"] for u in users] == ["alice", "bob"]
     assert all("nd_password_enc" not in u and "lb_token_enc" not in u for u in users)
+
+
+def test_an_admin_adds_a_user_to_navidrome_and_post_vinyl(env: Env) -> None:
+    body = {"username": "carol", "password": "pw3", "is_admin": False}
+    url = "/api/admin/users"
+    assert env.bob.post(url, json=body, headers=SAME).status_code == 403
+    r = env.alice.post(url, json=body, headers=SAME)
+    assert r.status_code == 201 and r.json()["username"] == "carol"
+    assert env.nd.users["carol"] == ("pw3", False)
+    assert "carol" in [u["username"] for u in env.alice.get(url).json()]
+    assert env.alice.post(url, json=body, headers=SAME).status_code == 409
+    blank = body | {"username": " "}
+    assert env.alice.post(url, json=blank, headers=SAME).status_code == 422
+
+
+def test_an_admin_changes_a_password_and_it_is_saved_here_too(env: Env) -> None:
+    with env.db.transaction() as conn:
+        bob = UsersStore().get_by_username(conn, "bob")
+    assert bob is not None
+    url = f"/api/admin/users/{bob.id}/password"
+    body = {"password": "new"}
+    assert env.bob.put(url, json=body, headers=SAME).status_code == 403
+    assert env.alice.put(url, json=body, headers=SAME).status_code == 204
+    assert env.nd.users["bob"][0] == "new"
+    with env.db.transaction() as conn:
+        saved = UsersStore().get(conn, bob.id)
+    assert saved is not None
+    assert env.box.decrypt(saved.nd_password_enc) == "new"
+    missing = env.alice.put("/api/admin/users/999/password", json=body, headers=SAME)
+    assert missing.status_code == 404
+
+
+def test_deleting_keeps_history_hidden_and_never_yourself(env: Env) -> None:
+    with env.db.transaction(write=True) as conn:
+        store = UsersStore()
+        bob = store.get_by_username(conn, "bob")
+        assert bob is not None
+        conn.execute(
+            """INSERT INTO requests (user_id, source, track_state, created_at,
+                                     last_used_at)
+               VALUES (?, 'catalog', 'downloaded', 1, 1)""",
+            (bob.id,),
+        )
+    own = env.alice.delete(f"/api/admin/users/{env.alice_id}", headers=SAME)
+    assert own.status_code == 409 and "alice" in env.nd.users
+    assert env.bob.delete(f"/api/admin/users/{bob.id}", headers=SAME).status_code == 403
+    r = env.alice.delete(f"/api/admin/users/{bob.id}", headers=SAME)
+    assert r.status_code == 204 and "bob" not in env.nd.users
+    assert env.bob.get("/api/auth/me").status_code == 401
+    names = [u["username"] for u in env.alice.get("/api/admin/users").json()]
+    assert names == ["alice"]
+    with env.db.transaction() as conn:
+        gone = UsersStore().get(conn, bob.id)
+        kept = conn.execute(
+            "SELECT count(*) FROM requests WHERE user_id = ?", (bob.id,)
+        ).fetchone()[0]
+    assert gone is not None and gone.deleted_at and gone.nd_password_enc == ""
+    assert kept == 1
 
 
 def test_listenbrainz_token_is_checked_before_it_is_stored(env: Env) -> None:

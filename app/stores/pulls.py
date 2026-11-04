@@ -201,6 +201,17 @@ class PullsStore:
         )
         return [r["id"] for r in rows]
 
+    def user_undownloaded_requests(
+        self, conn: sqlite3.Connection, user_id: int
+    ) -> list[int]:
+        """Any of the user's requests that haven't reached a download yet."""
+        rows = conn.execute(
+            f"""SELECT id FROM requests
+                WHERE user_id = ? AND track_state IN {_BEFORE_DOWNLOAD}""",
+            (user_id,),
+        )
+        return [r["id"] for r in rows]
+
     def is_settled(self, conn: sqlite3.Connection, pull_id: int) -> bool:
         """Nothing queued, and every request it made has ended."""
         row = conn.execute(

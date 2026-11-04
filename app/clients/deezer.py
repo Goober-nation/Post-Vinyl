@@ -77,6 +77,7 @@ def parse_track(raw: dict[str, Any]) -> Track:
         position=raw.get("track_position"),
         # its album's image id: on the track in tracklists, on `album` in searches
         cover_id=raw.get("md5_image") or (raw.get("album") or {}).get("md5_image", ""),
+        album=(raw.get("album") or {}).get("title", ""),
     )
 
 
@@ -168,6 +169,7 @@ class DeezerClient(CatalogSource):
                 cover_id=artist_picture(a),
             )
             for a in self._search("artist", name, limit)
+            if a.get("nb_album", 1) > 0  # empty duplicate profiles
         ]
 
     def search_albums(

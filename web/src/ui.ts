@@ -17,6 +17,11 @@ export function railSection(title: string, ...children: Child[]): HTMLElement {
   return h("section", {}, h("h2", { class: "rail-title" }, title), ...children);
 }
 
+/** The × in the corner of a rail section. */
+export function closeButton(label: string, onclick: () => void): HTMLElement {
+  return h("button", { type: "button", class: "icon-btn absolute -top-1 right-0 text-2xl", "aria-label": label, title: label, onclick }, "×");
+}
+
 /** Label/value pairs, e.g. queue stats. */
 export function kv(pairs: [string, Child][]): HTMLElement {
   return h("dl", { class: "kv" }, ...pairs.flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)]));
@@ -203,6 +208,40 @@ export function confirm(question: string, action: string): Promise<boolean> {
     );
     let ok = false;
     dialog.addEventListener("close", () => (dialog.remove(), resolve(ok)));
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}
+
+/** A small dialog of text inputs; resolves to their values, or null if cancelled. */
+export function modalForm(
+  title: string,
+  action: string,
+  fields: { label: string; name: string; type: string; autocomplete: string }[],
+): Promise<Record<string, string> | null> {
+  return new Promise((resolve) => {
+    let values: Record<string, string> | null = null;
+    const form = h(
+      "form",
+      {
+        class: "flex flex-col gap-2",
+        onsubmit: (event: Event) => {
+          event.preventDefault();
+          values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+          dialog.close();
+        },
+      },
+      h("p", { class: "mb-2" }, title),
+      ...fields.map((f) => h("input", { class: "input w-full", ...f, required: true, placeholder: f.label, "aria-label": f.label })),
+      h(
+        "div",
+        { class: "modal-action" },
+        h("button", { class: "btn", type: "button", onclick: () => dialog.close() }, "Cancel"),
+        h("button", { class: "btn btn-primary", type: "submit" }, action),
+      ),
+    );
+    const dialog = h("dialog", { class: "modal" }, h("div", { class: "modal-box bg-base-200 border border-line" }, form));
+    dialog.addEventListener("close", () => (dialog.remove(), resolve(values)));
     document.body.append(dialog);
     dialog.showModal();
   });

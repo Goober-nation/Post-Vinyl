@@ -2,7 +2,7 @@
 // and the peers with a bad record, banned or not, which can be cleared.
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
-import { button, confirm, pageHead, paged, state, toast } from "./ui";
+import { button, confirm, modalForm, pageHead, paged, state, toast } from "./ui";
 
 const fail = (e: unknown) => toast(e instanceof ApiError ? e.message : "Can't reach Post-Vinyl.", "err");
 const day = (s: number) => new Date(s * 1000).toLocaleDateString();
@@ -16,24 +16,103 @@ export function adminPage(): HTMLElement {
     "div",
     { class: "center-main" },
     pageHead("Admin"),
-    h("section", { class: "mb-10" }, h("h2", { class: "rail-title" }, "Users"), h("p", { class: "mb-3 text-xs text-muted" }, "Accounts are made in Navidrome; a user appears here after their first login."), users),
+    h("section", { class: "mb-10" }, h("h2", { class: "rail-title" }, "Users"), h("p", { class: "mb-3 text-xs text-muted" }, "Adds the account to Navidrome too. Anyone made in Navidrome directly appears here after their first login."), newUserForm(users), users),
     h("section", {}, h("h2", { class: "rail-title" }, "Peers with a bad record"), peers),
   );
 }
 
+function newUserForm(users: HTMLElement): HTMLElement {
+  const input = (label: string, name: string, type: string, autocomplete: string) =>
+    h("input", { class: "input input-sm w-full", name, type, autocomplete, required: true, placeholder: label, "aria-label": label });
+  const add = h("button", { class: "btn btn-primary btn-sm", type: "submit" }, "Add user");
+  const form = h(
+    "form",
+    {
+      class: "mt-3 flex max-w-sm flex-col gap-2",
+      onsubmit: async (event: Event) => {
+        event.preventDefault();
+        const data = new FormData(form);
+        if (data.get("password") !== data.get("confirm")) {
+          toast("The passwords don't match.", "err");
+          return;
+        }
+        add.disabled = true;
+        try {
+          const user = await api<Schemas["UserView"]>("POST", "/api/admin/users", {
+            username: data.get("username"),
+            password: data.get("password"),
+            is_admin: data.get("is_admin") === "on",
+          } satisfies Record<keyof Schemas["NewUser"], unknown>);
+          toast(`Added ${user.username}.`);
+          form.reset();
+          panel.removeAttribute("open");
+          void loadUsers(users);
+        } catch (e) {
+          fail(e);
+        } finally {
+          add.disabled = false;
+        }
+      },
+    },
+    input("Username", "username", "text", "off"),
+    input("Password", "password", "password", "new-password"),
+    input("Repeat password", "confirm", "password", "new-password"),
+    h(
+      "div",
+      { class: "mt-1 flex items-center justify-between gap-2" },
+      h("label", { class: "flex items-center gap-2 text-sm" }, h("input", { class: "checkbox checkbox-sm", name: "is_admin", type: "checkbox" }), "Admin"),
+      add,
+    ),
+  );
+  const panel = h("details", { class: "fold-panel" }, h("summary", {}, h("span", { class: "rail-title mb-0! text-lg" }, "Add user")), form);
+  return panel;
+}
+
 async function loadUsers(el: HTMLElement): Promise<void> {
   try {
-    const list = await api<Schemas["UserView"][]>("GET", "/api/admin/users");
+    const [list, me] = await Promise.all([api<Schemas["UserView"][]>("GET", "/api/admin/users"), api<Schemas["Me"]>("GET", "/api/auth/me")]);
+    const remove = async (u: Schemas["UserView"]) => {
+      if (!(await confirm(`Delete ${u.username}? Their Navidrome account goes too. Their music stays.`, "Delete"))) return;
+      try {
+        await api("DELETE", `/api/admin/users/${u.id}`);
+        toast(`Deleted ${u.username}.`);
+        void loadUsers(el);
+      } catch (e) {
+        fail(e);
+      }
+    };
+    const changePassword = async (u: Schemas["UserView"]) => {
+      const values = await modalForm(`New password for ${u.username}`, "Change password", [
+        { label: "New password", name: "password", type: "password", autocomplete: "new-password" },
+        { label: "Repeat password", name: "confirm", type: "password", autocomplete: "new-password" },
+      ]);
+      if (!values) return;
+      if (values.password !== values.confirm) {
+        toast("The passwords don't match.", "err");
+        return;
+      }
+      try {
+        await api("PUT", `/api/admin/users/${u.id}/password`, { password: values.password } satisfies Schemas["NewPassword"]);
+        toast(`Changed ${u.username}'s password.`);
+        void loadUsers(el);
+      } catch (e) {
+        fail(e);
+      }
+    };
     el.replaceChildren(paged(
       list.map((u) =>
         h(
           "div",
-          { class: "row" },
+          { class: "row user-row" },
           h("span", { class: "cover", "aria-hidden": "true" }, u.username.slice(0, 2).toUpperCase()),
-          h("div", { class: "min-w-0" }, h("div", { class: "title" }, u.username), h("div", { class: "sub" }, `since ${day(u.created_at)}`)),
-          h("div", { class: "row-extra sub" }, [u.is_admin && "Admin", u.has_listenbrainz_token && "ListenBrainz token"].filter(Boolean).join(" · ")),
+          h("div", { class: "min-w-0" }, h("div", { class: "title" }, u.username), h("div", { class: "sub" }, [`since ${day(u.created_at)}`, u.is_admin && "Admin", u.has_listenbrainz_token && "ListenBrainz token"].filter(Boolean).join(" · "))),
           u.status === "active" ? state("Active", "ok") : state(u.status === "needs_reauth" ? "Needs to log in again" : u.status, "wait"),
-          h("span"),
+          h(
+            "div",
+            { class: "flex justify-end gap-2" },
+            button("Password", () => void changePassword(u)),
+            u.username === me.username ? "" : button("Delete", () => void remove(u), "danger"),
+          ),
         ),
       ),
       ["user", "users"],

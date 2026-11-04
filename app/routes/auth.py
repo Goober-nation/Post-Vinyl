@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.dependencies import AuthDep, UserDep
 from app.middleware import SESSION_COOKIE
 from app.services.auth import (
     SESSION_LIFETIME_S,
+    AdminExists,
     InvalidCredentials,
     LoginLocked,
+    LoginResult,
     NavidromeUnavailable,
 )
 
@@ -22,9 +24,30 @@ class LoginBody(BaseModel):
     password: str
 
 
+class FirstAdminBody(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class FirstAdminStatus(BaseModel):
+    needed: bool
+
+
 class Me(BaseModel):
     username: str
     is_admin: bool
+
+
+def _logged_in(response: Response, result: LoginResult) -> Me:
+    response.set_cookie(
+        SESSION_COOKIE,
+        result.token,
+        max_age=SESSION_LIFETIME_S,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+    return Me(username=result.user.username, is_admin=bool(result.user.is_admin))
 
 
 @router.post("/login")
@@ -39,15 +62,26 @@ def login(body: LoginBody, response: Response, auth: AuthDep) -> Me:
         ) from e
     except NavidromeUnavailable as e:
         raise HTTPException(503, str(e)) from e
-    response.set_cookie(
-        SESSION_COOKIE,
-        result.token,
-        max_age=SESSION_LIFETIME_S,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-    )
-    return Me(username=result.user.username, is_admin=bool(result.user.is_admin))
+    return _logged_in(response, result)
+
+
+@router.get("/first-admin")
+def first_admin_status(auth: AuthDep) -> FirstAdminStatus:
+    try:
+        return FirstAdminStatus(needed=auth.needs_first_admin())
+    except NavidromeUnavailable as e:
+        raise HTTPException(503, str(e)) from e
+
+
+@router.post("/first-admin")
+def create_first_admin(body: FirstAdminBody, response: Response, auth: AuthDep) -> Me:
+    try:
+        result = auth.create_first_admin(body.username, body.password)
+    except AdminExists as e:
+        raise HTTPException(409, str(e)) from e
+    except NavidromeUnavailable as e:
+        raise HTTPException(503, str(e)) from e
+    return _logged_in(response, result)
 
 
 @router.post("/logout", status_code=204)

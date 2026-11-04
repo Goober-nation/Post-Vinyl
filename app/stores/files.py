@@ -139,6 +139,22 @@ class FilesStore:
         ).fetchone()
         return _tagging(row)
 
+    def last_tagging_failed(
+        self, conn: sqlite3.Connection, file_ids: list[int]
+    ) -> set[int]:
+        """Those of ``file_ids`` whose latest tagging attempt failed."""
+        if not file_ids:
+            return set()
+        marks = ",".join("?" * len(file_ids))
+        rows = conn.execute(
+            f"""SELECT file_id FROM tagging
+                WHERE id IN (SELECT max(id) FROM tagging
+                             WHERE file_id IN ({marks}) GROUP BY file_id)
+                  AND status = 'failTag'""",
+            file_ids,
+        )
+        return {r["file_id"] for r in rows}
+
     def tagging_for_file(
         self, conn: sqlite3.Connection, file_id: int
     ) -> list[TaggingRecord]:

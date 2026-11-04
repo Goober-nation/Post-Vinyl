@@ -5,7 +5,7 @@ Called by the ``file_pipeline`` worker every ``pipeline_every_seconds``
 
 1. verify every new download;
 2. tag every verified file; a failed tagging is tried **once more** after
-   ``retag_after_minutes``, and after a second failure the file moves untagged;
+   ``retag_after_seconds``, and after a second failure the file moves untagged;
 3. move every tagged file (and the twice-failed verified ones);
 4. **one** Navidrome scan for everything moved, then link each file; a file
    Navidrome doesn't list yet is linked on a later tick.
@@ -72,7 +72,7 @@ class FilePipeline:
         for rec in self._in("downloaded"):
             if rec.verification is None:
                 out.verified += self._files.verify(rec.id)
-        retag_s = self._settings.retag_after_minutes * 60
+        retag_s = self._settings.retag_after_seconds
         for rec in self._in("verified"):
             fails = self._failed_tags(rec)
             if not fails or (len(fails) == 1 and self._clock() - fails[0] >= retag_s):

@@ -118,6 +118,15 @@ def test_drop_while_searching_cancels_and_re_request_dispatches_again(env: Env) 
     assert env.source.started == [rid, rid]
 
 
+def test_requests_can_be_listed_by_state_with_the_song_names(env: Env) -> None:
+    rid = request_feather(env.alice)["id"]
+    url = "/api/requests?track_state=searching"
+    [item] = env.alice.get(url).json()["items"]
+    assert item["id"] == rid and item["title"] and item["artist"]
+    assert env.alice.get("/api/requests?track_state=notFound").json()["items"] == []
+    assert env.bob.get(url).json()["items"] == []
+
+
 def test_users_only_see_their_own_requests(env: Env) -> None:
     rid = request_feather(env.alice)["id"]
     assert env.bob.get(f"/api/requests/{rid}").status_code == 404

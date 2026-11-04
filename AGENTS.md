@@ -37,7 +37,7 @@ If anything is unclear or missing, ask before proceeding.
 - **`scripts/corpus/`** + **`tests/test_scripts/`** + **`tests/fixtures/corpus/`**: the search
   benchmark tooling. `plan.py` and `resolve_seeds.py` still import modules that now only exist in
   `legacy/`, so they're broken until those are ported.
-- Milestones 1-7 and 9 are done; milestone 8 has #126 and #127 open.
+- Milestones 1-9 are done.
 - The server still runs the old app from `main`.
 
 ---

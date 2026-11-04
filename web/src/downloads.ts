@@ -6,7 +6,10 @@
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
 import { coverUrl } from "./files";
-import { button, confirm, cover, filters, kv, pageHead, pager, pageSize, railSection, row, state, toast, type Tone } from "./ui";
+import { button, closeButton, confirm, cover, filters, kv, pageHead, pager, pageSize, paged, railSection, row, state, toast, type Tone } from "./ui";
+
+const WATCH_MS = 5_000;
+const NOT_FOUND_MS = 10_000;
 
 const POLL_MS = 1500;
 type Item = Schemas["QueueItem"];
@@ -32,13 +35,17 @@ function go(change: Record<string, string>): void {
   location.hash = `#/downloads?${p}`;
 }
 
+// opens or closes a row's details in place: the hash follows without a redraw,
+// so the list doesn't flash
+let select: (id: number) => void = () => {};
+
 export function downloadsPage(me: Me): HTMLElement {
   const p = params();
   // no state in the URL: the server uses the user's own default (settings)
   const stateFilter = p.get("state");
   const page = Math.max(1, Number(p.get("page")) || 1);
   const everyone = me.is_admin && p.get("everyone") === "1";
-  const selected = Number(p.get("id")) || 0;
+  let selected = Number(p.get("id")) || 0;
 
   const list = h("div", { class: "rows" }, h("p", { class: "py-2 text-muted", role: "status" }, "Loading…"));
   const pages = h("div");
@@ -46,6 +53,7 @@ export function downloadsPage(me: Me): HTMLElement {
   const bar = h("div");
   // without a state in the URL the server applies the user's default filter;
   // read it so the matching filter shows as chosen
+  const notFound = h("div");
   const stateTabs = h("div", { class: "ml-auto" });
   const drawTabs = (current: string) =>
     stateTabs.replaceChildren(filters("State", STATES, current, (v) => go({ state: v || "all", page: "" })));
@@ -69,10 +77,24 @@ export function downloadsPage(me: Me): HTMLElement {
   const el = h(
     "div",
     {},
-    h("div", { class: "center-main" }, head, list, pages),
+    h("div", { class: "center-main" }, head, list, pages, notFound),
     h("aside", { class: "side-rail rail" }, detail, queueRail(me)),
     bar,
   );
+
+  select = (id) => {
+    selected = id;
+    const q = params();
+    if (id) q.set("id", String(id));
+    else q.delete("id");
+    history.replaceState(null, "", `#/downloads?${q}`);
+    list.querySelectorAll<HTMLElement>(".row").forEach((r) => r.classList.toggle("selected", r.dataset.id === String(id)));
+    if (id) void showDetail(detail, id).then(() => innerWidth < 1280 && detail.scrollIntoView({ behavior: "smooth" }));
+    else detail.replaceChildren();
+  };
+
+  void loadNotFound(notFound);
+  const notFoundTimer = window.setInterval(() => (el.isConnected ? void loadNotFound(notFound) : clearInterval(notFoundTimer)), NOT_FOUND_MS);
 
   let last = "";
   let polls = 0;
@@ -110,6 +132,45 @@ export function downloadsPage(me: Me): HTMLElement {
   return el;
 }
 
+// ── requests no source could find ───────────────────────────────────────
+
+async function loadNotFound(el: HTMLElement): Promise<void> {
+  try {
+    const { items } = await api<Schemas["RequestPage"]>("GET", "/api/requests?track_state=notFound&page_size=100");
+    const sig = JSON.stringify(items.map((r) => r.id));
+    if (el.dataset.sig === sig) return;
+    el.dataset.sig = sig;
+    el.replaceChildren(
+      items.length
+        ? h(
+            "section",
+            { class: "mt-10" },
+            h("h2", { class: "rail-title" }, "Not found"),
+            paged(
+              items.map((r) => {
+                const again = button("Request again", async () => {
+                  try {
+                    await api("POST", `/api/requests/${r.id}/re-request`);
+                    toast("Requested again.");
+                    void loadNotFound(el);
+                  } catch (e) {
+                    toast(e instanceof ApiError ? e.message : "Can't reach Post-Vinyl.", "err");
+                  }
+                });
+                const line = row({ title: r.title ?? r.query ?? `Request ${r.id}`, artist: r.artist ?? "Unknown artist", state: state("Not found", "err"), action: again });
+                line.classList.add("user-row");
+                return line;
+              }),
+              ["request", "requests"],
+            ),
+          )
+        : "",
+    );
+  } catch {
+    // the next look tries again
+  }
+}
+
 // ── the list ────────────────────────────────────────────────────────────
 
 const mb = (b: number) => `${(b / 1e6).toFixed(1)} MB`;
@@ -133,11 +194,12 @@ function itemRow(it: Item, selected: boolean, everyone: boolean): HTMLElement {
     cover: it.library_id ? coverUrl(it.library_id, 80) : undefined,
     extra: h("span", { class: "sub font-mono" }, progressText(it) || (it.attempts > 1 ? `${it.attempts} peers tried` : "")),
     state: state(LABEL[it.state] ?? it.state, TONE[it.state] ?? "idle"),
-    action: h("button", { type: "button", class: "icon-btn", "aria-label": `Details of ${title}`, onclick: () => go({ id: String(it.id) }) }, "›"),
+    action: h("button", { type: "button", class: "icon-btn", "aria-label": `Details of ${title}`, onclick: () => select(it.id) }, "›"),
   });
+  r.dataset.id = String(it.id);
   r.classList.add("cursor-pointer");
   r.addEventListener("click", (e) => {
-    if (!(e.target as Element).closest("button")) go({ id: String(it.id) });
+    if (!(e.target as Element).closest("button")) select(it.id);
   });
   return r;
 }
@@ -168,7 +230,7 @@ async function showDetail(el: HTMLElement, id: number): Promise<void> {
   try {
     const d = await api<Schemas["DownloadDetail"]>("GET", `/api/downloads/${id}`);
     const it = d.item;
-    const close = h("button", { type: "button", class: "btn btn-ghost btn-xs -mr-2 ml-auto", "aria-label": "Close details", onclick: () => go({ id: "" }) }, "×");
+    const close = closeButton("Close details", () => select(0));
     const act = (label: string, fn: () => Promise<unknown>, done: string, kind: "primary" | "quiet" | "danger" = "quiet") =>
       button(label, async () => {
         try {
@@ -184,7 +246,8 @@ async function showDetail(el: HTMLElement, id: number): Promise<void> {
     el.replaceChildren(
       railSection(
         "Selected",
-        h("div", { class: "flex items-start" }, h("div", { class: "min-w-0" }, h("div", { class: "cat" }, `PV-${String(it.request_id).padStart(4, "0")}`), h("div", { class: "title" }, it.title ?? "…"), h("div", { class: "sub" }, it.artist ?? "")), close),
+        close,
+        h("div", { class: "flex items-start" }, h("div", { class: "min-w-0" }, h("div", { class: "cat" }, `PV-${String(it.request_id).padStart(4, "0")}`), h("div", { class: "title" }, it.title ?? "…"), h("div", { class: "sub" }, it.artist ?? ""))),
         h("div", { class: "my-3" }, state(LABEL[it.state] ?? it.state, TONE[it.state] ?? "idle")),
         it.current && kv([["Peer", h("span", { class: "font-mono" }, it.current.username)], ["Attempt", `${it.attempts}`], ["Progress", progressText(it) || "—"], ...(it.progress?.size ? [["Size", mb(it.progress.size)] as [string, string]] : [])]),
         h(
@@ -243,4 +306,20 @@ function queueRail(me: Me): HTMLElement {
   draw(null);
   if (me.is_admin) void api<Schemas["QueueState"]>("GET", "/api/admin/queue").then((r) => draw(r.paused), () => {});
   return holder;
+}
+
+/** Toast each of the user's downloads as it starts, on any tab, while `owner` is on the page. */
+export function watchDownloads(owner: HTMLElement): void {
+  let seen: Set<number> | null = null; // null: the first look only notes what's already running
+  const look = async () => {
+    try {
+      const { items } = await api<Schemas["QueuePage"]>("GET", "/api/downloads?state=downloading&page_size=25");
+      if (seen) for (const it of items) if (!seen.has(it.id)) toast(`Downloading ${it.title ?? "a song"}${it.artist ? ` by ${it.artist}` : ""}.`);
+      seen = new Set(items.map((it) => it.id));
+    } catch {
+      // the next look tries again; the Downloads tab reports failures
+    }
+    if (owner.isConnected) setTimeout(() => void look(), WATCH_MS);
+  };
+  setTimeout(() => void look(), 0);
 }

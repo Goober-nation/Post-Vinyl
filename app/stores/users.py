@@ -22,6 +22,8 @@ class User:
     is_admin: int
     status: str
     created_at: int
+    nd_id: str | None = None  # Navidrome's id; NULL until the next login
+    deleted_at: int | None = None
 
 
 @dataclass(frozen=True)
@@ -41,7 +43,9 @@ class UsersStore:
 
     def first_admin(self, conn: sqlite3.Connection) -> User | None:
         row = conn.execute(
-            "SELECT * FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1"
+            """SELECT * FROM users
+               WHERE is_admin = 1 AND status = 'active' AND deleted_at IS NULL
+               ORDER BY id LIMIT 1"""
         ).fetchone()
         return User(**row) if row else None
 
@@ -58,22 +62,52 @@ class UsersStore:
         nd_password_enc: str,
         is_admin: bool,
         now: int,
+        nd_id: str | None = None,
     ) -> User:
-        """Create the user on first login; later logins refresh password and admin flag."""
+        """Create the user on first login; later logins refresh name, password
+        and admin flag. Navidrome's id finds a renamed user; a row without one
+        yet is matched by name. Another row holding the name is stale and
+        gives it up."""
+        found = None
+        if nd_id:
+            found = conn.execute(
+                "SELECT id FROM users WHERE nd_id = ?", (nd_id,)
+            ).fetchone()
+            if found is None:
+                found = conn.execute(
+                    """SELECT id FROM users WHERE username = ? AND nd_id IS NULL
+                       AND deleted_at IS NULL""",
+                    (username,),
+                ).fetchone()
+            conn.execute(
+                "UPDATE users SET username = username || '~' || id"
+                " WHERE username = ? AND id != ?",
+                (username, found["id"] if found else 0),
+            )
+        if found:
+            row = conn.execute(
+                """UPDATE users SET username = ?, nd_id = ?, nd_password_enc = ?,
+                       is_admin = ?, status = 'active'
+                   WHERE id = ? RETURNING *""",
+                (username, nd_id, nd_password_enc, int(is_admin), found["id"]),
+            ).fetchone()
+            return User(**row)
         row = conn.execute(
-            """INSERT INTO users (username, nd_password_enc, is_admin, created_at)
-               VALUES (?, ?, ?, ?)
+            """INSERT INTO users (username, nd_password_enc, is_admin, created_at, nd_id)
+               VALUES (?, ?, ?, ?, ?)
                ON CONFLICT (username) DO UPDATE SET
                    nd_password_enc = excluded.nd_password_enc,
                    is_admin = excluded.is_admin,
                    status = 'active'
                RETURNING *""",
-            (username, nd_password_enc, int(is_admin), now),
+            (username, nd_password_enc, int(is_admin), now, nd_id),
         ).fetchone()
         return User(**row)
 
     def all(self, conn: sqlite3.Connection) -> list[User]:
-        rows = conn.execute("SELECT * FROM users ORDER BY username")
+        rows = conn.execute(
+            "SELECT * FROM users WHERE deleted_at IS NULL ORDER BY username"
+        )
         return [User(**r) for r in rows]
 
     def set_lb_token(
@@ -90,6 +124,31 @@ class UsersStore:
 
     def set_status(self, conn: sqlite3.Connection, user_id: int, status: str) -> None:
         conn.execute("UPDATE users SET status = ? WHERE id = ?", (status, user_id))
+
+    def set_password(
+        self, conn: sqlite3.Connection, user_id: int, nd_password_enc: str
+    ) -> None:
+        conn.execute(
+            "UPDATE users SET nd_password_enc = ?, status = 'active' WHERE id = ?",
+            (nd_password_enc, user_id),
+        )
+
+    def mark_login_refused(self, conn: sqlite3.Connection, user_id: int) -> None:
+        """Navidrome refused the saved login: changed or removed there."""
+        conn.execute("UPDATE users SET status = 'needs_reauth' WHERE id = ?", (user_id,))
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+
+    def mark_deleted(self, conn: sqlite3.Connection, user_id: int, now: int) -> None:
+        """Forget the account; the row stays for the requests that point at it."""
+        conn.execute(
+            """UPDATE users SET username = 'deleted-' || id, nd_id = NULL,
+                   nd_password_enc = '', lb_token_enc = NULL, lb_username = NULL,
+                   is_admin = 0, status = 'needs_reauth', deleted_at = ?
+               WHERE id = ?""",
+            (now, user_id),
+        )
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM user_settings WHERE user_id = ?", (user_id,))
 
     # ------------------------------------------------------------ sessions
 

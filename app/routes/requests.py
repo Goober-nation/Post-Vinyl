@@ -31,6 +31,8 @@ class RequestOut(BaseModel):
     song_id: int | None
     source: str
     query: str | None
+    title: str | None = None
+    artist: str | None = None
     track_state: str
     created_at: int
     last_used_at: int
@@ -118,11 +120,21 @@ def batch(body: Cart, user: UserDep, core: CoreDep) -> list[CartResult]:
 
 @router.get("")
 def history(
-    user: UserDep, core: CoreDep, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE
+    user: UserDep,
+    core: CoreDep,
+    page: int = 1,
+    page_size: int = DEFAULT_PAGE_SIZE,
+    track_state: str | None = None,
 ) -> RequestPage:
-    p = core.requests.history(user.id, page, page_size)
+    p = core.requests.history(user.id, page, page_size, track_state)
+    names = core.requests.song_names([r.song_id for r in p.items if r.song_id])
+
+    def named(r: Request) -> RequestOut:
+        title, artist = names.get(r.song_id or 0, (None, None))
+        return out(r).model_copy(update={"title": title, "artist": artist})
+
     return RequestPage(
-        items=[out(r) for r in p.items],
+        items=[named(r) for r in p.items],
         total=p.total,
         page=p.page,
         page_size=p.page_size,

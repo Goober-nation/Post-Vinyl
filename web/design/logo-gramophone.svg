@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="90 100 340 435" role="img" aria-label="Post-Vinyl gramophone">
+  <g stroke="#3a2408" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <!-- base -->
+    <path fill="#e9a820" d="M155 442 250 390 405 408 318 462Z"/>
+    <path fill="#c97f12" d="M155 442 318 462 316 512 157 491Z"/>
+    <path fill="#a4620c" d="M318 462 405 408 404 462 316 512Z"/>
+    <!-- platter -->
+    <ellipse cx="283" cy="422" rx="71" ry="29" fill="#fff0b8"/>
+    <ellipse cx="283" cy="422" rx="42" ry="16" fill="#f7cf58" stroke-width="3"/>
+    <circle cx="286" cy="420" r="4" fill="#3a2408" stroke="none"/>
+    <!-- neck -->
+    <path fill="#c97f12" d="M351 362 378 372 378 408 351 405Z"/>
+    <!-- horn -->
+    <path fill="#ffd95e" d="M117 134 308 123 272 275Z"/>
+    <path fill="#f9bd2e" d="M117 134 272 275 272 303 115 279Z"/>
+    <path fill="#e9a820" d="M308 123 372 350 352 360 272 303 272 275Z"/>
+    <path fill="#c97f12" d="M115 279 272 303 352 360Z"/>
+  </g>
+</svg>

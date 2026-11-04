@@ -280,3 +280,11 @@ Test stack, real ListenBrainz, Soulseek and Navidrome 0.64.2.
 - Radio: two calls gave different lists; a 2-song pull downloaded both. One stayed out of the playlist because tagging failed (`no_release`) and waits for the retag.
 - Reuse and cancel: a 6-song recs pull reused the 2 library songs, one song reached `midDownload`, cancel left it to finish, and it joined the playlist; 3 queued songs left.
 - Found: titles with dots hid their version word from the filter (`J.A.R. (…) (demo)`); fixed, unit test added.
+
+## 2026-11-04: first admin and user management
+Throwaway Navidrome 0.64.2, and the test stack for the first step.
+- First admin: the client saw an empty Navidrome, created the admin, logged in, and a second try got 403. The user then ran the login page's Create admin on the test stack.
+- Users: created a normal user and an admin with the right roles, reset passwords by id and by name without losing the admin flag, changed an admin's own password, deleted a user (login refused, second delete 404).
+- Found: `PUT /api/user/{id}` with a partial body blanks the username; an empty `userName` is accepted; an admin can delete themselves; five logins in 20 s gets 429.
+- Found on the test stack: wiping Navidrome but keeping Post-Vinyl's database left a stale admin that failed background work; now marked `needs_reauth` and skipped.
+- Deezer: live search for one artist no longer lists the zero-album profile.

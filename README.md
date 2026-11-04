@@ -1,5 +1,7 @@
 # Post-Vinyl
 
+<img src="web/src/logo.svg" alt="Post-Vinyl logo" width="128">
+
 [![GitHub License](https://img.shields.io/github/license/Goober-nation/Post-Vinyl)](LICENSE)
 [![GitHub Repo stars](https://img.shields.io/github/stars/Goober-nation/Post-Vinyl)](https://github.com/Goober-nation/Post-Vinyl)
 
@@ -15,7 +17,7 @@ Post-Vinyl is a self-hosted music downloader and library manager. Search for a s
 - **Honest Tags**: Tags come from MusicBrainz and ListenBrainz lookups only, with no guessing.
 - **Soulseek Tab**: Search Soulseek directly and pick the exact files yourself.
 - **File Management**: Browse, rename and delete files in your library.
-- **Multi-user**: Log in with your Navidrome account. Each user has their own requests, sources, settings and ListenBrainz token.
+- **Multi-user**: Log in with your Navidrome account. Each user has their own requests, sources, settings and ListenBrainz token. Admins can add users, change passwords and delete users from the Admin tab.
 
 ## How It Works
 
@@ -78,7 +80,8 @@ services:
       - "8091:5030"
       - "50300:50300/tcp"
     environment:
-      - SLSKD_SLSK_USERNAME=change-me # your Soulseek login; the first login registers the name
+      # Your Soulseek login; the first login registers the name
+      - SLSKD_SLSK_USERNAME=change-me
       - SLSKD_SLSK_PASSWORD=change-me
       - SLSKD_USERNAME=change-me # slskd's web UI login
       - SLSKD_PASSWORD=change-me
@@ -105,7 +108,8 @@ services:
     environment:
       - PV_NAVIDROME_URL=http://navidrome:4533
       - PV_SLSKD_URL=http://slskd:5030
-      - PV_SLSKD_API_KEY=change-me-any-long-random-string # the same as SLSKD_API_KEY
+      # The same as SLSKD_API_KEY
+      - PV_SLSKD_API_KEY=change-me-any-long-random-string
     volumes:
       - /path/to/music:/music
       - ./postvinyl_data:/postvinyl/data
@@ -141,14 +145,14 @@ services:
 
 ### Initial Setup
 
-1. New Navidrome? Open `http://localhost:8090` and create its admin there. Do this straight away, because until then anyone who can reach that page can claim it.
-2. Open `http://localhost:8092` and log in with your Navidrome account. A Navidrome admin is a Post-Vinyl admin.
+1. Open `http://localhost:8092`. On a new Navidrome, create its admin right there; after that, log in with your Navidrome account.
+2. A Navidrome admin is a Post-Vinyl admin.
 3. Search for something and download it.
 4. For recommendations and radio, add your ListenBrainz token in **Settings**.
 
 ## Configuration
 
-Everything is optional from here. `postvinyl_config/post-vinyl.yaml` is created on first start with each value explained inside. Admins can also change it under **Settings > Server-wide**, then restart. **Settings > Mine** applies only to you, at once.
+Everything is optional from here. `postvinyl_config/post-vinyl.yaml` is created on first start with each value explained inside. Admins can also change it under **Settings > Server-wide**, then restart. **Settings > Personal** applies only to you, at once.
 
 Optional environment values on the `postvinyl` service:
 

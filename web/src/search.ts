@@ -193,7 +193,7 @@ function albumPage(view: Browse): HTMLElement[] {
     cover(view.name, coverOf(view.source, view.cover, 300)),
     h("div", { class: "min-w-0" }, h("div", { class: "text-muted" }, "Album"), h("h1", {}, view.name), h("div", { class: "text-muted" }, meta(view.artist, view.info))),
   );
-  const tracks = section("Tracks", null, async () => [(await fetched<Schemas["Track"][]>(`/api/catalog/${enc(view.source)}/editions/${enc(view.id)}/tracks`)).map((t) => trackRow(t, null, view.name)), null], (rows) => {
+  const tracks = section("Tracks", null, async () => [(await fetched<Schemas["Track"][]>(`/api/catalog/${enc(view.source)}/editions/${enc(view.id)}/tracks`)).map((t) => trackRow(t, null, true)), null], (rows) => {
     const list = paged(rows, ["song", "songs"], "rows", Math.max(rows.length, 1));
     list.classList.add("tracklist");
     return list;
@@ -233,7 +233,7 @@ function cartToggle(entry: CartEntry): [HTMLElement, HTMLElement] {
   return [mark, toggle];
 }
 
-function trackRow(t: Schemas["Track"], originId: number | null, album?: string): HTMLElement {
+function trackRow(t: Schemas["Track"], originId: number | null, onAlbumPage = false): HTMLElement {
   const entry = entryOf(t, originId);
   const [mark, toggle] = cartToggle(entry);
   const side = t.position ? `${t.disc && t.disc > 1 ? `${t.disc}-` : ""}${t.position}` : undefined;
@@ -241,9 +241,9 @@ function trackRow(t: Schemas["Track"], originId: number | null, album?: string):
     title: entry.title,
     cover: coverOf(t.source, t.cover_id ?? ""),
     artist: t.artist,
-    album,
+    album: onAlbumPage ? undefined : t.album || undefined,
     side,
-    extra: h("span", { class: "sub font-mono" }, meta(length(t.duration_s), !album && year(t.first_release_date))),
+    extra: h("span", { class: "sub font-mono" }, meta(length(t.duration_s), !onAlbumPage && year(t.first_release_date))),
     state: mark,
     action: toggle,
   });
@@ -327,10 +327,43 @@ function albumSleeve(a: Schemas["Album"]): HTMLElement {
 
 // ── the cart ────────────────────────────────────────────────────────────
 
+const REDOWNLOAD = "pv-redownload";
+
+function redownloadOn(): boolean {
+  try {
+    return localStorage.getItem(REDOWNLOAD) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const cartKey = (i: CartEntry) => `${i.source}:${i.track_id}`;
+
 function cartRail(): HTMLElement {
   const section = h("div");
+  let owned = new Set<string>(); // cart songs the library has already
+  let asked = "";
+  let redownload = redownloadOn();
+  const checkOwned = async () => {
+    const items = cart.items();
+    const sig = items.map(cartKey).join();
+    if (sig === asked) return;
+    asked = sig;
+    if (!items.length) return;
+    try {
+      const body = { items: items.map(({ title, artist }) => ({ title, artist })) } satisfies Schemas["OwnedCheck"];
+      const have = await api<boolean[]>("POST", "/api/library/files/owned", body);
+      if (sig !== asked) return; // the cart moved on
+      owned = new Set(items.filter((_, n) => have[n]).map(cartKey));
+      draw();
+    } catch {
+      asked = ""; // unknown stays unmarked; the next change asks again
+    }
+  };
   const draw = () => {
     const items = cart.items();
+    const wanted = redownload ? [...items] : items.filter((i) => !owned.has(cartKey(i)));
+    const skipped = items.length - wanted.length;
     const list = items.map((i) =>
       h(
         "div",
@@ -340,13 +373,36 @@ function cartRail(): HTMLElement {
           { class: "min-w-0 flex-1" },
           h("div", { class: "title" }, i.title),
           h("div", { class: "sub" }, i.artist),
+          owned.has(cartKey(i)) && h("div", { class: "text-xs text-accent" }, redownload ? "In your library · downloads again" : "In your library · skipped"),
           i.error && h("div", { class: "text-xs text-error" }, i.error),
         ),
         iconButton(`Remove ${i.title}`, "×", () => cart.remove(i)),
       ),
     );
-    const send = button(items.length === 1 ? "Request 1 song" : `Request ${items.length} songs`, () => void request(send), "primary");
+    const label = wanted.length === 1 ? "Request 1 song" : `Request ${wanted.length} songs`;
+    const go = () => void request(send, wanted, skipped);
+    const send = button(label, go, "primary");
     send.classList.add("w-full", "mt-2");
+    send.disabled = !wanted.length;
+    const toggle = h(
+      "label",
+      { class: "mt-3 flex items-center gap-2 text-muted" },
+      h("input", {
+        type: "checkbox",
+        class: "toggle toggle-xs",
+        checked: redownload,
+        onchange: (e: Event) => {
+          redownload = (e.target as HTMLInputElement).checked;
+          try {
+            localStorage.setItem(REDOWNLOAD, redownload ? "1" : "");
+          } catch {
+            // storage blocked: the choice lasts until the page closes
+          }
+          draw();
+        },
+      }),
+      "Re-download songs I already have",
+    );
     // phones: the rail sits below the results, so a bar keeps the cart in reach
     const bar =
       items.length > 0 &&
@@ -355,17 +411,19 @@ function cartRail(): HTMLElement {
         { class: "activity xl:hidden" },
         h("button", { type: "button", class: "btn btn-ghost btn-sm", onclick: () => section.scrollIntoView({ behavior: "smooth" }) }, `Cart · ${items.length}`),
         h("span", { class: "flex-1" }),
-        button(items.length === 1 ? "Request 1 song" : `Request ${items.length} songs`, () => void request(send), "primary"),
+        button(label, go, "primary"),
       );
     section.replaceChildren(
       bar || "",
       railSection(
         `Cart · ${items.length}`,
         list.length ? paged(list, ["song", "songs"], "") : "",
+        items.length > 0 && toggle,
         items.length > 0 && send,
         items.length > 0 && h("button", { type: "button", class: "btn btn-ghost btn-xs mt-2 w-full text-muted", onclick: () => cart.replace([]) }, "Empty cart"),
       ),
     );
+    void checkOwned();
   };
   draw();
   cart.watch(section, draw);
@@ -381,8 +439,8 @@ function failure(r: Schemas["CartResult"] | undefined): string {
   return r.error ? `Failed: ${r.error}` : `Failed (${r.status}).`;
 }
 
-async function request(btn: HTMLButtonElement): Promise<void> {
-  const items = cart.items();
+async function request(btn: HTMLButtonElement, items: CartEntry[], skipped: number): Promise<void> {
+  if (!items.length) return;
   btn.disabled = true;
   try {
     const results = await api<Schemas["CartResult"][]>("POST", "/api/requests/batch", {
@@ -396,6 +454,7 @@ async function request(btn: HTMLButtonElement): Promise<void> {
     const sent = items.length - failed.length;
     cart.replace(failed);
     if (sent) toast(`Requested ${sent} ${sent === 1 ? "song" : "songs"}.`);
+    if (skipped) toast(`Skipped ${skipped} already in your library.`);
     if (failed.length) toast(`${failed.length} couldn't be requested; they stay in the cart.`, "err");
   } catch (e) {
     toast(e instanceof ApiError ? e.message : "Can't reach Post-Vinyl.", "err");

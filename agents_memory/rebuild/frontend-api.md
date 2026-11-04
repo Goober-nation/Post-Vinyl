@@ -156,3 +156,39 @@ Decisions (user, 2026-10-30):
   components, then mockups of the hardest screens (slskd tab, downloads queue, settings).
   Soulbeet (Dioxus fullstack, Rust → WebAssembly, Tailwind v4, WebSocket push) was looked at;
   only the Tailwind choice carries over.
+
+## Changes 2026-11-04 (win over the look notes above)
+- **Colours** (user): warm yellow accent `#e8c468` as one variable, near-black backgrounds with a
+  light blue tint (`#101114`, `#17191d`, `#202227`), lines `#2b2e34`, text `#f7f7f7`, muted `#9a9a9a`.
+- **Logo** (user): a record, `web/src/logo.svg`. The favicon is its own file, `web/src/favicon.svg`:
+  no shine, a thicker rim, no inner lines.
+- **Tips**: `web/src/tips.ts`, a numbered island per tab on the left, folded per tab by the cookie
+  `pv-tips-<tab>` for a year. The Add user panel reuses the look (`.fold-panel`).
+- **Cart**: songs already in the library are marked, through `POST /api/library/files/owned`, with a
+  "Re-download songs I already have" toggle remembered in the browser.
+- **Downloads**: selecting a row updates in place, so the list no longer flickers; panels close
+  with an × button (deselecting by clicking a row was rejected by the user).
+- **Soulseek tab**: the last search survives leaving the tab (session storage).
+- **Settings**: tabs are Personal and Server-wide, `#/settings?of=personal|server`. An old
+  `?of=install` link opens Personal.
+- **Admin**: Add user, Password and Delete, see `users-auth.md`. User rows put the status under the
+  name at every width. No Delete on your own row.
+- **Shelves**: below `md`, `.sleeves` is one row scrolling sideways, sleeves at most 180 px; `.wrap`
+  lists stay a two-column grid.
+- **Artist search**: Deezer's `nb_album` drops artists with no albums. MusicBrainz has no count in
+  its search, and one lookup per artist costs a second each, so it isn't filtered (user: Deezer only).
+- **Service status** (user, 2026-11-05): lights for Navidrome and slskd in the header, checked every
+  30 s; the dropdown lists every service with Ping and Ping all (`services/status.py`,
+  `web/src/services.ts`). A source that's off for the user isn't called and shows "Turned off".
+- **Search results** show the album beside the artist (`Track.album`: Deezer's album, MusicBrainz's
+  first release); album pages don't repeat it.
+- **Download toast**: every 5 s on any tab, a toast names each of the user's downloads as it starts.
+- **Tagging** (user, 2026-11-05): the second attempt comes 30 s after the first
+  (`workers.retag_after_seconds`; an old `retag_after_minutes` in a config file is ignored). A file
+  whose last tagging failed shows "Tagging failed" in Files, and its panel has Retry tagging: it
+  reads the names from the path, then the current tags. No new cover leaves the old one in the file.
+- **Files rows**: length and format sit by the arrow.
+- **Not found** (user, 2026-11-05): requests in `notFound` were invisible, as they never reach a
+  download. Downloads lists them below the main list with Request again. They're the user's own,
+  whatever the Everyone's toggle says. With a second source, a request must stay out of `notFound`
+  until every source has failed.

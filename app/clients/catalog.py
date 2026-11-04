@@ -57,6 +57,7 @@ class Track:
     releases: tuple[ReleaseRef, ...] = ()
     video: bool = False  # MusicBrainz marks music-video recordings
     cover_id: str = ""  # what the source's cover lookup takes (#127); "" none
+    album: str = ""  # only from searches: the album it's shown with
 
 
 @dataclass(frozen=True)

@@ -20,7 +20,14 @@ from app.services.auth import AuthServiceBase
 
 SESSION_COOKIE = "pv_session"
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
-OPEN_ROUTES = frozenset({("POST", "/api/auth/login"), ("GET", "/api/system/ping")})
+OPEN_ROUTES = frozenset(
+    {
+        ("POST", "/api/auth/login"),
+        ("GET", "/api/auth/first-admin"),
+        ("POST", "/api/auth/first-admin"),
+        ("GET", "/api/system/ping"),
+    }
+)
 DEV_OPEN_PATHS = frozenset({"/docs", "/openapi.json", "/docs/oauth2-redirect"})
 
 

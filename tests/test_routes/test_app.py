@@ -186,3 +186,13 @@ def test_web_files_open_without_session(
     assert client.get("/api/auth/me").status_code == 401
     login(client)
     assert client.get("/api/auth/me").status_code == 200  # the API still wins
+
+
+def test_first_admin_is_open_but_refused_once_a_user_exists(
+    client: TestClient,
+) -> None:
+    assert client.get("/api/auth/first-admin").json() == {"needed": False}
+    body = {"username": "new", "password": "pw"}
+    assert client.post("/api/auth/first-admin", json=body).status_code == 403
+    r = client.post("/api/auth/first-admin", json=body, headers=SAME)
+    assert r.status_code == 409

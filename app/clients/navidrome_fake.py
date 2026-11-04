@@ -6,6 +6,7 @@ from app.clients.navidrome import (
     Cover,
     NavidromeAuthError,
     NavidromeClientBase,
+    NavidromeDuplicate,
     NavidromeForbidden,
     NavidromeNotFound,
     ScanStatus,
@@ -35,6 +36,7 @@ class FakeNavidromeClient(NavidromeClientBase):
             jwt=f"jwt-{username}",
             subsonic_token="token",
             subsonic_salt="salt",
+            nd_id=f"nd-{username}",
         )
 
     def _check(self, session: Session) -> None:
@@ -45,6 +47,45 @@ class FakeNavidromeClient(NavidromeClientBase):
         if self.users.get(username, ("", False))[0] != password or not password:
             raise NavidromeAuthError("POST /auth/login: HTTP 401")
         return self._session(username)
+
+    def has_no_users(self) -> bool:
+        return not self.users
+
+    def create_first_admin(self, username: str, password: str) -> Session:
+        if self.users:
+            raise NavidromeForbidden("POST /auth/createAdmin: HTTP 403")
+        self.users[username] = (password, True)
+        return self._session(username)
+
+    def create_user(
+        self, session: Session, username: str, password: str, is_admin: bool
+    ) -> str:
+        self._check(session)
+        if not session.is_admin:
+            raise NavidromeForbidden("POST /api/user: HTTP 403")
+        if username in self.users:
+            raise NavidromeDuplicate("POST /api/user: HTTP 400")
+        self.users[username] = (password, is_admin)
+        return f"nd-{username}"
+
+    def set_password(
+        self,
+        session: Session,
+        nd_id: str | None,
+        username: str,
+        password: str,
+        current: str | None = None,
+    ) -> None:
+        self._check(session)
+        if username not in self.users:
+            raise NavidromeNotFound(username)
+        self.users[username] = (password, self.users[username][1])
+
+    def delete_user(self, session: Session, nd_id: str | None, username: str) -> None:
+        self._check(session)
+        if username not in self.users:
+            raise NavidromeNotFound(username)
+        del self.users[username]
 
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:
         self._check(session)

@@ -155,7 +155,7 @@ matching), `search-test-v2.md` (benchmark rerun), `work-plan.md` (rules, work or
   files service finds the old copy in Navidrome and deletes it (inside the library only) before
   moving the new one. **Navidrome's music folder is the library only** (`ND_MUSICFOLDER=/music/library`;
   test stack switched, the server's compose left alone for now). Navidrome is reached as the
-  first PV admin with their stored (encrypted) Navidrome password. A file failing verification
+  first working PV admin with their stored (encrypted) Navidrome password. A file failing verification
   (not_found / not_audio / duration / truncated: smaller than 0.8 × bitrate × length, not for
   FLAC; user 2026-10-30, #114) keeps the code in `verification` and stays `downloaded`.
   Folders are the YAML `files` section.
@@ -213,7 +213,7 @@ Rules:
 | Module | Job |
 |---|---|
 | `slskd.py` | start/poll/cancel searches, fetch responses (every file, `length` field), transfers (queue, status, remove), server state |
-| `navidrome.py` | Subsonic + native API: ping/verify credentials, `createAdmin`, scan + scan status, song lookup, playlists |
+| `navidrome.py` | Subsonic + native API: ping/verify credentials, `createAdmin`, user create/password/delete, scan + scan status, song lookup, playlists |
 | `musicbrainz.py` | search + lookups, rate limit (1 req/s), cache |
 | `listenbrainz.py` | metadata lookup; recommendations later |
 | `deezer.py` | search, track, ISRC, charts |

@@ -7,10 +7,19 @@ Checked against Navidrome 0.64.2's source and live (2026-10-28):
 - Every native-API response carries a refreshed JWT in ``X-ND-Authorization``.
 - Subsonic answers errors with HTTP 200 and ``status: "failed"``.
 - Subsonic's ``path`` is built from tags; only the native API has the real one.
+- No API says whether any user exists: only ``/app/``'s embedded config does.
+  ``POST /auth/createAdmin`` needs no login and answers 403 once a user exists.
+- ``POST /api/user`` (admin) takes ``userName``, ``name``, ``password`` and
+  ``isAdmin``, answers ``{id}``, and accepts an empty username: check it first.
+  A taken name is 400 ``ra.validation.unique``. New users get the libraries.
+- ``PUT /api/user/{id}`` replaces the whole user: a partial body blanks the name.
+  Changing your own password also needs ``currentPassword``.
+- ``DELETE /api/user/{id}`` lets an admin delete themselves: the caller prevents it.
 """
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -23,6 +32,8 @@ _CLIENT_NAME = "post-vinyl"
 # Subsonic error codes (subsonic.org/pages/api.jsp)
 _SUBSONIC_AUTH_CODES = {40, 41, 44}
 _SUBSONIC_NOT_FOUND = 70
+# In the config Navidrome embeds in its page, with its quotes escaped (0.64.2)
+_FIRST_TIME = re.compile(r'firstTime\\*":\s*true')
 
 
 class NavidromeError(Exception):
@@ -46,6 +57,10 @@ class NavidromeForbidden(NavidromeError):
     non-admin."""
 
 
+class NavidromeDuplicate(NavidromeError):
+    """The username is already taken."""
+
+
 class NavidromeBusy(NavidromeError):
     """Rate-limited (HTTP 429), e.g. too many logins; retry later."""
 
@@ -59,6 +74,7 @@ class Session:
     jwt: str
     subsonic_token: str
     subsonic_salt: str
+    nd_id: str = ""  # Navidrome's permanent user id
 
 
 @dataclass(frozen=True)
@@ -97,6 +113,37 @@ class NavidromeClientBase(ABC):
     @abstractmethod
     def login(self, username: str, password: str) -> Session:
         """Log in; raises NavidromeAuthError on wrong credentials."""
+
+    @abstractmethod
+    def has_no_users(self) -> bool:
+        """True on a fresh Navidrome, before its first admin exists."""
+
+    @abstractmethod
+    def create_first_admin(self, username: str, password: str) -> Session:
+        """Create the first admin and log in; NavidromeForbidden once a user exists."""
+
+    @abstractmethod
+    def create_user(
+        self, session: Session, username: str, password: str, is_admin: bool
+    ) -> str:
+        """Create an account (admin only), returning its id; NavidromeDuplicate
+        if the name is taken."""
+
+    @abstractmethod
+    def set_password(
+        self,
+        session: Session,
+        nd_id: str | None,
+        username: str,
+        password: str,
+        current: str | None = None,
+    ) -> None:
+        """Set a password (admin only); ``current`` is needed for your own.
+        NavidromeNotFound if no such account."""
+
+    @abstractmethod
+    def delete_user(self, session: Session, nd_id: str | None, username: str) -> None:
+        """Delete an account (admin only); NavidromeNotFound if it's already gone."""
 
     @abstractmethod
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:
@@ -168,6 +215,7 @@ def parse_session(raw: dict[str, Any]) -> Session:
         jwt=raw["token"],
         subsonic_token=raw["subsonicToken"],
         subsonic_salt=raw["subsonicSalt"],
+        nd_id=raw.get("id", ""),
     )
 
 
@@ -263,6 +311,68 @@ class NavidromeClient(NavidromeClientBase):
 
     def login(self, username: str, password: str) -> Session:
         return self._auth_call("/auth/login", username, password)
+
+    def has_no_users(self) -> bool:
+        return bool(_FIRST_TIME.search(self._request("GET", "/app/").text))
+
+    def create_first_admin(self, username: str, password: str) -> Session:
+        return self._auth_call("/auth/createAdmin", username, password)
+
+    def create_user(
+        self, session: Session, username: str, password: str, is_admin: bool
+    ) -> str:
+        body = {
+            "userName": username,
+            "name": username,
+            "password": password,
+            "isAdmin": is_admin,
+        }
+        headers = {_AUTH_HEADER: f"Bearer {session.jwt}"}
+        try:
+            return str(
+                self._request("POST", "/api/user", json=body, headers=headers).json()[
+                    "id"
+                ]
+            )
+        except NavidromeError as e:
+            if "ra.validation.unique" in str(e):
+                raise NavidromeDuplicate(str(e)) from e
+            raise
+
+    def _user_record(
+        self, session: Session, nd_id: str | None, username: str
+    ) -> dict[str, Any]:
+        for raw in self._native(session, "/user"):
+            if raw["id"] == nd_id or (not nd_id and raw["userName"] == username):
+                return dict(raw)
+        raise NavidromeNotFound(f"no Navidrome user {username}")
+
+    def set_password(
+        self,
+        session: Session,
+        nd_id: str | None,
+        username: str,
+        password: str,
+        current: str | None = None,
+    ) -> None:
+        record = self._user_record(session, nd_id, username)
+        body = record | {"password": password}
+        if current is not None:
+            body["currentPassword"] = current
+        self._request(
+            "PUT",
+            f"/api/user/{record['id']}",
+            json=body,
+            headers={_AUTH_HEADER: f"Bearer {session.jwt}"},
+        )
+
+    def delete_user(self, session: Session, nd_id: str | None, username: str) -> None:
+        record = self._user_record(session, nd_id, username)
+        self._request(
+            "DELETE",
+            f"/api/user/{record['id']}",
+            headers={_AUTH_HEADER: f"Bearer {session.jwt}"},
+        )
 
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:
         body = self._subsonic(session, "startScan", fullScan=str(full).lower())

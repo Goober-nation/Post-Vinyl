@@ -196,3 +196,29 @@ def test_transaction_spans_stores_and_rolls_back(db: Database) -> None:
         slskd.add_search(c, "s-x", 999, "q", "T", NOW)  # no such request
     with db.transaction() as c:
         assert reqs.count(c, uid) == 0
+
+
+def test_a_navidrome_rename_keeps_the_row_and_takes_the_name_from_a_stale_one(
+    conn: sqlite3.Connection,
+) -> None:
+    users = UsersStore()
+    old = users.upsert_on_login(conn, "alice", "e", False, NOW)
+    linked = users.upsert_on_login(conn, "alice", "e", False, NOW, "nd-1")
+    assert linked.id == old.id and linked.nd_id == "nd-1"
+    renamed = users.upsert_on_login(conn, "alicia", "e2", False, NOW, "nd-1")
+    assert renamed.id == old.id and renamed.username == "alicia"
+    other = users.upsert_on_login(conn, "alicia", "e", False, NOW, "nd-2")
+    assert other.id != old.id
+    stale = users.get(conn, old.id)
+    assert stale is not None and stale.username == f"alicia~{old.id}"
+
+
+def test_a_refused_admin_login_moves_background_work_to_the_next_admin(
+    conn: sqlite3.Connection,
+) -> None:
+    users = UsersStore()
+    first = users.upsert_on_login(conn, "a", "e", True, NOW)
+    second = users.upsert_on_login(conn, "b", "e", True, NOW)
+    users.mark_login_refused(conn, first.id)
+    found = users.first_admin(conn)
+    assert found is not None and found.id == second.id

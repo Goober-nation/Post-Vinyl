@@ -19,6 +19,7 @@ from app.services.queue_pause import QueuePauseBase
 from app.services.requests import RequestServiceBase
 from app.services.settings import InstallSettingsBase, UserSettingsBase
 from app.services.slskd_tab import SlskdTabBase
+from app.services.status import StatusServiceBase
 from app.stores.users import User
 from app.workers.core_loop import CoreLoopWorkers
 
@@ -42,6 +43,7 @@ class Core:
     install: InstallSettingsBase | None = None
     workers: CoreLoopWorkers | None = None
     pulls: PullServiceBase | None = None
+    status: StatusServiceBase | None = None
 
 
 def need(service: T | None, what: str) -> T:

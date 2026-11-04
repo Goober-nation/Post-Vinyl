@@ -1,4 +1,4 @@
-/* Design kit (#120): deep harbour blue, one accent, hairline borders, flat
+/* Design kit (#120): deep grey, one accent (--accent, below), hairline borders, flat
    surfaces; no gradients, glass, glow or soft oversized cards. Mockup:
    web/design/mockup.html. daisyUI gives the controls (btn, input, select,
    range, checkbox, modal, toast, alert); the classes below give the layout. */
@@ -24,26 +24,26 @@
   name: "harbour-dark";
   default: true;
   color-scheme: dark;
-  --color-base-100: #0c0e12; /* page */
-  --color-base-200: #13161c; /* panels, row hover */
-  --color-base-300: #1a1e26; /* inputs, selected */
-  --color-base-content: #e6e8ec;
-  --color-primary: #3a6699; /* filled buttons: white text 6.0:1 */
-  --color-primary-content: #ffffff;
-  --color-secondary: #1a1e26;
-  --color-secondary-content: #e6e8ec;
-  --color-accent: #7ea3cf; /* links, focus, active tab, progress */
-  --color-accent-content: #0c0e12;
-  --color-neutral: #262b35;
-  --color-neutral-content: #e6e8ec;
-  --color-info: #7ea3cf;
-  --color-info-content: #0c0e12;
+  --color-base-100: #101114; /* page */
+  --color-base-200: #17191d; /* panels, row hover */
+  --color-base-300: #202227; /* inputs, selected */
+  --color-base-content: #f7f7f7;
+  --color-primary: var(--accent); /* filled buttons */
+  --color-primary-content: #101114;
+  --color-secondary: #202227;
+  --color-secondary-content: #f7f7f7;
+  --color-accent: var(--accent); /* links, focus, active tab, progress */
+  --color-accent-content: #101114;
+  --color-neutral: #2b2e34;
+  --color-neutral-content: #f7f7f7;
+  --color-info: var(--accent);
+  --color-info-content: #101114;
   --color-success: #74b29f;
-  --color-success-content: #0c0e12;
+  --color-success-content: #101114;
   --color-warning: #d1a85e;
-  --color-warning-content: #0c0e12;
+  --color-warning-content: #101114;
   --color-error: #d97b7b;
-  --color-error-content: #0c0e12;
+  --color-error-content: #101114;
   --radius-selector: 3px;
   --radius-field: 3px;
   --radius-box: 6px;
@@ -56,9 +56,10 @@
 
 /* Tokens daisyUI has no slot for */
 :root {
-  --live: #e0a15a; /* warm: only for what is happening now */
-  --line: #262b35;
-  --muted: #9097a3;
+  --accent: #e8c468; /* the one accent: buttons, links, focus, active tab, progress */
+  --live: #e0914a; /* orange: only for what is happening now */
+  --line: #2b2e34;
+  --muted: #9a9a9a;
 }
 
 @theme {
@@ -121,7 +122,7 @@
     @apply mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-2;
   }
   .rail section {
-    @apply mb-6 border-b border-line pb-6;
+    @apply relative mb-6 border-b border-line pb-6;
   }
   .rail-title {
     @apply mb-3 font-medium tracking-[.08em] text-muted;
@@ -155,6 +156,34 @@
   }
   .row {
     @apply grid min-h-13 grid-cols-[40px_minmax(0,1fr)_32px] items-center gap-x-4 border-b border-line p-2 transition-colors hover:bg-base-200 md:grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_150px_32px];
+  }
+  .row.user-row {
+    @apply grid-cols-[40px_minmax(0,1fr)_auto] md:grid-cols-[40px_minmax(0,1fr)_auto];
+  }
+  .row.user-row .row-extra {
+    @apply hidden;
+  }
+  .row.user-row .state {
+    @apply col-start-2 row-start-2 text-xs;
+  }
+  .row.user-row > .cover,
+  .row.user-row > :last-child {
+    @apply row-span-2;
+  }
+  .row.user-row > :last-child {
+    @apply col-start-3 row-start-1;
+  }
+  .row.file-row {
+    @apply md:grid-cols-[40px_minmax(0,1fr)_auto_32px];
+  }
+  .row.file-row .row-extra {
+    @apply hidden;
+  }
+  .file-meta {
+    @apply col-start-2 row-start-2 flex items-center gap-4 md:col-start-auto md:row-start-auto md:justify-end;
+  }
+  .file-meta .font-mono {
+    @apply md:min-w-[6.5rem] md:text-right;
   }
   .row-extra {
     @apply hidden md:block;
@@ -194,10 +223,11 @@
     @apply rounded-full;
   }
   .sleeves {
-    @apply grid grid-cols-2 gap-4 md:grid-cols-5;
+    /* one row that scrolls sideways on a narrow screen, so sleeves stay small */
+    @apply grid auto-cols-[min(38vw,180px)] grid-flow-col gap-4 overflow-x-auto md:auto-cols-auto md:grid-flow-row md:grid-cols-5 md:overflow-visible;
   }
   .sleeves.wrap {
-    @apply md:grid-cols-4;
+    @apply grid-flow-row grid-cols-2 overflow-visible md:grid-cols-4;
   }
   .popular {
     @apply grid gap-x-6 md:grid-cols-3;
@@ -311,6 +341,60 @@
      is fixed to the window's right edge and the column narrows to clear it */
   .center-main {
     @apply mx-auto w-full max-w-3xl px-4 pt-6 pb-24 md:px-6 xl:max-w-[min(48rem,calc(100vw-2*(18rem+3vw+1.5rem)))] xl:px-0;
+  }
+  .tips-rail {
+    @apply hidden rounded-[4px] border border-line bg-base-200 p-4 xl:fixed xl:top-18 xl:left-4 xl:block xl:max-h-[calc(100vh-5.5rem)] xl:w-60 xl:overflow-y-auto xl:text-xs xl:text-muted;
+  }
+  .tips-rail .rail-title {
+    @apply text-lg;
+  }
+  .tips-rail ol {
+    @apply mt-3 list-outside list-decimal pl-4;
+  }
+  .tips-rail ol[hidden] {
+    @apply hidden;
+  }
+  .tips-rail li {
+    @apply mb-3 leading-relaxed last:mb-0;
+  }
+  /* a folding panel that looks like the tips island */
+  .fold-panel {
+    @apply mb-4 max-w-sm rounded-[4px] border border-line bg-base-200 p-4;
+  }
+  .fold-panel > summary {
+    @apply flex cursor-pointer list-none items-center justify-between;
+  }
+  .fold-panel > summary::-webkit-details-marker {
+    @apply hidden;
+  }
+  .fold-panel > summary::after {
+    @apply -my-1 text-xl text-muted;
+    content: "▸";
+  }
+  .fold-panel[open] > summary::after {
+    content: "▾";
+  }
+  /* header status lights and their dropdown */
+  .services-menu {
+    @apply relative;
+  }
+  .services-button {
+    @apply flex cursor-pointer list-none items-center gap-2 rounded-[4px] border border-line px-2 py-1 text-xs text-muted hover:border-base-content;
+  }
+  .services-button::-webkit-details-marker {
+    @apply hidden;
+  }
+  .services-panel {
+    @apply absolute top-full right-0 z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-[4px] border border-line bg-base-200 p-4 text-sm;
+  }
+  .service-light {
+    @apply size-2 flex-none rounded-full border border-muted;
+  }
+  .service-light[data-state="ok"] {
+    @apply border-success bg-success;
+  }
+  .service-light[data-state="down"] {
+    @apply border-error bg-error;
   }
   .side-rail {
     @apply px-4 pb-24 md:px-6 xl:fixed xl:top-20 xl:right-[3vw] xl:max-h-[calc(100vh-6rem)] xl:w-72 xl:overflow-y-auto xl:p-0;

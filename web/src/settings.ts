@@ -1,5 +1,5 @@
 // Settings tab (#125): every field drawn from GET /api/settings/schema, so the
-// page can't drift from the code. "Mine" applies at once; "Install" (admins)
+// page can't drift from the code. "Personal" applies at once; "Install" (admins)
 // is written to the config file and applies at the next restart. The
 // ListenBrainz token sits in the rail. Install settings are shown to
 // everyone and refused for non-admins (user, 2026-10-30).
@@ -36,35 +36,35 @@ const label = (key: string) => {
 };
 
 export function settingsPage(me: Me): HTMLElement {
-  const which = new URLSearchParams(location.hash.split("?")[1] ?? "").get("of") === "install" ? "install" : "mine";
+  const which = new URLSearchParams(location.hash.split("?")[1] ?? "").get("of") === "server" ? "server" : "personal";
   const body = h("div", {}, h("p", { class: "text-muted", role: "status" }, "Loading…"));
   const head = pageHead(
     "Settings",
-    filters("Whose settings", [["mine", "Mine"], ["install", "Server-wide"]], which, (v) => (location.hash = `#/settings?of=${v}`)),
+    filters("Whose settings", [["personal", "Personal"], ["server", "Server-wide"]], which, (v) => (location.hash = `#/settings?of=${v}`)),
   );
   void draw(body, which, me);
   return h("div", {}, h("div", { class: "center-main" }, head, body), h("aside", { class: "side-rail rail" }, listenBrainzRail()));
 }
 
-async function draw(body: HTMLElement, which: "mine" | "install", me: Me): Promise<void> {
-  if (which === "install" && !me.is_admin) {
+async function draw(body: HTMLElement, which: "personal" | "server", me: Me): Promise<void> {
+  if (which === "server" && !me.is_admin) {
     body.replaceChildren(h("div", { role: "alert", class: "alert alert-warning" }, "Admins only."));
     return;
   }
   try {
     const schema = await api<Schemas["Schema"]>("GET", "/api/settings/schema");
-    const fields = which === "mine" ? schema.user : schema.install;
+    const fields = which === "personal" ? schema.user : schema.install;
     let values: Values;
     let pending: string[] = [];
-    if (which === "mine") values = await api<Values>("GET", "/api/me/settings");
+    if (which === "personal") values = await api<Values>("GET", "/api/me/settings");
     else ({ values, restart_pending: pending } = await api<Schemas["InstallView"]>("GET", "/api/admin/settings"));
     const changes: Values = {};
     const save = button("Save", async () => {
       save.disabled = true;
       try {
-        await api("PUT", which === "mine" ? "/api/me/settings" : "/api/admin/settings", { changes } satisfies Schemas["Changes"]);
-        toast(which === "mine" ? "Saved. In use now." : "Saved to the config file. In use after the next restart.");
-        if (which === "mine") await loadPageSize();
+        await api("PUT", which === "personal" ? "/api/me/settings" : "/api/admin/settings", { changes } satisfies Schemas["Changes"]);
+        toast(which === "personal" ? "Saved. In use now." : "Saved to the config file. In use after the next restart.");
+        if (which === "personal") await loadPageSize();
         void draw(body, which, me);
       } catch (e) {
         fail(e); // 422 names the first value that doesn't fit; nothing is stored
@@ -85,11 +85,11 @@ async function draw(body: HTMLElement, which: "mine" | "install", me: Me): Promi
     for (const f of fields) {
       const control = controlFor(f, values[f.key], (v) => changed(f.key, v));
       const note = pending.includes(f.key) ? h("div", { class: "mt-1" }, state("Changed, waiting for a restart", "wait")) : "";
-      const el = setting(label(f.key), f.help, h("div", {}, control, note), which === "install" && f.applies === "restart");
+      const el = setting(label(f.key), f.help, h("div", {}, control, note), which === "server" && f.applies === "restart");
       sections.set(f.section, [...(sections.get(f.section) ?? []), el]);
     }
     body.replaceChildren(
-      which === "install" ? h("p", { class: "mb-4 text-muted" }, "Written to the config file (comments kept, a backup made next to it); the running app picks them up at the next restart.") : "",
+      which === "server" ? h("p", { class: "mb-4 text-muted" }, "Written to the config file (comments kept, a backup made next to it); the running app picks them up at the next restart.") : "",
       ...[...sections].map(([name, els]) => h("section", { class: "mb-8" }, h("h2", { class: "rail-title" }, label(name)), ...els)),
       h("div", { class: "sticky bottom-0 flex justify-end gap-2 border-t border-line bg-base-100 py-3" }, reset, save),
     );

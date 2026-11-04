@@ -7,7 +7,12 @@ playlist removed in Navidrome is simply created again.
 
 from __future__ import annotations
 
-from app.clients.navidrome import NavidromeClientBase, NavidromeNotFound, Session
+from app.clients.navidrome import (
+    NavidromeAuthError,
+    NavidromeClientBase,
+    NavidromeNotFound,
+    Session,
+)
 from app.services.encryption import SecretBox
 from app.stores.database import Database
 from app.stores.pulls import Pull, PullsStore
@@ -30,11 +35,20 @@ class PlaylistService:
         for pull_id in ids:
             self._sync_pull(pull_id)
 
-    def _login(self, pull: Pull) -> Session:
+    def _login(self, pull: Pull) -> Session | None:
+        """The pull's owner, or None until they log in again."""
         with self._db.transaction() as conn:
             user = self._users.get(conn, pull.user_id)
         assert user is not None  # pulls go with their user
-        return self._nd.login(user.username, self._box.decrypt(user.nd_password_enc))
+        if user.status != "active":
+            return None
+        password = self._box.decrypt(user.nd_password_enc)
+        try:
+            return self._nd.login(user.username, password)
+        except NavidromeAuthError:
+            with self._db.transaction(write=True) as conn:
+                self._users.mark_login_refused(conn, user.id)
+            return None
 
     def _sync_pull(self, pull_id: int) -> None:
         with self._db.transaction() as conn:
@@ -42,6 +56,8 @@ class PlaylistService:
             songs = self._pulls.indexed_songs(conn, pull_id)
         assert pull is not None
         session = self._login(pull)
+        if session is None:
+            return
         try:
             playlist_id = self._nd.save_playlist(
                 session, pull.name, songs, pull.navidrome_playlist_id
