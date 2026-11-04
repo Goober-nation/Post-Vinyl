@@ -7,7 +7,6 @@ from app.clients.catalog import (
     Artist,
     CatalogNotFound,
     CatalogSource,
-    Edition,
     Track,
 )
 
@@ -21,7 +20,8 @@ class FakeCatalog(CatalogSource):
         self.artists: dict[str, Artist] = {}
         self.albums: dict[str, Album] = {}
         self.albums_by_artist: dict[str, list[str]] = {}
-        self.editions: dict[str, list[Edition]] = {}  # by album id
+        self.top_tracks: dict[str, list[Track]] = {}
+        self.similar: dict[str, list[Artist]] = {}
         self.tracklists: dict[str, list[Track]] = {}  # by edition id
 
     def search_tracks(
@@ -64,10 +64,13 @@ class FakeCatalog(CatalogSource):
     def artist_albums(self, artist_id: str) -> list[Album]:
         return [self.albums[a] for a in self.albums_by_artist.get(artist_id, [])]
 
-    def album_editions(self, album_id: str) -> list[Edition]:
-        return self.editions.get(album_id, [])
-
     def edition_tracks(self, edition_id: str) -> list[Track]:
         if edition_id not in self.tracklists:
             raise CatalogNotFound(edition_id)
         return self.tracklists[edition_id]
+
+    def artist_top_tracks(self, artist_id: str) -> list[Track]:
+        return self.top_tracks.get(artist_id, [])
+
+    def similar_artists(self, artist_id: str) -> list[Artist]:
+        return self.similar.get(artist_id, [])

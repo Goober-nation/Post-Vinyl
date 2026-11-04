@@ -16,7 +16,6 @@ from app.clients.catalog import (
     Artist,
     CatalogNotFound,
     CatalogSource,
-    Edition,
     Track,
 )
 from app.clients.catalog_fake import FakeCatalog
@@ -36,8 +35,7 @@ def fake_catalog() -> FakeCatalog:
     fake.artists["a1"] = Artist("fake", "a1", ARTIST, "")
     fake.albums["al1"] = Album("fake", "al1", ALBUM, ARTIST, "Album", (), "1989")
     fake.albums_by_artist["a1"] = ["al1"]
-    fake.editions["al1"] = [Edition("fake", "e1", ALBUM, "1989", "", "", ("CD",), 1)]
-    fake.tracklists["e1"] = [replace(song, disc=1, position=1)]
+    fake.tracklists["al1"] = [replace(song, disc=1, position=1)]
     return fake
 
 
@@ -91,11 +89,7 @@ def test_browse_artist_to_tracklist(catalog: CatalogSource) -> None:
     artist = next(a for a in catalog.search_artists(ARTIST, 5) if a.name == ARTIST)
     albums = catalog.artist_albums(artist.id)
     album = next(a for a in albums if a.title == ALBUM and a.primary_type == "Album")
-    editions = catalog.album_editions(album.id)
-    assert editions and all(e.source == catalog.source for e in editions)
-    edition = max(editions, key=lambda e: e.track_count)
-    tracks = catalog.edition_tracks(edition.id)
-    assert len(tracks) == edition.track_count
+    tracks = catalog.edition_tracks(album.id)
     assert all(t.disc and t.position for t in tracks)
     assert any(t.title.lower() == TITLE.lower() for t in tracks)
 

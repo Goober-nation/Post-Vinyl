@@ -140,15 +140,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/catalog/{source}/albums/{album_id}/editions": {
+    "/api/catalog/{source}/artists/{artist_id}/top-tracks": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Album Editions */
-        get: operations["album_editions_api_catalog__source__albums__album_id__editions_get"];
+        /** Artist Top Tracks */
+        get: operations["artist_top_tracks_api_catalog__source__artists__artist_id__top_tracks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/{source}/artists/{artist_id}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Similar Artists */
+        get: operations["similar_artists_api_catalog__source__artists__artist_id__similar_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -845,7 +862,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** Album */
+        /**
+         * Album
+         * @description One edition of an album: ``id`` goes to ``edition_tracks``.
+         */
         Album: {
             /** Source */
             source: string;
@@ -866,6 +886,11 @@ export interface components {
              * @default
              */
             cover_id: string;
+            /**
+             * Track Count
+             * @default 0
+             */
+            track_count: number;
         };
         /** Apply */
         Apply: {
@@ -962,30 +987,6 @@ export interface components {
             item: components["schemas"]["QueueItem"];
             /** Attempts */
             attempts: components["schemas"]["AttemptView"][];
-        };
-        /** Edition */
-        Edition: {
-            /** Source */
-            source: string;
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Date */
-            date: string;
-            /** Country */
-            country: string;
-            /** Status */
-            status: string;
-            /** Formats */
-            formats: string[];
-            /** Track Count */
-            track_count: number;
-            /**
-             * Cover Id
-             * @default
-             */
-            cover_id: string;
         };
         /** FileView */
         FileView: {
@@ -1804,13 +1805,13 @@ export interface operations {
             };
         };
     };
-    album_editions_api_catalog__source__albums__album_id__editions_get: {
+    artist_top_tracks_api_catalog__source__artists__artist_id__top_tracks_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 source: string;
-                album_id: string;
+                artist_id: string;
             };
             cookie?: never;
         };
@@ -1822,7 +1823,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Edition"][];
+                    "application/json": components["schemas"]["Track"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    similar_artists_api_catalog__source__artists__artist_id__similar_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source: string;
+                artist_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Artist"][];
                 };
             };
             /** @description Validation Error */

@@ -70,6 +70,8 @@ class Artist:
 
 @dataclass(frozen=True)
 class Album:
+    """One edition of an album: ``id`` goes to ``edition_tracks``."""
+
     source: str
     id: str
     title: str
@@ -78,19 +80,7 @@ class Album:
     secondary_types: tuple[str, ...]  # "Live", "Compilation", …
     first_release_date: str  # "YYYY[-MM[-DD]]" or ""
     cover_id: str = ""  # what the source's cover lookup takes (#127); "" none
-
-
-@dataclass(frozen=True)
-class Edition:
-    source: str
-    id: str
-    title: str
-    date: str
-    country: str
-    status: str  # "Official", "Bootleg", … ("" when unknown)
-    formats: tuple[str, ...]  # per medium, e.g. ("CD", "CD")
-    track_count: int
-    cover_id: str = ""  # what the source's cover lookup takes (#127); "" none
+    track_count: int = 0  # 0 when unknown
 
 
 class CatalogSource(ABC):
@@ -122,8 +112,13 @@ class CatalogSource(ABC):
         """Every album, EP and single of the artist (all pages)."""
 
     @abstractmethod
-    def album_editions(self, album_id: str) -> list[Edition]: ...
-
-    @abstractmethod
     def edition_tracks(self, edition_id: str) -> list[Track]:
         """The edition's tracklist in order, with ISRCs."""
+
+    def artist_top_tracks(self, artist_id: str) -> list[Track]:
+        """The artist's most played songs, where the source knows them."""
+        return []
+
+    def similar_artists(self, artist_id: str) -> list[Artist]:
+        """Artists like this one, where the source knows them."""
+        return []

@@ -28,6 +28,11 @@ import requests
 USER_AGENT = "PostVinyl/0.1 ( https://github.com/Goober-nation/Post-Vinyl )"
 _MAX_MBIDS_PER_POST = 1000
 _MAX_RECOMMENDATIONS = 1000
+_LABS_SIMILAR = "https://labs.api.listenbrainz.org/similar-artists/json"
+_SIMILAR_ALGORITHM = (
+    "session_based_days_7500_session_300_contribution_5_threshold_10_limit_100"
+    "_filter_True_skip_30"
+)
 _JSPF_TRACK = "https://musicbrainz.org/doc/jspf#track"
 _MAX_LOOKUP_CHARS = 250
 _INC = "artist release tag"
@@ -97,6 +102,22 @@ class RadioTrack:
     release_mbid: str | None = None
 
 
+@dataclass(frozen=True)
+class PopularRecording:
+    mbid: str
+    title: str
+    artist: str
+    length_s: float | None
+    release_mbid: str | None
+
+
+@dataclass(frozen=True)
+class SimilarArtist:
+    mbid: str
+    name: str
+    comment: str
+
+
 class ListenBrainzClientBase(ABC):
     @abstractmethod
     def recording_metadata(self, mbids: list[str]) -> dict[str, RecordingMetadata]:
@@ -114,6 +135,14 @@ class ListenBrainzClientBase(ABC):
     @abstractmethod
     def recommendations(self, user_name: str) -> Recommendations | None:
         """The user's list, best first; None until ListenBrainz has generated one."""
+
+    @abstractmethod
+    def top_recordings(self, artist_mbid: str) -> list[PopularRecording]:
+        """The artist's recordings, most listened first."""
+
+    @abstractmethod
+    def similar_artists(self, artist_mbid: str) -> list[SimilarArtist]:
+        """Most similar first (ListenBrainz Labs, no token)."""
 
     @abstractmethod
     def radio(self, artist: str, level: str, token: str) -> list[RadioTrack]:
@@ -280,3 +309,33 @@ class ListenBrainzClient(ListenBrainzClientBase):
         data = self._call("GET", "/explore/lb-radio", token=token, params=params)
         tracks = data["payload"]["jspf"]["playlist"]["track"]
         return [t for t in map(parse_radio_track, tracks) if t]
+
+    def top_recordings(self, artist_mbid: str) -> list[PopularRecording]:
+        rows = self._call("GET", f"/popularity/top-recordings-for-artist/{artist_mbid}")
+        return [
+            PopularRecording(
+                r["recording_mbid"],
+                r.get("recording_name") or "",
+                r.get("artist_name") or "",
+                r["length"] / 1000 if r.get("length") else None,
+                r.get("caa_release_mbid") or r.get("release_mbid"),
+            )
+            for r in rows
+            if r.get("recording_mbid")
+        ]
+
+    def similar_artists(self, artist_mbid: str) -> list[SimilarArtist]:
+        try:
+            resp = self._http.get(
+                _LABS_SIMILAR,
+                params={"artist_mbids": artist_mbid, "algorithm": _SIMILAR_ALGORITHM},
+                timeout=self._timeout,
+            )
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            raise ListenBrainzError(f"GET similar-artists: {e}") from e
+        return [
+            SimilarArtist(a["artist_mbid"], a.get("name", ""), a.get("comment") or "")
+            for a in resp.json()
+            if a.get("artist_mbid") != artist_mbid
+        ]

@@ -28,7 +28,6 @@ from app.clients.catalog import (
     CatalogError,
     CatalogNotFound,
     CatalogSource,
-    Edition,
     Track,
 )
 
@@ -92,6 +91,7 @@ def parse_album(raw: dict[str, Any], artist: str = "") -> Album:
         secondary_types=secondary,
         first_release_date=raw.get("release_date") or "",
         cover_id=raw.get("md5_image") or "",
+        track_count=raw.get("nb_tracks") or 0,
     )
 
 
@@ -188,20 +188,21 @@ class DeezerClient(CatalogSource):
             parse_album(a, name) for a in self._paged(f"/artist/{artist_id}/albums")
         ]
 
-    def album_editions(self, album_id: str) -> list[Edition]:
-        raw = self._get(f"/album/{album_id}")
+    def artist_top_tracks(self, artist_id: str) -> list[Track]:
+        data = self._get(f"/artist/{artist_id}/top", limit=15)
+        return [parse_track(t) for t in data.get("data") or []]
+
+    def similar_artists(self, artist_id: str) -> list[Artist]:
+        data = self._get(f"/artist/{artist_id}/related", limit=10)
         return [
-            Edition(
+            Artist(
                 source="deezer",
-                id=str(raw["id"]),
-                title=raw.get("title", ""),
-                date=raw.get("release_date") or "",
-                country="",
-                status="",
-                formats=(),
-                track_count=raw.get("nb_tracks", 0),
-                cover_id=raw.get("md5_image") or "",
+                id=str(a["id"]),
+                name=a.get("name", ""),
+                disambiguation="",
+                cover_id=artist_picture(a),
             )
+            for a in data.get("data") or []
         ]
 
     def cover(self, cover_id: str, size: int) -> bytes | None:

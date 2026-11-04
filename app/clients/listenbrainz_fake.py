@@ -5,9 +5,11 @@ from __future__ import annotations
 from app.clients.listenbrainz import (
     ListenBrainzAuthError,
     ListenBrainzClientBase,
+    PopularRecording,
     RadioTrack,
     Recommendations,
     RecordingMetadata,
+    SimilarArtist,
     TokenCheck,
 )
 
@@ -21,6 +23,8 @@ class FakeListenBrainzClient(ListenBrainzClientBase):
         self.tokens: dict[str, str] = {}
         self.recs: dict[str, Recommendations] = {}  # by user name
         self.radio_tracks: list[RadioTrack] = []
+        self.popular: dict[str, list[PopularRecording]] = {}
+        self.similar: dict[str, list[SimilarArtist]] = {}
 
     def recording_metadata(self, mbids: list[str]) -> dict[str, RecordingMetadata]:
         return {m: self.recordings[m] for m in mbids if m in self.recordings}
@@ -51,3 +55,9 @@ class FakeListenBrainzClient(ListenBrainzClientBase):
         if token not in self.tokens:
             raise ListenBrainzAuthError("GET /explore/lb-radio: HTTP 401")
         return self.radio_tracks
+
+    def top_recordings(self, artist_mbid: str) -> list[PopularRecording]:
+        return self.popular.get(artist_mbid, [])
+
+    def similar_artists(self, artist_mbid: str) -> list[SimilarArtist]:
+        return self.similar.get(artist_mbid, [])

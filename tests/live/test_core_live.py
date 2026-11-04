@@ -59,7 +59,7 @@ def slskd() -> SlskdClient:
 
 
 def _album_track(mb: MusicBrainzClient, album: str, artist: str, title: str) -> Track:
-    """The track on the album's earliest official (else non-bootleg) edition."""
+    """The track on the album's earliest official edition."""
     albums = [
         a
         for a in mb.search_albums(album, artist, 100)
@@ -69,19 +69,12 @@ def _album_track(mb: MusicBrainzClient, album: str, artist: str, title: str) -> 
     ]
     assert albums, f"no MusicBrainz album {artist} – {album}"
     first = min(albums, key=lambda a: a.first_release_date or "9999")
-    editions = mb.album_editions(first.id)
-    # official first; some albums only have editions without a status
-    editions = [e for e in editions if e.status == "Official"] or [
-        e for e in editions if e.status != "Bootleg"
-    ]
-    assert editions, f"no usable edition of {first.title}"
-    edition = min(editions, key=lambda e: e.date or "9999")
     tracks = [
         t
-        for t in mb.edition_tracks(edition.id)
+        for t in mb.edition_tracks(first.id)
         if t.title.casefold() == title.casefold() and t.duration_s
     ]
-    assert tracks, f"{title} not on {first.title} ({edition.id})"
+    assert tracks, f"{title} not on {first.title} ({first.id})"
     return tracks[0]
 
 

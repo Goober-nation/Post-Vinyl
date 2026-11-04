@@ -27,7 +27,6 @@ from app.clients.catalog import (
     CatalogError,
     CatalogNotFound,
     CatalogSource,
-    Edition,
     ReleaseRef,
     Track,
 )
@@ -108,32 +107,34 @@ def parse_search_hit(raw: dict[str, Any]) -> Track:
     )
 
 
-def parse_release_group(raw: dict[str, Any]) -> Album:
+def parse_release(raw: dict[str, Any]) -> Album:
+    """An edition. Browsing gives its own cover flag; a search hit doesn't, so
+    that falls back to the release group's cover."""
+    group = raw.get("release-group") or {}
+    has_front = (raw.get("cover-art-archive") or {}).get("front")
     return Album(
         source="musicbrainz",
         id=raw["id"],
         title=raw.get("title", ""),
         artist=_credit(raw.get("artist-credit") or [])[0],
-        primary_type=raw.get("primary-type") or "",
-        secondary_types=tuple(raw.get("secondary-types") or ()),
-        first_release_date=raw.get("first-release-date") or "",
-        cover_id=f"release-group/{raw['id']}",
+        primary_type=group.get("primary-type") or "",
+        secondary_types=tuple(group.get("secondary-types") or ()),
+        first_release_date=raw.get("date") or "",
+        cover_id=f"release/{raw['id']}"
+        if has_front or not group.get("id")
+        else f"release-group/{group['id']}",
+        track_count=raw.get("track-count")
+        or sum(m.get("track-count", 0) for m in raw.get("media") or []),
     )
 
 
-def parse_release(raw: dict[str, Any]) -> Edition:
-    media = raw.get("media") or []
-    return Edition(
-        source="musicbrainz",
-        id=raw["id"],
-        title=raw.get("title", ""),
-        date=raw.get("date") or "",
-        country=raw.get("country") or "",
-        status=raw.get("status") or "",
-        formats=tuple(m.get("format") or "" for m in media),
-        track_count=sum(m.get("track-count", 0) for m in media),
-        cover_id=f"release/{raw['id']}",
-    )
+def distinct_editions(albums: list[Album]) -> list[Album]:
+    """One per title and track count, the earliest: the same edition reissued
+    per country is noise (user wants editions listed, 2026-11-05)."""
+    first: dict[tuple[str, int], Album] = {}
+    for album in sorted(albums, key=lambda a: a.first_release_date or "9999"):
+        first.setdefault((album.title.casefold(), album.track_count), album)
+    return [a for a in albums if first[(a.title.casefold(), a.track_count)] is a]
 
 
 # ------------------------------------------------------------ for tagging (#104)
@@ -318,11 +319,11 @@ class MusicBrainzClient(CatalogSource, MusicBrainzTagSourceBase):
     def search_albums(
         self, title: str, artist: str | None = None, limit: int = 25
     ) -> list[Album]:
-        query = f"releasegroup:{_phrase(title)}"
+        query = f"release:{_phrase(title)} AND status:official"
         if artist:
             query += f" AND artist:{_phrase(artist)}"
-        data = self._get("/release-group", query=query, limit=limit)
-        return [parse_release_group(g) for g in data["release-groups"]]
+        data = self._get("/release", query=query, limit=limit)
+        return distinct_editions([parse_release(r) for r in data["releases"]])
 
     def get_track(self, track_id: str) -> Track:
         data = self._get(f"/recording/{track_id}", inc="artist-credits+isrcs")
@@ -342,19 +343,14 @@ class MusicBrainzClient(CatalogSource, MusicBrainzTagSourceBase):
 
     def artist_albums(self, artist_id: str) -> list[Album]:
         rows = self._browse(
-            "/release-group",
-            "release-groups",
+            "/release",
+            "releases",
             artist=artist_id,
             type="album|ep|single",
-            inc="artist-credits",
+            status="official",
+            inc="artist-credits+release-groups+media",
         )
-        return [parse_release_group(g) for g in rows]
-
-    def album_editions(self, album_id: str) -> list[Edition]:
-        rows = self._browse(
-            "/release", "releases", **{"release-group": album_id, "inc": "media"}
-        )
-        return [parse_release(r) for r in rows]
+        return distinct_editions([parse_release(r) for r in rows])
 
     def edition_tracks(self, edition_id: str) -> list[Track]:
         data = self._get(
