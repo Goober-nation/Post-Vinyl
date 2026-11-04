@@ -2,6 +2,8 @@
 
 <img src="web/src/logo.svg" alt="Post-Vinyl logo" width="128">
 
+[![Build](https://img.shields.io/github/actions/workflow/status/Goober-nation/Post-Vinyl/image.yml?branch=main&label=build)](https://github.com/Goober-nation/Post-Vinyl/actions/workflows/image.yml)
+[![Version](https://img.shields.io/github/v/release/Goober-nation/Post-Vinyl?label=version)](https://github.com/Goober-nation/Post-Vinyl/releases/latest)
 [![GitHub License](https://img.shields.io/github/license/Goober-nation/Post-Vinyl)](LICENSE)
 [![GitHub Repo stars](https://img.shields.io/github/stars/Goober-nation/Post-Vinyl)](https://github.com/Goober-nation/Post-Vinyl)
 
