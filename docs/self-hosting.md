@@ -85,8 +85,8 @@ docker compose up -d
 ```
 
 Database migrations run at start. A newer database refuses to start on an older app, so back up
-before upgrading if you might go back. `latest` follows the `rebuild/base` branch during the
-rebuild.
+before upgrading if you might go back. `latest` follows `main`, and each `v*` tag
+publishes that version.
 
 Images aren't pinned on purpose: a break shows what changed. These versions are known to work, so
 go back to them if an upgrade breaks something:

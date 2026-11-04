@@ -1,10 +1,10 @@
-# Publishes the image to GitHub Container Registry. latest follows rebuild/base
-# until the rebuild reaches main.
+# Publishes the image to GitHub Container Registry. latest follows main; a v* tag
+# publishes that version.
 name: Image
 
 on:
   push:
-    branches: [rebuild/base]
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -29,7 +29,7 @@ jobs:
         with:
           images: ghcr.io/goober-nation/post-vinyl
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/rebuild/base' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=tag
       - uses: docker/build-push-action@v6
         with:

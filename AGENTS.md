@@ -32,16 +32,14 @@ If anything is unclear or missing, ask before proceeding.
   benchmark tooling. `plan.py` and `resolve_seeds.py` still import modules that now only exist in
   `legacy/`, so they're broken until those are ported.
 - Milestones 1-9 are done.
-- The server still runs the old app from `main`.
+- `main` carries the rebuilt app since v1.0; pushes publish `latest`, `v*` tags publish versions.
 
 ---
 
 ## Branches
 
-- Rebuild work goes on **`rebuild/<topic>`** branches, branched from and merged into
-  **`rebuild/base`**. `rebuild/base` → `main` only when the rebuild is done.
-- `main` keeps the old app; don't commit there. Its old `dev` line is the tag `old-app-dev`
-  (the `dev` branch was removed from GitHub 2026-10-29; a local copy may still exist).
+- Work goes on topic branches, branched from and merged into **`main`**. The old app's line is the
+  tag `old-app-dev`.
 - Never commit or push without an explicit "commit" / "push" from the user.
 
 ---
