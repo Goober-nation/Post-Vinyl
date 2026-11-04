@@ -99,11 +99,6 @@ class NavidromeClientBase(ABC):
         """Log in; raises NavidromeAuthError on wrong credentials."""
 
     @abstractmethod
-    def create_admin(self, username: str, password: str) -> Session:
-        """First-run setup: create the first admin and log in as it. Raises
-        NavidromeForbidden once any user exists."""
-
-    @abstractmethod
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:
         """Start a library scan (admin only); returns the status once the scan
         has begun (Navidrome waits up to 3 s for that)."""
@@ -268,9 +263,6 @@ class NavidromeClient(NavidromeClientBase):
 
     def login(self, username: str, password: str) -> Session:
         return self._auth_call("/auth/login", username, password)
-
-    def create_admin(self, username: str, password: str) -> Session:
-        return self._auth_call("/auth/createAdmin", username, password)
 
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:
         body = self._subsonic(session, "startScan", fullScan=str(full).lower())

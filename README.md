@@ -27,74 +27,133 @@ For listening I use the Navidrome web app or [Feishin](https://github.com/jeffvl
 
 ## Self-Hosting with Docker
 
-Post-Vinyl ships as a Docker Compose stack: the app, Navidrome and slskd.
-
-### Prerequisites
-
-- Docker with Compose 2.24 or newer
-- A music folder containing the empty folders `library/` and `downloads/complete/soulseek/`. slskd won't start without the downloads folder.
+Post-Vinyl is one container that plugs into a Navidrome and an slskd. The image is `ghcr.io/goober-nation/post-vinyl:latest`, for AMD64 and ARM64.
 
 ### Quick Start
 
-The same commands work in bash, PowerShell and the macOS terminal.
+Already running Navidrome and slskd? Add this service to your stack:
 
-1. Copy `.env.example` to `.env` and fill it in (see [Environment Variables](#environment-variables)). Generate `PV_SECRET_KEY` once:
+```yaml
+postvinyl:
+  image: ghcr.io/goober-nation/post-vinyl:latest
+  restart: on-failure:3
+  ports:
+    - "8092:8000"
+  environment:
+    - PV_NAVIDROME_URL=http://navidrome:4533
+    - PV_SLSKD_URL=http://slskd:5030
+    - PV_SLSKD_API_KEY=change-me # the API key from your slskd config
+  volumes:
+    - /path/to/music:/music # the same folder Navidrome and slskd use
+    - ./postvinyl_data:/postvinyl/data
+    - ./postvinyl_config:/postvinyl/config
+```
 
-   ```bash
-   docker compose run --rm --no-deps postvinyl python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-   ```
+Your music folder needs `library/` (Navidrome's music folder) and `downloads/complete/soulseek/` (where slskd saves). Different folders are fine: set them under `files` in `post-vinyl.yaml`.
 
-   Back the key up outside the database. Losing it loses every stored secret.
+### Starting From Nothing
 
-2. Create the first admin, which is both the Navidrome and the Post-Vinyl admin. Navidrome stays unpublished while this runs:
+Create the two folders above, then fill in the `change-me` values and paths in this `docker-compose.yml`:
 
-   ```bash
-   docker compose -f docker-compose.yml -f docker-compose.setup.yml run --rm setup
-   ```
+```yaml
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    restart: unless-stopped
+    ports:
+      - "8090:4533"
+    environment:
+      - ND_MUSICFOLDER=/music/library
+      - ND_DATAFOLDER=/data
+      - ND_SCANNER_PURGEMISSING=always
+      # With the proxy below:
+      # - HTTP_PROXY=http://postvinyl-proxy:8080
+      # - HTTPS_PROXY=http://postvinyl-proxy:8080
+      # - NO_PROXY=localhost,127.0.0.1,slskd,postvinyl
+    volumes:
+      - /path/to/music:/music:ro
+      - ./navidrome_data:/data
 
-   ```bash
-   docker compose down
-   ```
+  slskd:
+    image: slskd/slskd:latest
+    restart: unless-stopped
+    user: "1000:1000"
+    ports:
+      - "8091:5030"
+      - "50300:50300/tcp"
+    environment:
+      - SLSKD_SLSK_USERNAME=change-me # your Soulseek login; the first login registers the name
+      - SLSKD_SLSK_PASSWORD=change-me
+      - SLSKD_USERNAME=change-me # slskd's web UI login
+      - SLSKD_PASSWORD=change-me
+      - SLSKD_API_KEY=change-me-any-long-random-string
+      - SLSKD_SHARED_DIR=/music/library
+      - SLSKD_DOWNLOADS_DIR=/music/downloads/complete/soulseek
+      - SLSKD_REMOTE_CONFIGURATION=true
+      - SLSKD_SLSK_LISTEN_PORT=50300
+    volumes:
+      - /path/to/music:/music
+      - ./slskd_config:/app
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5030/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
-3. Start the stack:
+  postvinyl:
+    image: ghcr.io/goober-nation/post-vinyl:latest
+    restart: on-failure:3
+    ports:
+      - "8092:8000"
+    environment:
+      - PV_NAVIDROME_URL=http://navidrome:4533
+      - PV_SLSKD_URL=http://slskd:5030
+      - PV_SLSKD_API_KEY=change-me-any-long-random-string # the same as SLSKD_API_KEY
+      # With the proxy below:
+      # - HTTP_PROXY=http://postvinyl-proxy:8080
+      # - HTTPS_PROXY=http://postvinyl-proxy:8080
+      # - NO_PROXY=localhost,127.0.0.1,navidrome,slskd
+    volumes:
+      - /path/to/music:/music
+      - ./postvinyl_data:/postvinyl/data
+      - ./postvinyl_config:/postvinyl/config
+    depends_on:
+      navidrome:
+        condition: service_started
+      slskd:
+        condition: service_healthy
 
-   ```bash
-   docker compose up -d
-   ```
+  # Optional: only if ListenBrainz or MusicBrainz aren't reachable from where you host.
+  # postvinyl-proxy:
+  #   image: ginuerzh/gost:latest
+  #   restart: unless-stopped
+  #   command: "-L=http://:8080 -F=socks5://user:password@host:port"
+```
+
+```bash
+docker compose up -d
+```
 
 ### Initial Setup
 
-1. Open `http://localhost:8092` and log in with your Navidrome account.
-2. Search for something and download it.
-3. For recommendations and radio, add your ListenBrainz token in **Settings**.
-
-| Service | Default address |
-|---|---|
-| Post-Vinyl | `http://localhost:8092` |
-| Navidrome | `http://localhost:8090` |
-| slskd | `http://localhost:8091` |
+1. New Navidrome? Open `http://localhost:8090` and create its admin there. Do this straight away, because until then anyone who can reach that page can claim it.
+2. Open `http://localhost:8092` and log in with your Navidrome account. A Navidrome admin is a Post-Vinyl admin.
+3. Search for something and download it.
+4. For recommendations and radio, add your ListenBrainz token in **Settings**.
 
 ## Configuration
 
-Secrets live in `.env`. Everything else lives in `postvinyl_config/post-vinyl.yaml`, created from [`post-vinyl.example.yaml`](post-vinyl.example.yaml) on first start, with each value explained inside. Admins can also change it under **Settings > Server-wide**. Restart after a change.
+Everything is optional from here. `postvinyl_config/post-vinyl.yaml` is created on first start with each value explained inside. Admins can also change it under **Settings > Server-wide**, then restart. **Settings > Mine** applies only to you, at once.
 
-Settings under **Settings > Mine** apply only to you, and take effect at once.
+Optional environment values on the `postvinyl` service:
 
-### Environment Variables
-
-| Variable | Needed | What it is |
-|---|---|---|
-| `MUSIC_HOST_DIR` | yes | Your music folder. Navidrome's library is its `library/` subfolder. |
-| `SLSKD_DOWNLOADS_DIR` | yes | Where slskd saves downloads inside `/music` (default in `.env.example`). |
-| `PV_SECRET_KEY` | yes, secret | Encrypts stored per-user secrets. |
-| `SLSKD_API_KEY` | yes, secret | Any long random string; slskd and Post-Vinyl share it. |
-| `SLSKD_NETWORK_USERNAME`, `SLSKD_NETWORK_PASSWORD` | yes, secret | Your Soulseek login, also used for slskd's web UI; the first login registers the name. |
-| `PV_PUBLIC_ORIGIN` | no | The one address people open the app at, `scheme://host[:port]`. Stricter protection against forged requests; set it when the app is public, or if your reverse proxy changes the `Host` header. |
-| `PV_DATA_DIR` | no | Host folder for the database (default `./postvinyl_data`). |
-| `PUID`, `PGID` | no | The user and group Post-Vinyl runs as (default `1000`). |
-| `PV_DEV` | no | `1` serves the API docs at `/docs`; leave empty in production. |
-| `LISTENBRAINZ_TOKEN` | no | Navidrome's own ListenBrainz scrobbling. |
-| `MUSICA_HTTP_PROXY`, `MUSICA_PROXY_*`, `NO_PROXY_LIST` | no | Optional SOCKS5 proxy. |
+| Value | What it does |
+|---|---|
+| `PV_SECRET_KEY` | Encrypts stored passwords and tokens. Unset, a key is created at `postvinyl_data/secret.key`. Back that folder up: losing the key loses every stored secret. |
+| `PV_PUBLIC_ORIGIN` | The one address people open the app at, `scheme://host[:port]`. Stricter protection against forged requests. Set it when the app is public, or if your reverse proxy changes the `Host` header. |
+| `PUID`, `PGID` | The user and group Post-Vinyl runs as (default `1000`). |
+| `PV_DEV` | `1` serves the API docs at `/docs`. |
 
 ## FAQ
 

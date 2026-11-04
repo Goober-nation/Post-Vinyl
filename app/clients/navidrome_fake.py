@@ -24,7 +24,9 @@ class FakeNavidromeClient(NavidromeClientBase):
         self.pending: list[Song] = []
         self.scans = 0
         self.covers: dict[str, bytes] = {}  # song id -> image (JPEG bytes)
-        self.playlists: dict[str, tuple[str, str, list[str]]] = {}  # id -> owner, name, songs
+        self.playlists: dict[
+            str, tuple[str, str, list[str]]
+        ] = {}  # id -> owner, name, songs
 
     def _session(self, username: str) -> Session:
         return Session(
@@ -42,12 +44,6 @@ class FakeNavidromeClient(NavidromeClientBase):
     def login(self, username: str, password: str) -> Session:
         if self.users.get(username, ("", False))[0] != password or not password:
             raise NavidromeAuthError("POST /auth/login: HTTP 401")
-        return self._session(username)
-
-    def create_admin(self, username: str, password: str) -> Session:
-        if self.users:
-            raise NavidromeForbidden("Cannot create another first admin")
-        self.users[username] = (password, True)
         return self._session(username)
 
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:

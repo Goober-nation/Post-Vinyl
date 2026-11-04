@@ -500,5 +500,5 @@ class FilesService(FilesServiceBase):
         with self._db.transaction() as conn:
             admin = UsersStore().first_admin(conn)
         if admin is None:
-            raise NoAdmin("no Post-Vinyl admin yet; run the setup first")
+            raise NoAdmin("no admin has logged in yet")
         return self._nd.login(admin.username, self._box.decrypt(admin.nd_password_enc))

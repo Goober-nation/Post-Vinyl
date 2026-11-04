@@ -201,7 +201,7 @@ def create_app_from_env() -> FastAPI:
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
     settings = Settings.from_env()
-    box = SecretBox.from_env()
+    box = SecretBox.from_env_or_file(Path(settings.db_path).with_name("secret.key"))
     db = Database(settings.db_path)
     db.migrate()
     nd = NavidromeClient(settings.navidrome_url)

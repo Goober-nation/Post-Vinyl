@@ -60,6 +60,11 @@ header in `app/main.py`). The old `users`/`sessions` tables were dropped in migr
     `PV_PUBLIC_ORIGIN` is optional (user, 2026-11-04): unset, the origin's host must equal `Host`.
   - Cookie: HttpOnly, Secure, SameSite=Lax, Path=/, Max-Age 30 days. Login errors: 401 wrong
     credentials, 429 + `Retry-After` when locked, 503 when Navidrome is down.
+- **Setup command removed (user, 2026-11-04)**: Post-Vinyl is one container for an existing stack.
+  A Navidrome admin logging in is a Post-Vinyl admin; a new Navidrome's admin is made on Navidrome's
+  own page, so securing an empty Navidrome is the user's. Replaces the setup notes below.
+- **`PV_SECRET_KEY` is optional (user, 2026-11-04)**: unset, a key is generated once at
+  `secret.key` beside the database.
 - **No setup endpoint; Navidrome is never empty** (user, 2026-10-28; **interim**: the user finds
   it suboptimal and prefers setup through the app or a setup CLI script; decided in milestone 6,
   see `work-plan.md`, "To decide in milestone 6"). An empty Navidrome lets

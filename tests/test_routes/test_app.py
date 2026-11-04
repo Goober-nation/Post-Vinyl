@@ -110,7 +110,9 @@ def test_docs_only_in_dev(tmp_path: Path) -> None:
 def test_without_a_public_origin_the_host_decides(tmp_path: Path) -> None:
     db = Database(tmp_path / "pv.db")
     db.migrate()
-    auth = AuthService(db, FakeNavidromeClient({"alice": ("pw", False)}), SecretBox(generate_key()))
+    auth = AuthService(
+        db, FakeNavidromeClient({"alice": ("pw", False)}), SecretBox(generate_key())
+    )
     app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ""), auth)
     client = TestClient(app, base_url=ORIGIN)
     body = {"username": "alice", "password": "pw"}
