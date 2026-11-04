@@ -24,6 +24,7 @@ from app.clients.navidrome import (
     NavidromeAuthError,
     NavidromeClientBase,
     NavidromeError,
+    NavidromeForbidden,
 )
 from app.clients.navidrome import Session as NavidromeSession
 from app.services.encryption import SecretBox
@@ -56,6 +57,10 @@ class NavidromeUnavailable(AuthError):
     """Navidrome couldn't be reached, so no password can be checked."""
 
 
+class AdminExists(AuthError):
+    """Navidrome already has a user, so there's no first admin to create."""
+
+
 @dataclass(frozen=True)
 class LoginResult:
     token: str  # raw cookie value; never stored
@@ -70,6 +75,14 @@ def hash_token(token: str) -> str:
 class AuthServiceBase(ABC):
     @abstractmethod
     def login(self, username: str, password: str) -> LoginResult: ...
+
+    @abstractmethod
+    def needs_first_admin(self) -> bool:
+        """True while Navidrome has no users, so nobody can log in yet."""
+
+    @abstractmethod
+    def create_first_admin(self, username: str, password: str) -> LoginResult:
+        """Create Navidrome's first admin and log them in."""
 
     @abstractmethod
     def authenticate(self, token: str) -> User | None:
@@ -120,6 +133,26 @@ class AuthService(AuthServiceBase):
             raise InvalidCredentials("wrong username or password") from e
         except NavidromeError as e:
             raise NavidromeUnavailable(f"Navidrome can't check the login: {e}") from e
+        return self._start_session(nd, password, now)
+
+    def needs_first_admin(self) -> bool:
+        try:
+            return self._navidrome.has_no_users()
+        except NavidromeError as e:
+            raise NavidromeUnavailable(f"Navidrome can't be read: {e}") from e
+
+    def create_first_admin(self, username: str, password: str) -> LoginResult:
+        try:
+            nd = self._navidrome.create_first_admin(username, password)
+        except NavidromeForbidden as e:
+            raise AdminExists("Navidrome already has an admin") from e
+        except NavidromeError as e:
+            raise NavidromeUnavailable(f"Navidrome can't create it: {e}") from e
+        return self._start_session(nd, password, self._now())
+
+    def _start_session(
+        self, nd: NavidromeSession, password: str, now: int
+    ) -> LoginResult:
         token = secrets.token_urlsafe(32)
         with self._db.transaction() as conn:
             user = self._users.upsert_on_login(

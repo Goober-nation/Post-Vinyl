@@ -12,6 +12,7 @@ from app.services.auth import (
     FAILED_LOGIN_WINDOW_S,
     MAX_FAILED_LOGINS,
     SESSION_LIFETIME_S,
+    AdminExists,
     AuthService,
     InvalidCredentials,
     LoginLocked,
@@ -157,3 +158,16 @@ def test_lockout_does_not_end_running_sessions(setup: Setup) -> None:
     with pytest.raises(LoginLocked):
         auth.login("alice", "pw")
     assert auth.authenticate(token)  # already logged in: keeps working
+
+
+
+def test_first_admin_is_logged_in_and_only_possible_once(setup: Setup) -> None:
+    auth, _, nd, _, _ = setup
+    nd.users.clear()
+    assert auth.needs_first_admin()
+    result = auth.create_first_admin("root", "pw")
+    assert result.user.is_admin and auth.authenticate(result.token) == result.user
+    assert not auth.needs_first_admin()
+    with pytest.raises(AdminExists):
+        auth.create_first_admin("second", "pw")
+    assert "second" not in nd.users

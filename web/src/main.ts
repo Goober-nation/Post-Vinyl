@@ -10,6 +10,7 @@ import { filesPage } from "./files";
 import { settingsPage } from "./settings";
 import { adminPage } from "./admin";
 import logoUrl from "./logo.svg";
+import { tipsRail } from "./tips";
 import { loadPageSize, page } from "./ui";
 
 // Hash routes (#/downloads…): a reload stays on the same tab; the session
@@ -73,7 +74,7 @@ function render(): void {
         logout,
       ),
     ),
-    h("main", {}, content(tab)),
+    h("main", {}, tipsRail(tab.path), content(tab)),
   );
   nav.querySelector('[aria-current="page"]')?.scrollIntoView({ inline: "nearest", block: "nearest" });
   document.title = `${tab.label} · Post-Vinyl`;

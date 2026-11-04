@@ -21,6 +21,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/first-admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** First Admin Status */
+        get: operations["first_admin_status_api_auth_first_admin_get"];
+        put?: never;
+        /** Create First Admin */
+        post: operations["create_first_admin_api_auth_first_admin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/logout": {
         parameters: {
             query?: never;
@@ -693,6 +711,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/library/files/owned": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Owned
+         * @description For the cart: which of these songs are in the library already.
+         */
+        post: operations["owned_api_library_files_owned_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/library/files/{song_id}/rename": {
         parameters: {
             query?: never;
@@ -1007,6 +1045,18 @@ export interface components {
             /** Label */
             label: string | null;
         };
+        /** FirstAdminBody */
+        FirstAdminBody: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+        };
+        /** FirstAdminStatus */
+        FirstAdminStatus: {
+            /** Needed */
+            needed: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1146,6 +1196,18 @@ export interface components {
         NewSearch: {
             /** Query */
             query: string;
+        };
+        /** OwnedCheck */
+        OwnedCheck: {
+            /** Items */
+            items: components["schemas"]["OwnedSong"][];
+        };
+        /** OwnedSong */
+        OwnedSong: {
+            /** Title */
+            title: string;
+            /** Artist */
+            artist: string;
         };
         /** PeerView */
         PeerView: {
@@ -1595,6 +1657,59 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["LoginBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    first_admin_status_api_auth_first_admin_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirstAdminStatus"];
+                };
+            };
+        };
+    };
+    create_first_admin_api_auth_first_admin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirstAdminBody"];
             };
         };
         responses: {
@@ -2782,6 +2897,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LibraryPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    owned_api_library_files_owned_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnedCheck"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": boolean[];
                 };
             };
             /** @description Validation Error */

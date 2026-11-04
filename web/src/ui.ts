@@ -17,6 +17,11 @@ export function railSection(title: string, ...children: Child[]): HTMLElement {
   return h("section", {}, h("h2", { class: "rail-title" }, title), ...children);
 }
 
+/** The × in the corner of a rail section. */
+export function closeButton(label: string, onclick: () => void): HTMLElement {
+  return h("button", { type: "button", class: "icon-btn absolute -top-1 right-0 text-2xl", "aria-label": label, title: label, onclick }, "×");
+}
+
 /** Label/value pairs, e.g. queue stats. */
 export function kv(pairs: [string, Child][]): HTMLElement {
   return h("dl", { class: "kv" }, ...pairs.flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)]));

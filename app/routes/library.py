@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.dependencies import AdminDep, CoreDep, UserDep, need
 from app.services.library import LibraryFile, LibraryPage, Rename
@@ -43,6 +43,15 @@ class Apply(BaseModel):
     release_id: str
 
 
+class OwnedSong(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+    artist: str = Field(max_length=500)
+
+
+class OwnedCheck(BaseModel):
+    items: list[OwnedSong] = Field(max_length=100)
+
+
 class Strip(BaseModel):
     title: str
     artist: str
@@ -58,6 +67,13 @@ def files(
     page_size: int = DEFAULT_PAGE_SIZE,
 ) -> LibraryPage:  # fmt: skip
     return need(core.library, "the library").page(q, page, page_size)
+
+
+@router.post("/owned")
+def owned(body: OwnedCheck, _: UserDep, core: CoreDep) -> list[bool]:
+    """For the cart: which of these songs are in the library already."""
+    songs = [(s.title, s.artist) for s in body.items]
+    return need(core.library, "the library").owned(songs)
 
 
 @router.post("/{song_id}/rename")

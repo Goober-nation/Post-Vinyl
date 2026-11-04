@@ -43,6 +43,8 @@ the generated reference at `/docs` and `/openapi.json` (exact request and respon
 | Call | Who | Takes | Answers |
 |---|---|---|---|
 | `POST /api/auth/login` | anyone | `{username, password}` | `{username, is_admin}` + the cookie |
+| `GET /api/auth/first-admin` | anyone | | `{needed}`: true while Navidrome has no users; Navidrome down `503` |
+| `POST /api/auth/first-admin` | anyone | `{username, password}` | creates Navidrome's first admin: `{username, is_admin}` + the cookie; a user already exists `409` |
 | `POST /api/auth/logout` | user | | `204` |
 | `GET /api/auth/me` | user | | `{username, is_admin}` |
 | `GET /api/system/ping` | anyone | | `{status: "ok"}` |
@@ -131,6 +133,7 @@ library.
 | Call | Who | Takes | Answers |
 |---|---|---|---|
 | `GET /api/library/files` | user | `q?` (title, album, artists), `page`, `page_size` | songs with `has_cover`, and `file_id` / `file_state` where Post-Vinyl downloaded them |
+| `POST /api/library/files/owned` | user | `{items: [{title, artist}]}` (up to 100) | `[bool]`, one per item: whether Navidrome already has that song |
 | `POST /api/library/files/{song_id}/rename` | admin | `{title, artist, album_artist?, album?, year?, track?, disc?}` | `{match, recording_id, release_id, via, tags, has_cover}` or `{match: false}` |
 | `POST /api/library/files/{song_id}/apply` | admin | `{recording_id, release_id}` | `{file}`: the song under its new id (`null` if Navidrome doesn't list it yet) |
 | `POST /api/library/files/{song_id}/strip` | admin | `{title, artist}` | `{file}` at `<artist>/<title>` |

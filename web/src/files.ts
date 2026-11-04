@@ -5,7 +5,7 @@
 // (user, 2026-10-30). What is shown lives in the hash (#/files?q=…&page=…).
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
-import { button, confirm, kv, pageHead, pager, pageSize, railSection, row, state, tag, toast } from "./ui";
+import { button, closeButton, confirm, kv, pageHead, pager, pageSize, railSection, row, state, tag, toast } from "./ui";
 
 type File = Schemas["LibraryFile"];
 type Me = Schemas["Me"];
@@ -27,7 +27,7 @@ export function filesPage(me: Me): HTMLElement {
   const page = Math.max(1, Number(p.get("page")) || 1);
   const list = h("div", { class: "rows" }, h("p", { class: "py-2 text-muted", role: "status" }, "Loading…"));
   const pages = h("div");
-  const rail = h("aside", { class: "side-rail rail" }, railSection("Selected", h("p", { class: "text-muted" }, "Pick a song to rename or delete it.")));
+  const rail = h("aside", { class: "side-rail rail" }, noSelection());
 
   const box = h("input", { class: "input w-full", type: "search", name: "q", placeholder: "Title, album or artist", "aria-label": "Search the library", value: q });
   const form = h(
@@ -105,6 +105,8 @@ function fileRow(f: File, pick: () => void): HTMLElement {
 
 // ── the rail: one song, rename, delete ──────────────────────────────────
 
+const noSelection = () => railSection("Selected", h("p", { class: "text-muted" }, "Pick a song to rename or delete it."));
+
 function showFile(rail: HTMLElement, f: File, me: Me, reload: () => Promise<void>): void {
   const adminOnly = () => (me.is_admin ? false : (toast("Admins only.", "err"), true));
   const del = button("Delete", async () => {
@@ -113,7 +115,7 @@ function showFile(rail: HTMLElement, f: File, me: Me, reload: () => Promise<void
     try {
       await api("DELETE", `/api/library/files/${encodeURIComponent(f.id)}`);
       toast("Deleted. Navidrome rescans.");
-      rail.replaceChildren(railSection("Selected", h("p", { class: "text-muted" }, "Pick a song to rename or delete it.")));
+      rail.replaceChildren(noSelection());
       void reload();
     } catch (e) {
       fail(e);
@@ -122,6 +124,10 @@ function showFile(rail: HTMLElement, f: File, me: Me, reload: () => Promise<void
   rail.replaceChildren(
     railSection(
       "Selected",
+      closeButton("Close details", () => {
+        document.querySelectorAll(".row.selected").forEach((x) => x.classList.remove("selected"));
+        rail.replaceChildren(noSelection());
+      }),
       f.has_cover && h("img", { src: coverUrl(f.id, 300), alt: `Cover of ${f.title}`, class: "mb-3 aspect-square w-full rounded-[6px] object-cover" }),
       h("div", { class: "title" }, f.title),
       h("div", { class: "sub" }, [f.artist, f.album].filter(Boolean).join(" · ")),

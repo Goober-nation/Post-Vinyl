@@ -1,4 +1,4 @@
-/* Design kit (#120): deep harbour blue, one accent, hairline borders, flat
+/* Design kit (#120): deep grey, one accent (--accent, below), hairline borders, flat
    surfaces; no gradients, glass, glow or soft oversized cards. Mockup:
    web/design/mockup.html. daisyUI gives the controls (btn, input, select,
    range, checkbox, modal, toast, alert); the classes below give the layout. */
@@ -24,26 +24,26 @@
   name: "harbour-dark";
   default: true;
   color-scheme: dark;
-  --color-base-100: #0c0e12; /* page */
-  --color-base-200: #13161c; /* panels, row hover */
-  --color-base-300: #1a1e26; /* inputs, selected */
-  --color-base-content: #e6e8ec;
-  --color-primary: #3a6699; /* filled buttons: white text 6.0:1 */
-  --color-primary-content: #ffffff;
-  --color-secondary: #1a1e26;
-  --color-secondary-content: #e6e8ec;
-  --color-accent: #7ea3cf; /* links, focus, active tab, progress */
-  --color-accent-content: #0c0e12;
-  --color-neutral: #262b35;
-  --color-neutral-content: #e6e8ec;
-  --color-info: #7ea3cf;
-  --color-info-content: #0c0e12;
+  --color-base-100: #101114; /* page */
+  --color-base-200: #17191d; /* panels, row hover */
+  --color-base-300: #202227; /* inputs, selected */
+  --color-base-content: #f7f7f7;
+  --color-primary: var(--accent); /* filled buttons */
+  --color-primary-content: #101114;
+  --color-secondary: #202227;
+  --color-secondary-content: #f7f7f7;
+  --color-accent: var(--accent); /* links, focus, active tab, progress */
+  --color-accent-content: #101114;
+  --color-neutral: #2b2e34;
+  --color-neutral-content: #f7f7f7;
+  --color-info: var(--accent);
+  --color-info-content: #101114;
   --color-success: #74b29f;
-  --color-success-content: #0c0e12;
+  --color-success-content: #101114;
   --color-warning: #d1a85e;
-  --color-warning-content: #0c0e12;
+  --color-warning-content: #101114;
   --color-error: #d97b7b;
-  --color-error-content: #0c0e12;
+  --color-error-content: #101114;
   --radius-selector: 3px;
   --radius-field: 3px;
   --radius-box: 6px;
@@ -56,9 +56,10 @@
 
 /* Tokens daisyUI has no slot for */
 :root {
-  --live: #e0a15a; /* warm: only for what is happening now */
-  --line: #262b35;
-  --muted: #9097a3;
+  --accent: #e8c468; /* the one accent: buttons, links, focus, active tab, progress */
+  --live: #e0914a; /* orange: only for what is happening now */
+  --line: #2b2e34;
+  --muted: #9a9a9a;
 }
 
 @theme {
@@ -121,7 +122,7 @@
     @apply mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-2;
   }
   .rail section {
-    @apply mb-6 border-b border-line pb-6;
+    @apply relative mb-6 border-b border-line pb-6;
   }
   .rail-title {
     @apply mb-3 font-medium tracking-[.08em] text-muted;
@@ -311,6 +312,21 @@
      is fixed to the window's right edge and the column narrows to clear it */
   .center-main {
     @apply mx-auto w-full max-w-3xl px-4 pt-6 pb-24 md:px-6 xl:max-w-[min(48rem,calc(100vw-2*(18rem+3vw+1.5rem)))] xl:px-0;
+  }
+  .tips-rail {
+    @apply hidden rounded-[4px] border border-line bg-base-200 p-4 xl:fixed xl:top-18 xl:left-4 xl:block xl:max-h-[calc(100vh-5.5rem)] xl:w-60 xl:overflow-y-auto xl:text-xs xl:text-muted;
+  }
+  .tips-rail .rail-title {
+    @apply text-lg;
+  }
+  .tips-rail ol {
+    @apply mt-3 list-outside list-decimal pl-4;
+  }
+  .tips-rail ol[hidden] {
+    @apply hidden;
+  }
+  .tips-rail li {
+    @apply mb-3 leading-relaxed last:mb-0;
   }
   .side-rail {
     @apply px-4 pb-24 md:px-6 xl:fixed xl:top-20 xl:right-[3vw] xl:max-h-[calc(100vh-6rem)] xl:w-72 xl:overflow-y-auto xl:p-0;

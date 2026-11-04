@@ -46,6 +46,15 @@ class FakeNavidromeClient(NavidromeClientBase):
             raise NavidromeAuthError("POST /auth/login: HTTP 401")
         return self._session(username)
 
+    def has_no_users(self) -> bool:
+        return not self.users
+
+    def create_first_admin(self, username: str, password: str) -> Session:
+        if self.users:
+            raise NavidromeForbidden("POST /auth/createAdmin: HTTP 403")
+        self.users[username] = (password, True)
+        return self._session(username)
+
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:
         self._check(session)
         if not session.is_admin:

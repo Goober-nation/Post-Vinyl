@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 from app.clients.navidrome import Cover
 from app.clients.navidrome import Song as LibrarySong
+from app.core.matcher import same_song
 from app.services.encryption import SecretBox
 from app.services.files import FilesService
 from app.services.requests import DEFAULT_PAGE_SIZE, clamp_page
@@ -28,6 +29,8 @@ from app.stores.files import FileRecord
 from app.stores.users import User
 
 log = logging.getLogger(__name__)
+
+OWNED_HITS = 50  # library songs compared per title
 
 
 @dataclass(frozen=True)
@@ -80,6 +83,10 @@ class LibraryServiceBase(ABC):
     ) -> LibraryPage: ...
 
     @abstractmethod
+    def owned(self, songs: list[tuple[str, str]]) -> list[bool]:
+        """For each (title, artist): is it in the library already?"""
+
+    @abstractmethod
     def suggest(self, admin: User, song_id: str, rename: Rename) -> Suggestion | None:
         """The tag set the new names point at, or None when nothing matched."""
 
@@ -116,6 +123,15 @@ class LibraryService(LibraryServiceBase):
         if song is None:  # Navidrome doesn't list the new path yet
             return None
         return item(song, self._files.records([song.id]).get(song.id))
+
+    def owned(self, songs: list[tuple[str, str]]) -> list[bool]:
+        return [self._has(title, artist) for title, artist in songs]
+
+    def _has(self, title: str, artist: str) -> bool:
+        hits, _ = self._files.library_page(" ".join(title.split()), 0, OWNED_HITS)
+        return any(
+            not s.missing and same_song(title, artist, s.title, s.artist) for s in hits
+        )
 
     def page(
         self, query: str = "", page: int = 1, page_size: int = DEFAULT_PAGE_SIZE

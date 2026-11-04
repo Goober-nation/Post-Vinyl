@@ -6,7 +6,7 @@
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
 import { coverUrl } from "./files";
-import { button, confirm, cover, filters, kv, pageHead, pager, pageSize, railSection, row, state, toast, type Tone } from "./ui";
+import { button, closeButton, confirm, cover, filters, kv, pageHead, pager, pageSize, railSection, row, state, toast, type Tone } from "./ui";
 
 const POLL_MS = 1500;
 type Item = Schemas["QueueItem"];
@@ -32,13 +32,17 @@ function go(change: Record<string, string>): void {
   location.hash = `#/downloads?${p}`;
 }
 
+// opens or closes a row's details in place: the hash follows without a redraw,
+// so the list doesn't flash
+let select: (id: number) => void = () => {};
+
 export function downloadsPage(me: Me): HTMLElement {
   const p = params();
   // no state in the URL: the server uses the user's own default (settings)
   const stateFilter = p.get("state");
   const page = Math.max(1, Number(p.get("page")) || 1);
   const everyone = me.is_admin && p.get("everyone") === "1";
-  const selected = Number(p.get("id")) || 0;
+  let selected = Number(p.get("id")) || 0;
 
   const list = h("div", { class: "rows" }, h("p", { class: "py-2 text-muted", role: "status" }, "Loading…"));
   const pages = h("div");
@@ -73,6 +77,17 @@ export function downloadsPage(me: Me): HTMLElement {
     h("aside", { class: "side-rail rail" }, detail, queueRail(me)),
     bar,
   );
+
+  select = (id) => {
+    selected = id;
+    const q = params();
+    if (id) q.set("id", String(id));
+    else q.delete("id");
+    history.replaceState(null, "", `#/downloads?${q}`);
+    list.querySelectorAll<HTMLElement>(".row").forEach((r) => r.classList.toggle("selected", r.dataset.id === String(id)));
+    if (id) void showDetail(detail, id).then(() => innerWidth < 1280 && detail.scrollIntoView({ behavior: "smooth" }));
+    else detail.replaceChildren();
+  };
 
   let last = "";
   let polls = 0;
@@ -133,11 +148,12 @@ function itemRow(it: Item, selected: boolean, everyone: boolean): HTMLElement {
     cover: it.library_id ? coverUrl(it.library_id, 80) : undefined,
     extra: h("span", { class: "sub font-mono" }, progressText(it) || (it.attempts > 1 ? `${it.attempts} peers tried` : "")),
     state: state(LABEL[it.state] ?? it.state, TONE[it.state] ?? "idle"),
-    action: h("button", { type: "button", class: "icon-btn", "aria-label": `Details of ${title}`, onclick: () => go({ id: String(it.id) }) }, "›"),
+    action: h("button", { type: "button", class: "icon-btn", "aria-label": `Details of ${title}`, onclick: () => select(it.id) }, "›"),
   });
+  r.dataset.id = String(it.id);
   r.classList.add("cursor-pointer");
   r.addEventListener("click", (e) => {
-    if (!(e.target as Element).closest("button")) go({ id: String(it.id) });
+    if (!(e.target as Element).closest("button")) select(it.id);
   });
   return r;
 }
@@ -168,7 +184,7 @@ async function showDetail(el: HTMLElement, id: number): Promise<void> {
   try {
     const d = await api<Schemas["DownloadDetail"]>("GET", `/api/downloads/${id}`);
     const it = d.item;
-    const close = h("button", { type: "button", class: "btn btn-ghost btn-xs -mr-2 ml-auto", "aria-label": "Close details", onclick: () => go({ id: "" }) }, "×");
+    const close = closeButton("Close details", () => select(0));
     const act = (label: string, fn: () => Promise<unknown>, done: string, kind: "primary" | "quiet" | "danger" = "quiet") =>
       button(label, async () => {
         try {
@@ -184,7 +200,8 @@ async function showDetail(el: HTMLElement, id: number): Promise<void> {
     el.replaceChildren(
       railSection(
         "Selected",
-        h("div", { class: "flex items-start" }, h("div", { class: "min-w-0" }, h("div", { class: "cat" }, `PV-${String(it.request_id).padStart(4, "0")}`), h("div", { class: "title" }, it.title ?? "…"), h("div", { class: "sub" }, it.artist ?? "")), close),
+        close,
+        h("div", { class: "flex items-start" }, h("div", { class: "min-w-0" }, h("div", { class: "cat" }, `PV-${String(it.request_id).padStart(4, "0")}`), h("div", { class: "title" }, it.title ?? "…"), h("div", { class: "sub" }, it.artist ?? ""))),
         h("div", { class: "my-3" }, state(LABEL[it.state] ?? it.state, TONE[it.state] ?? "idle")),
         it.current && kv([["Peer", h("span", { class: "font-mono" }, it.current.username)], ["Attempt", `${it.attempts}`], ["Progress", progressText(it) || "—"], ...(it.progress?.size ? [["Size", mb(it.progress.size)] as [string, string]] : [])]),
         h(

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.matcher import Song, album_folder_ok, is_match, label_file
+from app.core.matcher import Song, album_folder_ok, is_match, label_file, same_song
 
 KP = Song("Karma Police", "Radiohead", "OK Computer", 264)
 
@@ -123,3 +123,10 @@ def test_live_song_keeps_dated_folders():
 
 def test_year_only_folder_is_not_a_concert():
     assert is_match("Radiohead\\1997 - OK Computer\\06 Karma Police.flac", 264, KP)
+
+
+def test_same_song_across_sources() -> None:
+    assert same_song("Stay", "Mac Miller", "Stay", "Mac Miller")
+    assert same_song("Stay", "Mac Miller", "STAY", "Mac Miller feat. Someone")
+    assert not same_song("Stay", "Mac Miller", "Stay", "Rihanna")
+    assert not same_song("Stay", "Mac Miller", "Stay (live)", "Mac Miller")

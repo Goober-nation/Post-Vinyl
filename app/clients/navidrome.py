@@ -7,10 +7,13 @@ Checked against Navidrome 0.64.2's source and live (2026-10-28):
 - Every native-API response carries a refreshed JWT in ``X-ND-Authorization``.
 - Subsonic answers errors with HTTP 200 and ``status: "failed"``.
 - Subsonic's ``path`` is built from tags; only the native API has the real one.
+- No API says whether any user exists: only ``/app/``'s embedded config does.
+  ``POST /auth/createAdmin`` needs no login and answers 403 once a user exists.
 """
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -23,6 +26,8 @@ _CLIENT_NAME = "post-vinyl"
 # Subsonic error codes (subsonic.org/pages/api.jsp)
 _SUBSONIC_AUTH_CODES = {40, 41, 44}
 _SUBSONIC_NOT_FOUND = 70
+# In the config Navidrome embeds in its page, with its quotes escaped (0.64.2)
+_FIRST_TIME = re.compile(r'firstTime\\*":\s*true')
 
 
 class NavidromeError(Exception):
@@ -97,6 +102,14 @@ class NavidromeClientBase(ABC):
     @abstractmethod
     def login(self, username: str, password: str) -> Session:
         """Log in; raises NavidromeAuthError on wrong credentials."""
+
+    @abstractmethod
+    def has_no_users(self) -> bool:
+        """True on a fresh Navidrome, before its first admin exists."""
+
+    @abstractmethod
+    def create_first_admin(self, username: str, password: str) -> Session:
+        """Create the first admin and log in; NavidromeForbidden once a user exists."""
 
     @abstractmethod
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:
@@ -263,6 +276,12 @@ class NavidromeClient(NavidromeClientBase):
 
     def login(self, username: str, password: str) -> Session:
         return self._auth_call("/auth/login", username, password)
+
+    def has_no_users(self) -> bool:
+        return bool(_FIRST_TIME.search(self._request("GET", "/app/").text))
+
+    def create_first_admin(self, username: str, password: str) -> Session:
+        return self._auth_call("/auth/createAdmin", username, password)
 
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:
         body = self._subsonic(session, "startScan", fullScan=str(full).lower())

@@ -103,6 +103,14 @@ def norm_title(text: str) -> str:
     return norm(text)
 
 
+def same_song(title: str, artist: str, other_title: str, other_artist: str) -> bool:
+    """The same title, and one artist credit holds the other ("A" and "A feat. B")."""
+    ours, theirs = norm(artist), norm(other_artist)
+    return norm_title(title) == norm_title(other_title) and bool(
+        ours and theirs and (ours in theirs or theirs in ours)
+    )
+
+
 def split_path(filename: str) -> tuple[list[str], str, str]:
     """Soulseek paths use backslashes; return (folders, stem, extension)."""
     parts = [p for p in filename.replace("\\", "/").split("/") if p]
