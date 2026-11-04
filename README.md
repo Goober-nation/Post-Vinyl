@@ -106,10 +106,6 @@ services:
       - PV_NAVIDROME_URL=http://navidrome:4533
       - PV_SLSKD_URL=http://slskd:5030
       - PV_SLSKD_API_KEY=change-me-any-long-random-string # the same as SLSKD_API_KEY
-      # With the proxy below:
-      # - HTTP_PROXY=http://postvinyl-proxy:8080
-      # - HTTPS_PROXY=http://postvinyl-proxy:8080
-      # - NO_PROXY=localhost,127.0.0.1,navidrome,slskd
     volumes:
       - /path/to/music:/music
       - ./postvinyl_data:/postvinyl/data
@@ -119,16 +115,28 @@ services:
         condition: service_started
       slskd:
         condition: service_healthy
-
-  # Optional: only if ListenBrainz or MusicBrainz aren't reachable from where you host.
-  # postvinyl-proxy:
-  #   image: ginuerzh/gost:latest
-  #   restart: unless-stopped
-  #   command: "-L=http://:8080 -F=socks5://user:password@host:port"
 ```
 
 ```bash
 docker compose up -d
+```
+
+### Optional: Proxy
+
+You only need this if ListenBrainz or MusicBrainz can't be reached from where you host Post-Vinyl. It sends Post-Vinyl's own requests through a SOCKS5 proxy. Add the service below with your proxy's details, and add the environment lines to the `postvinyl` service:
+
+```yaml
+services:
+  postvinyl-proxy:
+    image: ginuerzh/gost:latest
+    restart: unless-stopped
+    command: "-L=http://:8080 -F=socks5://user:password@host:port"
+
+  postvinyl:
+    environment:
+      - HTTP_PROXY=http://postvinyl-proxy:8080
+      - HTTPS_PROXY=http://postvinyl-proxy:8080
+      - NO_PROXY=localhost,127.0.0.1,navidrome,slskd
 ```
 
 ### Initial Setup
