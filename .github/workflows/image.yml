@@ -5,6 +5,19 @@ name: Image
 on:
   push:
     branches: [main]
+    # Nothing here reaches the image. Tag pushes ignore this list and always build.
+    paths-ignore:
+      - "**.md"
+      - "**.example"
+      - "**/.gitignore"
+      - "**/.gitattributes"
+      - ".gitignore"
+      - ".gitattributes"
+      - "LICENSE"
+      - "docs/**"
+      - "tests/**"
+      - "scripts/**"
+      - "web/design/**"
     tags: ["v*"]
   workflow_dispatch:
 
