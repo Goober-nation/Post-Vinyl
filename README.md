@@ -66,10 +66,6 @@ services:
       - ND_MUSICFOLDER=/music/library
       - ND_DATAFOLDER=/data
       - ND_SCANNER_PURGEMISSING=always
-      # With the proxy below:
-      # - HTTP_PROXY=http://postvinyl-proxy:8080
-      # - HTTPS_PROXY=http://postvinyl-proxy:8080
-      # - NO_PROXY=localhost,127.0.0.1,slskd,postvinyl
     volumes:
       - /path/to/music:/music:ro
       - ./navidrome_data:/data
