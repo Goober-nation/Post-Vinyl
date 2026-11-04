@@ -157,6 +157,34 @@
   .row {
     @apply grid min-h-13 grid-cols-[40px_minmax(0,1fr)_32px] items-center gap-x-4 border-b border-line p-2 transition-colors hover:bg-base-200 md:grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_150px_32px];
   }
+  .row.user-row {
+    @apply grid-cols-[40px_minmax(0,1fr)_auto] md:grid-cols-[40px_minmax(0,1fr)_auto];
+  }
+  .row.user-row .row-extra {
+    @apply hidden;
+  }
+  .row.user-row .state {
+    @apply col-start-2 row-start-2 text-xs;
+  }
+  .row.user-row > .cover,
+  .row.user-row > :last-child {
+    @apply row-span-2;
+  }
+  .row.user-row > :last-child {
+    @apply col-start-3 row-start-1;
+  }
+  .row.file-row {
+    @apply md:grid-cols-[40px_minmax(0,1fr)_auto_32px];
+  }
+  .row.file-row .row-extra {
+    @apply hidden;
+  }
+  .file-meta {
+    @apply col-start-2 row-start-2 flex items-center gap-4 md:col-start-auto md:row-start-auto md:justify-end;
+  }
+  .file-meta .font-mono {
+    @apply md:min-w-[6.5rem] md:text-right;
+  }
   .row-extra {
     @apply hidden md:block;
   }
@@ -195,10 +223,11 @@
     @apply rounded-full;
   }
   .sleeves {
-    @apply grid grid-cols-2 gap-4 md:grid-cols-5;
+    /* one row that scrolls sideways on a narrow screen, so sleeves stay small */
+    @apply grid auto-cols-[min(38vw,180px)] grid-flow-col gap-4 overflow-x-auto md:auto-cols-auto md:grid-flow-row md:grid-cols-5 md:overflow-visible;
   }
   .sleeves.wrap {
-    @apply md:grid-cols-4;
+    @apply grid-flow-row grid-cols-2 overflow-visible md:grid-cols-4;
   }
   .popular {
     @apply grid gap-x-6 md:grid-cols-3;
@@ -327,6 +356,45 @@
   }
   .tips-rail li {
     @apply mb-3 leading-relaxed last:mb-0;
+  }
+  /* a folding panel that looks like the tips island */
+  .fold-panel {
+    @apply mb-4 max-w-sm rounded-[4px] border border-line bg-base-200 p-4;
+  }
+  .fold-panel > summary {
+    @apply flex cursor-pointer list-none items-center justify-between;
+  }
+  .fold-panel > summary::-webkit-details-marker {
+    @apply hidden;
+  }
+  .fold-panel > summary::after {
+    @apply -my-1 text-xl text-muted;
+    content: "▸";
+  }
+  .fold-panel[open] > summary::after {
+    content: "▾";
+  }
+  /* header status lights and their dropdown */
+  .services-menu {
+    @apply relative;
+  }
+  .services-button {
+    @apply flex cursor-pointer list-none items-center gap-2 rounded-[4px] border border-line px-2 py-1 text-xs text-muted hover:border-base-content;
+  }
+  .services-button::-webkit-details-marker {
+    @apply hidden;
+  }
+  .services-panel {
+    @apply absolute top-full right-0 z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-[4px] border border-line bg-base-200 p-4 text-sm;
+  }
+  .service-light {
+    @apply size-2 flex-none rounded-full border border-muted;
+  }
+  .service-light[data-state="ok"] {
+    @apply border-success bg-success;
+  }
+  .service-light[data-state="down"] {
+    @apply border-error bg-error;
   }
   .side-rail {
     @apply px-4 pb-24 md:px-6 xl:fixed xl:top-20 xl:right-[3vw] xl:max-h-[calc(100vh-6rem)] xl:w-72 xl:overflow-y-auto xl:p-0;

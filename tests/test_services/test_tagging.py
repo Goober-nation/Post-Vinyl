@@ -202,6 +202,22 @@ def test_broken_file_is_a_fail_tag(tmp_path: Path) -> None:
     assert state == "verified" and rows[0].startswith("failTag:")
 
 
+def test_no_new_cover_leaves_the_old_one_in_the_file(tmp_path: Path) -> None:
+    p = flac(tmp_path / "a.flac")
+    peer = FLAC(p)
+    pic = Picture()
+    pic.type, pic.mime, pic.data = 3, "image/png", b"peer art"
+    peer.add_picture(pic)
+    peer.save()
+    write_tags(p, build_tags(info(), release()), None)
+    assert [x.data for x in FLAC(p).pictures] == [b"peer art"]
+
+    m = mp3(tmp_path / "a.mp3")
+    write_tags(m, build_tags(info(), release()), COVER)
+    write_tags(m, build_tags(info(), release()), None)
+    assert ID3(m).getall("APIC")[0].data == COVER
+
+
 def test_files_layout_reads_what_tagging_wrote(tmp_path: Path) -> None:
     import mutagen
 

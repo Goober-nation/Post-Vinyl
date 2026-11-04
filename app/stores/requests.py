@@ -140,19 +140,30 @@ class RequestsStore:
         return [Request(**r) for r in rows]
 
     def history(
-        self, conn: sqlite3.Connection, user_id: int, page: int, page_size: int
+        self,
+        conn: sqlite3.Connection,
+        user_id: int,
+        page: int,
+        page_size: int,
+        track_state: str | None = None,
     ) -> list[Request]:
         """A user's requests, most recently used first; ``page`` starts at 1."""
         rows = conn.execute(
-            """SELECT * FROM requests WHERE user_id = ?
+            """SELECT * FROM requests
+               WHERE user_id = ? AND (? IS NULL OR track_state = ?)
                ORDER BY last_used_at DESC, id DESC LIMIT ? OFFSET ?""",
-            (user_id, page_size, (max(page, 1) - 1) * page_size),
-        )
+            (user_id, track_state, track_state, page_size,
+             (max(page, 1) - 1) * page_size),
+        )  # fmt: skip
         return [Request(**r) for r in rows]
 
-    def count(self, conn: sqlite3.Connection, user_id: int) -> int:
+    def count(
+        self, conn: sqlite3.Connection, user_id: int, track_state: str | None = None
+    ) -> int:
         row = conn.execute(
-            "SELECT COUNT(*) FROM requests WHERE user_id = ?", (user_id,)
+            """SELECT COUNT(*) FROM requests
+               WHERE user_id = ? AND (? IS NULL OR track_state = ?)""",
+            (user_id, track_state, track_state),
         ).fetchone()
         return int(row[0])
 

@@ -193,7 +193,7 @@ function albumPage(view: Browse): HTMLElement[] {
     cover(view.name, coverOf(view.source, view.cover, 300)),
     h("div", { class: "min-w-0" }, h("div", { class: "text-muted" }, "Album"), h("h1", {}, view.name), h("div", { class: "text-muted" }, meta(view.artist, view.info))),
   );
-  const tracks = section("Tracks", null, async () => [(await fetched<Schemas["Track"][]>(`/api/catalog/${enc(view.source)}/editions/${enc(view.id)}/tracks`)).map((t) => trackRow(t, null, view.name)), null], (rows) => {
+  const tracks = section("Tracks", null, async () => [(await fetched<Schemas["Track"][]>(`/api/catalog/${enc(view.source)}/editions/${enc(view.id)}/tracks`)).map((t) => trackRow(t, null, true)), null], (rows) => {
     const list = paged(rows, ["song", "songs"], "rows", Math.max(rows.length, 1));
     list.classList.add("tracklist");
     return list;
@@ -233,7 +233,7 @@ function cartToggle(entry: CartEntry): [HTMLElement, HTMLElement] {
   return [mark, toggle];
 }
 
-function trackRow(t: Schemas["Track"], originId: number | null, album?: string): HTMLElement {
+function trackRow(t: Schemas["Track"], originId: number | null, onAlbumPage = false): HTMLElement {
   const entry = entryOf(t, originId);
   const [mark, toggle] = cartToggle(entry);
   const side = t.position ? `${t.disc && t.disc > 1 ? `${t.disc}-` : ""}${t.position}` : undefined;
@@ -241,9 +241,9 @@ function trackRow(t: Schemas["Track"], originId: number | null, album?: string):
     title: entry.title,
     cover: coverOf(t.source, t.cover_id ?? ""),
     artist: t.artist,
-    album,
+    album: onAlbumPage ? undefined : t.album || undefined,
     side,
-    extra: h("span", { class: "sub font-mono" }, meta(length(t.duration_s), !album && year(t.first_release_date))),
+    extra: h("span", { class: "sub font-mono" }, meta(length(t.duration_s), !onAlbumPage && year(t.first_release_date))),
     state: mark,
     action: toggle,
   });

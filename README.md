@@ -17,7 +17,7 @@ Post-Vinyl is a self-hosted music downloader and library manager. Search for a s
 - **Honest Tags**: Tags come from MusicBrainz and ListenBrainz lookups only, with no guessing.
 - **Soulseek Tab**: Search Soulseek directly and pick the exact files yourself.
 - **File Management**: Browse, rename and delete files in your library.
-- **Multi-user**: Log in with your Navidrome account. Each user has their own requests, sources, settings and ListenBrainz token.
+- **Multi-user**: Log in with your Navidrome account. Each user has their own requests, sources, settings and ListenBrainz token. Admins can add users, change passwords and delete users from the Admin tab.
 
 ## How It Works
 
@@ -152,7 +152,7 @@ services:
 
 ## Configuration
 
-Everything is optional from here. `postvinyl_config/post-vinyl.yaml` is created on first start with each value explained inside. Admins can also change it under **Settings > Server-wide**, then restart. **Settings > Mine** applies only to you, at once.
+Everything is optional from here. `postvinyl_config/post-vinyl.yaml` is created on first start with each value explained inside. Admins can also change it under **Settings > Server-wide**, then restart. **Settings > Personal** applies only to you, at once.
 
 Optional environment values on the `postvinyl` service:
 

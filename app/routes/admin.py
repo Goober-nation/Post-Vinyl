@@ -3,13 +3,23 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.dependencies import AdminDep, CoreDep, need
 from app.services.admin import UserView
 from app.stores.slskd import SlskdPeer
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+class NewUser(BaseModel):
+    username: str = Field(pattern=r"\S")  # Navidrome accepts an empty name
+    password: str = Field(min_length=1)
+    is_admin: bool = False
+
+
+class NewPassword(BaseModel):
+    password: str = Field(min_length=1)
 
 
 class QueueState(BaseModel):
@@ -58,3 +68,22 @@ def clear_peers(_: AdminDep, core: CoreDep) -> Cleared:
 @router.get("/users")
 def users(_: AdminDep, core: CoreDep) -> list[UserView]:
     return need(core.admin, "admin").users()
+
+
+@router.post("/users", status_code=201)
+def create_user(body: NewUser, admin: AdminDep, core: CoreDep) -> UserView:
+    return need(core.admin, "admin").create_user(
+        admin, body.username.strip(), body.password, body.is_admin
+    )
+
+
+@router.put("/users/{user_id}/password", status_code=204)
+def set_password(
+    user_id: int, body: NewPassword, admin: AdminDep, core: CoreDep
+) -> None:
+    need(core.admin, "admin").set_password(admin, user_id, body.password)
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(user_id: int, admin: AdminDep, core: CoreDep) -> None:
+    need(core.admin, "admin").delete_user(admin, user_id)

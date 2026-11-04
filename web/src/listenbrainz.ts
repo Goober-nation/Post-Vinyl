@@ -137,8 +137,8 @@ function recsPane(): HTMLElement {
 // ── radio ───────────────────────────────────────────────────────────────
 
 function radioPane(): HTMLElement {
-  const artist = h("input", { class: "input input-lg flex-1", type: "search", placeholder: "Artist", "aria-label": "Artist", required: true });
-  const level = h("select", { class: "select select-lg", "aria-label": "Level" }, ...["easy", "medium", "hard"].map((l) => h("option", { value: l }, l[0].toUpperCase() + l.slice(1))));
+  const artist = h("input", { class: "input input-lg w-full flex-none md:w-auto md:flex-1", type: "search", placeholder: "Artist", "aria-label": "Artist", required: true });
+  const level = h("select", { class: "select select-lg w-auto min-w-0 flex-1 md:flex-none", "aria-label": "Level" }, ...["easy", "medium", "hard"].map((l) => h("option", { value: l }, l[0].toUpperCase() + l.slice(1))));
   const preview = h("div");
   const name = nameInput("radio-<artist>-<today>");
 
@@ -183,7 +183,7 @@ function radioPane(): HTMLElement {
   const go = h("button", { class: "btn btn-primary btn-lg", type: "submit" }, "Get radio");
   const form = h(
     "form",
-    { class: "mb-6 flex gap-2", onsubmit: (e: Event) => (e.preventDefault(), void roll()) },
+    { class: "mb-6 flex flex-wrap gap-2 md:flex-nowrap", onsubmit: (e: Event) => (e.preventDefault(), void roll()) },
     artist,
     level,
     go,

@@ -72,9 +72,17 @@ class RequestServiceBase(ABC):
 
     @abstractmethod
     def history(
-        self, user_id: int, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE
+        self,
+        user_id: int,
+        page: int = 1,
+        page_size: int = DEFAULT_PAGE_SIZE,
+        track_state: str | None = None,
     ) -> Page:
         """Most recently used first; ``page`` starts at 1."""
+
+    @abstractmethod
+    def song_names(self, song_ids: list[int]) -> dict[int, tuple[str, str]]:
+        """Title and artist of each song, by id."""
 
 
 class RequestService(RequestServiceBase):
@@ -145,10 +153,19 @@ class RequestService(RequestServiceBase):
         return self._move(user_id, request_id, states.re_request)
 
     def history(
-        self, user_id: int, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE
+        self,
+        user_id: int,
+        page: int = 1,
+        page_size: int = DEFAULT_PAGE_SIZE,
+        track_state: str | None = None,
     ) -> Page:
         page, page_size = clamp_page(page, page_size)
         with self._db.transaction() as conn:
-            items = self._requests.history(conn, user_id, page, page_size)
-            total = self._requests.count(conn, user_id)
+            items = self._requests.history(conn, user_id, page, page_size, track_state)
+            total = self._requests.count(conn, user_id, track_state)
         return Page(items, total, page, page_size)
+
+    def song_names(self, song_ids: list[int]) -> dict[int, tuple[str, str]]:
+        with self._db.transaction() as conn:
+            songs = [self._songs.get(conn, i) for i in set(song_ids)]
+        return {s.id: (s.title, s.artist_name) for s in songs if s}

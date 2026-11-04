@@ -90,12 +90,16 @@ function fileRow(f: File, pick: () => void): HTMLElement {
     cover: f.has_cover ? coverUrl(f.id, 80) : undefined,
     artist: f.artist || "Unknown artist",
     album: f.album || undefined,
-    extra: h("span", { class: "sub font-mono" }, `${length(f.duration)} · ${f.suffix.toUpperCase()}`),
     // Post-Vinyl's own downloads carry their file state; a missing file is flagged
-    state: f.missing ? state("Missing", "err") : f.file_id ? tag("Post-Vinyl") : h("span"),
+    state: h(
+      "div",
+      { class: "file-meta" },
+      f.missing ? state("Missing", "err") : f.tag_failed ? state("Tagging failed", "err") : f.file_id ? tag("Post-Vinyl") : "",
+      h("span", { class: "sub font-mono" }, `${length(f.duration)} · ${f.suffix.toUpperCase()}`),
+    ),
     action: h("button", { type: "button", class: "icon-btn", "aria-label": `Open ${f.title}` }, "›"),
   });
-  r.classList.add("cursor-pointer");
+  r.classList.add("cursor-pointer", "file-row");
   r.addEventListener("click", () => {
     pick();
     r.classList.add("selected");
@@ -121,6 +125,20 @@ function showFile(rail: HTMLElement, f: File, me: Me, reload: () => Promise<void
       fail(e);
     }
   }, "danger");
+  const retag = button("Retry tagging", async () => {
+    if (adminOnly()) return;
+    retag.disabled = true;
+    try {
+      await api("POST", `/api/library/files/${encodeURIComponent(f.id)}/retag`);
+      toast("Tagged.");
+      rail.replaceChildren(noSelection());
+      void reload();
+    } catch (e) {
+      fail(e);
+    } finally {
+      retag.disabled = false;
+    }
+  }, "primary");
   rail.replaceChildren(
     railSection(
       "Selected",
@@ -141,7 +159,8 @@ function showFile(rail: HTMLElement, f: File, me: Me, reload: () => Promise<void
           ...(f.file_state ? [["File state", f.file_state] as [string, string]] : []),
         ]),
       ),
-      h("div", { class: "mt-4" }, del),
+      f.tag_failed && h("p", { class: "mt-3 text-sm text-muted" }, "Tagging failed. Retrying uses the file's name; on a match its tags are replaced."),
+      h("div", { class: "mt-4 flex gap-2" }, f.tag_failed && retag, del),
     ),
     renameForm(rail, f, me, adminOnly, reload),
   );

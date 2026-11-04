@@ -142,7 +142,7 @@ def test_new_downloads_go_all_the_way_with_one_scan(tmp_path: Path) -> None:
     assert c.pipe.tick().indexed == 0 and c.nd.scans == 1  # nothing left: no scan
 
 
-def test_failed_tag_retries_once_after_an_hour_then_moves_untagged(
+def test_failed_tag_retries_once_after_the_wait_then_moves_untagged(
     tmp_path: Path,
 ) -> None:
     c = Case(tmp_path)
@@ -150,10 +150,10 @@ def test_failed_tag_retries_once_after_an_hour_then_moves_untagged(
     fid = c.download()
     c.pipe.tick()
     assert c.rec(fid).file_state == "verified" and c.tagging.calls == 1
-    c.clock.t += 59 * 60
+    c.clock.t += 29
     c.pipe.tick()
     assert c.tagging.calls == 1  # still waiting
-    c.clock.t += 2 * 60
+    c.clock.t += 2
     c.pipe.tick()
     assert c.tagging.calls == 2 and c.rec(fid).file_state == "verified"
     c.pipe.tick()

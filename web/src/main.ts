@@ -1,3 +1,4 @@
+import { servicesMenu } from "./services";
 import "./style.css";
 import { ApiError, api, whenLoggedOut, type Schemas } from "./api";
 import { h } from "./dom";
@@ -5,7 +6,7 @@ import { loginPage } from "./login";
 import { searchPage } from "./search";
 import { slskdPage } from "./slskd";
 import { listenbrainzPage } from "./listenbrainz";
-import { downloadsPage } from "./downloads";
+import { downloadsPage, watchDownloads } from "./downloads";
 import { filesPage } from "./files";
 import { settingsPage } from "./settings";
 import { adminPage } from "./admin";
@@ -37,6 +38,14 @@ function currentTab(): Tab {
   return TABS.find((t) => t.path === path) ?? TABS[0];
 }
 
+let services: HTMLElement | null = null; // kept across renders: it holds its lights and timer
+
+function startServices(): HTMLElement {
+  const menu = servicesMenu();
+  watchDownloads(menu);
+  return menu;
+}
+
 function render(): void {
   if (!me) {
     root.replaceChildren(loginPage((user) => ((me = user), void loadPageSize().then(render))));
@@ -56,6 +65,7 @@ function render(): void {
       onclick: async () => {
         await api("POST", "/api/auth/logout").catch(() => {});
         me = null;
+        services = null;
         render();
       },
     },
@@ -70,6 +80,7 @@ function render(): void {
       h(
         "div",
         { class: "ml-auto flex items-center gap-3" },
+        (services ??= startServices()),
         h("span", { class: "hidden text-muted sm:inline" }, me.username),
         logout,
       ),

@@ -48,6 +48,8 @@ the generated reference at `/docs` and `/openapi.json` (exact request and respon
 | `POST /api/auth/logout` | user | | `204` |
 | `GET /api/auth/me` | user | | `{username, is_admin}` |
 | `GET /api/system/ping` | anyone | | `{status: "ok"}` |
+| `GET /api/system/services` | user | | `{name, label, main}` per service; `main` ones are the header lights |
+| `GET /api/system/services/{name}` | user | | `{name, state, ms}`: `state` is `ok`, `down` or `off` (the source is off for this user, so it isn't called). Unknown name `404` |
 | `GET /api/me/credentials` | user | | `{listenbrainz: bool}`: which credentials are stored, never their values |
 | `PUT /api/me/credentials` | user | `{listenbrainz_token}` (`null` removes it) | checked with ListenBrainz first: invalid `422`, ListenBrainz down `503` (the old one stays), ListenBrainz off `409` |
 
@@ -78,7 +80,7 @@ A request is one song someone asked for, whatever started it. `track_state`: `re
 
 | Call | Who | Takes | Answers |
 |---|---|---|---|
-| `GET /api/requests` | user | `page`, `page_size` | the user's requests, most recently used first |
+| `GET /api/requests` | user | `page`, `page_size`, `track_state?` | the user's requests, most recently used first, with the song's `title` and `artist` |
 | `GET /api/requests/{request_id}` | owner | | the request with `download_source`, `download_state` |
 | `GET /api/requests/{request_id}/searches` | owner | | its slskd searches, newest first, every file labelled by the matcher (`correct`, `excluded:live`, `no_title`, `duration`, `locked`…) |
 | `POST /api/requests/{request_id}/drop` | owner | | the request; a running download is cancelled (`409` once it has ended) |
@@ -137,6 +139,7 @@ library.
 | `POST /api/library/files/{song_id}/rename` | admin | `{title, artist, album_artist?, album?, year?, track?, disc?}` | `{match, recording_id, release_id, via, tags, has_cover}` or `{match: false}` |
 | `POST /api/library/files/{song_id}/apply` | admin | `{recording_id, release_id}` | `{file}`: the song under its new id (`null` if Navidrome doesn't list it yet) |
 | `POST /api/library/files/{song_id}/strip` | admin | `{title, artist}` | `{file}` at `<artist>/<title>` |
+| `POST /api/library/files/{song_id}/retag` | admin | | tries tagging again from the file's name; on a match the tags are rewritten (no new cover keeps the old one): `{file}`. Nothing matched `422`, the file unchanged |
 | `DELETE /api/library/files/{song_id}` | admin | | `204`; the file goes, Navidrome rescans; a later request downloads it again |
 | `GET /api/library/files/{song_id}/cover` | user | `size?` (32–600 px, default 160) | the song's cover image from Navidrome (`has_cover` on the song says it has one), cached a day by the browser; never stored; `404` when there is none |
 
@@ -148,6 +151,9 @@ library.
 | `DELETE /api/admin/peers/{username}` | admin | | `{cleared: 0 \| 1}` |
 | `DELETE /api/admin/peers` | admin | | `{cleared: n}` |
 | `GET /api/admin/users` | admin | | `{id, username, is_admin, status, has_listenbrainz_token, created_at}` per user; no secrets |
+| `POST /api/admin/users` | admin | `{username, password, is_admin}` | `201`, the user: creates the Navidrome account and the Post-Vinyl user. Name taken `409`, saved admin login no longer valid `409`, Navidrome down `503` |
+| `PUT /api/admin/users/{user_id}/password` | admin | `{password}` | `204`: changed in Navidrome and here. Unknown user `404` |
+| `DELETE /api/admin/users/{user_id}` | admin | | `204`: the Navidrome account goes, pulls and undownloaded requests are cancelled, request history stays hidden. Yourself `409`, unknown user `404` |
 
 ## Settings
 

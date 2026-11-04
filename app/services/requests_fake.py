@@ -95,13 +95,25 @@ class FakeRequestService(RequestServiceBase):
         return self._move(user_id, request_id, states.re_request)
 
     def history(
-        self, user_id: int, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE
+        self,
+        user_id: int,
+        page: int = 1,
+        page_size: int = DEFAULT_PAGE_SIZE,
+        track_state: str | None = None,
     ) -> Page:
         page, page_size = clamp_page(page, page_size)
         mine = sorted(
-            (r for r in self.requests.values() if r.user_id == user_id),
+            (
+                r
+                for r in self.requests.values()
+                if r.user_id == user_id
+                and (track_state is None or r.track_state == track_state)
+            ),
             key=lambda r: (r.last_used_at, r.id),
             reverse=True,
         )
         start = (page - 1) * page_size
         return Page(mine[start : start + page_size], len(mine), page, page_size)
+
+    def song_names(self, song_ids: list[int]) -> dict[int, tuple[str, str]]:
+        return {}

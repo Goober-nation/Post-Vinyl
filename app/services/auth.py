@@ -156,7 +156,12 @@ class AuthService(AuthServiceBase):
         token = secrets.token_urlsafe(32)
         with self._db.transaction() as conn:
             user = self._users.upsert_on_login(
-                conn, nd.username, self._box.encrypt(password), nd.is_admin, now
+                conn,
+                nd.username,
+                self._box.encrypt(password),
+                nd.is_admin,
+                now,
+                nd.nd_id or None,
             )
             self._users.create_session(
                 conn, user.id, hash_token(token), now, now + SESSION_LIFETIME_S

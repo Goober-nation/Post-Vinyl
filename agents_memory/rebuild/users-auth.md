@@ -15,6 +15,41 @@ header in `app/main.py`). The old `users`/`sessions` tables were dropped in migr
 - Cookies HttpOnly, Secure, SameSite=Lax. State-changing requests need a CSRF check.
 - Losing the encryption key loses every stored secret, so back the key up outside the DB.
 
+## Decided 2026-11-04 (wins over everything below)
+Built and on `rebuild/logo`. Checked against Navidrome 0.64.2's source and a throwaway instance.
+
+- **First admin from the login page** (user): replaces "a new Navidrome's admin is made on
+  Navidrome's own page". `GET /api/auth/first-admin` reads `firstTime` from the config embedded in
+  Navidrome's `/app/` page, the only place that says whether users exist (the keep-alive route says
+  nothing). `POST /api/auth/first-admin` calls `createAdmin` and logs in. Both are open routes;
+  Navidrome answers 403 once a user exists (our 409). If `/app/` changes, the form just stops
+  appearing and login still works.
+- **Admins manage accounts from the Admin tab** (user): replaces "PV never edits or deletes ND
+  users" and "accounts are created in Navidrome". Navidrome still owns them; each action runs
+  there first, as the acting admin, then updates our row.
+  - Create: `POST /api/user`. `name` is optional, an empty `userName` is accepted (we refuse it),
+    a taken name is 400 `ra.validation.unique`, new users get the libraries.
+  - Password: `PUT /api/user/{id}` replaces the whole user, so a partial body blanks the name. We
+    fetch the record and send it back. Your own password also needs `currentPassword`. A change
+    ends that user's Navidrome tokens.
+  - Delete: `DELETE /api/user/{id}`. Navidrome lets an admin delete themselves and leave no admin,
+    so we refuse deleting yourself (user).
+- **Deleting keeps history** (user): requests have no cascade and stay, on a hidden row
+  `deleted-<id>` (`users.deleted_at`) with no secrets; sessions and settings go. Pulls are
+  cancelled and kept, requests not yet downloading are dropped, started downloads finish, the
+  music stays.
+- **Changes made in Navidrome** (user asked, 2026-11-04):
+  - Users are matched by Navidrome's id (`users.nd_id`, from the login response; migration 002), so
+    a rename keeps the row and the next login updates the name. A row with no id yet is matched by
+    name once. A stale row holding a wanted name becomes `name~id`.
+  - A refused saved login sets `needs_reauth` and ends that user's sessions; this is what finally
+    sets that status. Playlist updates skip them, and background work moves to the next working
+    admin. A login clears it.
+  - Limit: only noticed when a saved login is tried, so a user with no pulls removed in Navidrome
+    keeps their Post-Vinyl session for up to 30 days. No periodic check yet.
+- Navidrome's login limit (5 per 20 s by default) applies to these actions, as each logs in first:
+  a burst gets a 503.
+
 ## Decided 2026-10-28 (milestone 4 planning; wins over the plan below)
 - Credentials are checked with the Navidrome client's `login()` (`POST /auth/login`, #80),
   not Subsonic `ping`; it also returns the JWT and a Subsonic token for the session's calls.

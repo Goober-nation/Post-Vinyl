@@ -563,3 +563,5 @@ Decided 2026-10-03:
 ## Pull tables (2026-11-04)
 `lb_playlists`, `user_lb_playlists`, `user_radio_requests`, `pull_items` and `users.lb_username`:
 see `lb-pulls.md`. `app/stores/migrations/001_initial.sql` is the current schema.
+
+`002_user_identity.sql` (2026-11-04) adds `users.nd_id` and `users.deleted_at`: see `users-auth.md`.

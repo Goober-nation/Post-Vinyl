@@ -19,11 +19,18 @@ from dataclasses import dataclass
 
 from app.clients.navidrome import Cover
 from app.clients.navidrome import Song as LibrarySong
+from app.core.file_song import UNKNOWN_ARTIST, names_from_path
 from app.core.matcher import same_song
 from app.services.encryption import SecretBox
 from app.services.files import FilesService
 from app.services.requests import DEFAULT_PAGE_SIZE, clamp_page
-from app.services.tagging import Suggestion, TaggingService, strip_tags, write_tags
+from app.services.tagging import (
+    Suggestion,
+    TagFailed,
+    TaggingService,
+    strip_tags,
+    write_tags,
+)
 from app.stores.database import Database
 from app.stores.files import FileRecord
 from app.stores.users import User
@@ -45,6 +52,7 @@ class LibraryFile:
     file_id: int | None  # Post-Vinyl's record, when it downloaded the song
     file_state: str | None
     has_cover: bool = False  # Navidrome has art for it: /cover answers an image
+    tag_failed: bool = False  # it moved in untagged: its last tagging failed
 
 
 @dataclass(frozen=True)
@@ -68,11 +76,11 @@ class Rename:
     disc: int | None = None
 
 
-def item(song: LibrarySong, rec: FileRecord | None) -> LibraryFile:
+def item(song: LibrarySong, rec: FileRecord | None, failed: set[int]) -> LibraryFile:
     return LibraryFile(
         song.id, song.title, song.artist, song.album, song.duration, song.suffix,
         song.missing, rec.id if rec else None, rec.file_state if rec else None,
-        song.has_cover,
+        song.has_cover, rec is not None and rec.id in failed,
     )  # fmt: skip
 
 
@@ -103,6 +111,11 @@ class LibraryServiceBase(ABC):
         """No match: every tag off, the file moves to ``<artist>/<title>``."""
 
     @abstractmethod
+    def retag(self, admin: User, song_id: str) -> LibraryFile | None:
+        """Try tagging again from the file's name; on a match the tags are rewritten.
+        TagFailed when nothing matches, and the file stays as it is."""
+
+    @abstractmethod
     def delete(self, song_id: str) -> None: ...
 
     @abstractmethod
@@ -122,7 +135,8 @@ class LibraryService(LibraryServiceBase):
     def _out(self, song: LibrarySong | None) -> LibraryFile | None:
         if song is None:  # Navidrome doesn't list the new path yet
             return None
-        return item(song, self._files.records([song.id]).get(song.id))
+        rec = self._files.records([song.id]).get(song.id)
+        return item(song, rec, self._files.tag_failed([rec.id] if rec else []))
 
     def owned(self, songs: list[tuple[str, str]]) -> list[bool]:
         return [self._has(title, artist) for title, artist in songs]
@@ -141,8 +155,9 @@ class LibraryService(LibraryServiceBase):
         songs, total = self._files.library_page(" ".join(query.split()), start,
                                                 start + page_size)  # fmt: skip
         recs = self._files.records([s.id for s in songs])
-        return LibraryPage([item(s, recs.get(s.id)) for s in songs], total, page,
-                           page_size)  # fmt: skip
+        failed = self._files.tag_failed([r.id for r in recs.values()])
+        return LibraryPage([item(s, recs.get(s.id), failed) for s in songs], total,
+                           page, page_size)  # fmt: skip
 
     def suggest(self, admin: User, song_id: str, rename: Rename) -> Suggestion | None:
         title, artist = " ".join(rename.title.split()), " ".join(rename.artist.split())
@@ -160,6 +175,10 @@ class LibraryService(LibraryServiceBase):
         path = self._files.library_path(self._files.library_song(song_id))
         tags, cover = self._tagging.tags_for(admin.id, recording_id, release_id)
         write_tags(path, tags, cover)
+        rec = self._files.records([song_id]).get(song_id)
+        if rec:
+            written = {**tags, "cover": cover is not None}
+            self._tagging.record_retag(rec.id, recording_id, release_id, written)
         log.info("library %s retagged by %s as %s – %s", song_id, admin.username,
                  tags.get("artist"), tags.get("title"))  # fmt: skip
         return self._out(self._files.re_place(song_id, str(tags.get("title", "")),
@@ -176,6 +195,20 @@ class LibraryService(LibraryServiceBase):
         log.info("library %s stripped by %s, moving as %s – %s", song_id,
                  admin.username, artist, title)  # fmt: skip
         return self._out(self._files.re_place(song_id, title, artist))
+
+    def retag(self, admin: User, song_id: str) -> LibraryFile | None:
+        song = self._files.library_song(song_id)
+        self._files.library_path(song)  # refuse before any lookup
+        title, artist = names_from_path(song.path)
+        if artist == UNKNOWN_ARTIST:
+            artist = song.artist
+        found = self.suggest(admin, song_id, Rename(title, artist))
+        if found is None and song.title and song.artist:
+            # a bare "feather nujabes" names no artist: the current names may do
+            found = self.suggest(admin, song_id, Rename(song.title, song.artist))
+        if found is None:
+            raise TagFailed(f"nothing matched {artist} – {title}")
+        return self.apply(admin, song_id, found.recording_id, found.release_id)
 
     def delete(self, song_id: str) -> None:
         self._files.delete_library_file(song_id)

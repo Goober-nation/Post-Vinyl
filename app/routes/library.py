@@ -101,6 +101,11 @@ def strip(song_id: str, body: Strip, admin: AdminDep, core: CoreDep) -> Moved:
     return Moved(file=lib.strip(admin, song_id, body.title, body.artist))
 
 
+@router.post("/{song_id}/retag")
+def retag(song_id: str, admin: AdminDep, core: CoreDep) -> Moved:
+    return Moved(file=need(core.library, "the library").retag(admin, song_id))
+
+
 @router.delete("/{song_id}", status_code=204)
 def delete(song_id: str, _: AdminDep, core: CoreDep) -> None:
     need(core.library, "the library").delete(song_id)

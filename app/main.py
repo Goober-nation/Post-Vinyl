@@ -20,6 +20,7 @@ from app.clients.deezer import DeezerClient
 from app.clients.listenbrainz import ListenBrainzClient
 from app.clients.musicbrainz import MusicBrainzClient
 from app.clients.navidrome import NavidromeClient, NavidromeClientBase
+from app.clients.reach import check_reachable
 from app.clients.slskd import SlskdClient
 from app.config import Settings
 from app.dependencies import Core
@@ -58,6 +59,7 @@ from app.services.slskd_search import SlskdSearcher
 from app.services.slskd_source import SlskdSource
 from app.services.slskd_tab import SlskdTab
 from app.services.sources import SourcePreferences
+from app.services.status import Check, StatusService
 from app.services.tagging import TaggingService
 from app.stores.database import Database
 from app.workers.core_loop import CoreLoopWorkers
@@ -109,12 +111,37 @@ def build_core(
         DownloadsService(db, slskd, downloader, sources=prefs),
         pause,
         LibraryService(db, files, tagging, box),
-        AdminService(db),
+        AdminService(db, nd, box, pulls.stop_user),
         CredentialsService(db, lb, box, prefs),
         UserSettings(db, prefs),
         InstallSettings(settings),
         workers,
         pulls,
+        StatusService(
+            prefs,
+            [
+                Check("navidrome", "Navidrome", nd.has_no_users),
+                Check("slskd", "slskd", slskd.app_state, ("download", "slskd")),
+                Check(
+                    "musicbrainz",
+                    "MusicBrainz",
+                    lambda: check_reachable("https://musicbrainz.org/ws/2/"),
+                    ("catalog", "musicbrainz"),
+                ),
+                Check(
+                    "listenbrainz",
+                    "ListenBrainz",
+                    lambda: check_reachable("https://api.listenbrainz.org/1/"),
+                    ("catalog", "listenbrainz"),
+                ),
+                Check(
+                    "deezer",
+                    "Deezer",
+                    lambda: check_reachable("https://api.deezer.com/infos"),
+                    ("catalog", "deezer"),
+                ),
+            ],
+        ),
     )
 
 

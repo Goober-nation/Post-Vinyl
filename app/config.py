@@ -98,9 +98,9 @@ class WorkersSettings:
     pipeline_every_seconds: int = setting(
         10, "Downloaded files: verify, tag, move into the library, then one Navidrome "
         "scan.", 5, 300, 5)  # fmt: skip
-    retag_after_minutes: int = setting(
-        60, "A failed tagging is tried once more this long after; then the file moves "
-        "untagged.", 5, 1440, 5)  # fmt: skip
+    retag_after_seconds: int = setting(
+        30, "A failed tagging is tried once more this long after; then the file moves "
+        "untagged.", 10, 3600, 10)  # fmt: skip
     missing_check_minutes: int = setting(
         60, "How often files deleted outside Post-Vinyl are marked missing.", 5, 1440, 5
     )
@@ -119,6 +119,7 @@ def load_workers(path: Path) -> WorkersSettings:
     raw = _read(path).get("workers") or {}
     if not isinstance(raw, dict):
         raise ConfigError(f"{path}: 'workers' must be a section")
+    raw.pop("retag_after_minutes", None)  # replaced by retag_after_seconds
     unknown = set(raw) - set(vars(WorkersSettings()))
     if unknown:
         raise ConfigError(f"{path}: unknown workers settings {sorted(unknown)}")

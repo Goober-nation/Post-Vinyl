@@ -387,6 +387,10 @@ class FilesService(FilesServiceBase):
         with self._db.transaction() as conn:
             return self._files.by_navidrome_ids(conn, navidrome_ids)
 
+    def tag_failed(self, file_ids: list[int]) -> set[int]:
+        with self._db.transaction() as conn:
+            return self._files.last_tagging_failed(conn, file_ids)
+
     def library_song(self, navidrome_id: str) -> LibrarySong:
         try:
             song: LibrarySong = self._call(lambda s: self._nd.get_song(s, navidrome_id))
@@ -497,8 +501,15 @@ class FilesService(FilesServiceBase):
         raise NavidromeError("unreachable")
 
     def _login(self) -> Session:
-        with self._db.transaction() as conn:
-            admin = UsersStore().first_admin(conn)
-        if admin is None:
-            raise NoAdmin("no admin has logged in yet")
-        return self._nd.login(admin.username, self._box.decrypt(admin.nd_password_enc))
+        while True:
+            with self._db.transaction() as conn:
+                admin = UsersStore().first_admin(conn)
+            if admin is None:
+                raise NoAdmin("no admin has a working login")
+            password = self._box.decrypt(admin.nd_password_enc)
+            try:
+                return self._nd.login(admin.username, password)
+            except NavidromeAuthError:
+                log.warning("Navidrome refused the saved login of an admin")
+                with self._db.transaction(write=True) as conn:
+                    UsersStore().mark_login_refused(conn, admin.id)

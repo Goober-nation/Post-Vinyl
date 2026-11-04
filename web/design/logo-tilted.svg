@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="90 50 570 560" role="img" aria-label="Post-Vinyl">
+  <!-- neck -->
+  <path fill="#c98a12" d="M583 400 540 420 543.3 439.6 588.3 431.7Z"/>
+  <!-- horn -->
+  <path fill="#7a4e08" d="M163 71 305 90 299 175Z"/>
+  <path fill="#e8a92c" d="M163 71 299 175 290 342 116 372Z"/>
+  <path fill="#b87808" d="M305 90 573 340 583 400 290 342 299 175Z"/>
+  <path fill="#8f5c0a" d="M116 372 290 342 583 400 540 420Z"/>
+  <!-- base -->
+  <path fill="#c98a12" d="M186 503 626 425 636 504 197 586Z"/>
+</svg>

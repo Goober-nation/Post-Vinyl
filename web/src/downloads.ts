@@ -6,7 +6,10 @@
 import { ApiError, api, type Schemas } from "./api";
 import { h } from "./dom";
 import { coverUrl } from "./files";
-import { button, closeButton, confirm, cover, filters, kv, pageHead, pager, pageSize, railSection, row, state, toast, type Tone } from "./ui";
+import { button, closeButton, confirm, cover, filters, kv, pageHead, pager, pageSize, paged, railSection, row, state, toast, type Tone } from "./ui";
+
+const WATCH_MS = 5_000;
+const NOT_FOUND_MS = 10_000;
 
 const POLL_MS = 1500;
 type Item = Schemas["QueueItem"];
@@ -50,6 +53,7 @@ export function downloadsPage(me: Me): HTMLElement {
   const bar = h("div");
   // without a state in the URL the server applies the user's default filter;
   // read it so the matching filter shows as chosen
+  const notFound = h("div");
   const stateTabs = h("div", { class: "ml-auto" });
   const drawTabs = (current: string) =>
     stateTabs.replaceChildren(filters("State", STATES, current, (v) => go({ state: v || "all", page: "" })));
@@ -73,7 +77,7 @@ export function downloadsPage(me: Me): HTMLElement {
   const el = h(
     "div",
     {},
-    h("div", { class: "center-main" }, head, list, pages),
+    h("div", { class: "center-main" }, head, list, pages, notFound),
     h("aside", { class: "side-rail rail" }, detail, queueRail(me)),
     bar,
   );
@@ -88,6 +92,9 @@ export function downloadsPage(me: Me): HTMLElement {
     if (id) void showDetail(detail, id).then(() => innerWidth < 1280 && detail.scrollIntoView({ behavior: "smooth" }));
     else detail.replaceChildren();
   };
+
+  void loadNotFound(notFound);
+  const notFoundTimer = window.setInterval(() => (el.isConnected ? void loadNotFound(notFound) : clearInterval(notFoundTimer)), NOT_FOUND_MS);
 
   let last = "";
   let polls = 0;
@@ -123,6 +130,45 @@ export function downloadsPage(me: Me): HTMLElement {
   // on narrower screens the details sit below the list: bring them into view
   if (selected) void showDetail(detail, selected).then(() => innerWidth < 1280 && detail.scrollIntoView({ behavior: "smooth" }));
   return el;
+}
+
+// ── requests no source could find ───────────────────────────────────────
+
+async function loadNotFound(el: HTMLElement): Promise<void> {
+  try {
+    const { items } = await api<Schemas["RequestPage"]>("GET", "/api/requests?track_state=notFound&page_size=100");
+    const sig = JSON.stringify(items.map((r) => r.id));
+    if (el.dataset.sig === sig) return;
+    el.dataset.sig = sig;
+    el.replaceChildren(
+      items.length
+        ? h(
+            "section",
+            { class: "mt-10" },
+            h("h2", { class: "rail-title" }, "Not found"),
+            paged(
+              items.map((r) => {
+                const again = button("Request again", async () => {
+                  try {
+                    await api("POST", `/api/requests/${r.id}/re-request`);
+                    toast("Requested again.");
+                    void loadNotFound(el);
+                  } catch (e) {
+                    toast(e instanceof ApiError ? e.message : "Can't reach Post-Vinyl.", "err");
+                  }
+                });
+                const line = row({ title: r.title ?? r.query ?? `Request ${r.id}`, artist: r.artist ?? "Unknown artist", state: state("Not found", "err"), action: again });
+                line.classList.add("user-row");
+                return line;
+              }),
+              ["request", "requests"],
+            ),
+          )
+        : "",
+    );
+  } catch {
+    // the next look tries again
+  }
 }
 
 // ── the list ────────────────────────────────────────────────────────────
@@ -260,4 +306,20 @@ function queueRail(me: Me): HTMLElement {
   draw(null);
   if (me.is_admin) void api<Schemas["QueueState"]>("GET", "/api/admin/queue").then((r) => draw(r.paused), () => {});
   return holder;
+}
+
+/** Toast each of the user's downloads as it starts, on any tab, while `owner` is on the page. */
+export function watchDownloads(owner: HTMLElement): void {
+  let seen: Set<number> | null = null; // null: the first look only notes what's already running
+  const look = async () => {
+    try {
+      const { items } = await api<Schemas["QueuePage"]>("GET", "/api/downloads?state=downloading&page_size=25");
+      if (seen) for (const it of items) if (!seen.has(it.id)) toast(`Downloading ${it.title ?? "a song"}${it.artist ? ` by ${it.artist}` : ""}.`);
+      seen = new Set(items.map((it) => it.id));
+    } catch {
+      // the next look tries again; the Downloads tab reports failures
+    }
+    if (owner.isConnected) setTimeout(() => void look(), WATCH_MS);
+  };
+  setTimeout(() => void look(), 0);
 }

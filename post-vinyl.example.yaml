@@ -58,7 +58,7 @@ workers:
   pipeline_every_seconds: 10
   # A failed tagging is tried once more, this long after (MusicBrainz may have
   # been down); after that the file moves untagged.
-  retag_after_minutes: 60
+  retag_after_seconds: 30
   # Files deleted outside Post-Vinyl are marked missing.
   missing_check_minutes: 60
   # Requests still waiting (e.g. no download source was on, or the queue was

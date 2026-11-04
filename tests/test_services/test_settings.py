@@ -50,7 +50,7 @@ def test_schema_comes_from_the_code_and_folders_are_read_only() -> None:
     )
     assert (
         not schema["files.music_dir"].editable
-        and schema["workers.retag_after_minutes"].editable
+        and schema["workers.retag_after_seconds"].editable
     )
 
 
@@ -77,11 +77,11 @@ def test_an_edit_keeps_every_comment_and_untouched_line(cfg: Path) -> None:
 def test_inline_comments_missing_keys_and_sections(cfg: Path) -> None:
     cfg.write_text("sources:\n  catalog: [musicbrainz]  # mine\n  download: [slskd]\n",
                    encoding="utf-8")  # fmt: skip
-    write_values(cfg, {"sources.catalog": ["deezer"], "workers.retag_after_minutes": 30,
+    write_values(cfg, {"sources.catalog": ["deezer"], "workers.retag_after_seconds": 30,
                        "slskd.throttle_check_query": 'say "hi"'}, NOW)  # fmt: skip
     text = cfg.read_text(encoding="utf-8")
     assert "  catalog: [deezer]  # mine\n" in text
-    assert "\nworkers:\n  retag_after_minutes: 30\n" in text
+    assert "\nworkers:\n  retag_after_seconds: 30\n" in text
     assert load_slskd(cfg).throttle_check_query == 'say "hi"'
     write_values(cfg, {"slskd.peer_ban_days": 9}, NOW + 1)  # a key missing in a section
     assert (
@@ -106,7 +106,7 @@ def test_bad_values_change_nothing(
 ) -> None:
     before = cfg.read_bytes()
     with pytest.raises(ConfigError, match=why):
-        write_values(cfg, {"workers.retag_after_minutes": 30, **changes}, NOW)
+        write_values(cfg, {"workers.retag_after_seconds": 30, **changes}, NOW)
     assert cfg.read_bytes() == before and not list(cfg.parent.glob("*.bak"))
 
 

@@ -90,6 +90,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Services */
+        get: operations["services_api_system_services_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/services/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ping Service */
+        get: operations["ping_service_api_system_services__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/tracks": {
         parameters: {
             query?: never;
@@ -687,8 +721,43 @@ export interface paths {
         /** Users */
         get: operations["users_api_admin_users_get"];
         put?: never;
+        /** Create User */
+        post: operations["create_user_api_admin_users_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{user_id}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Password */
+        put: operations["set_password_api_admin_users__user_id__password_put"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete User */
+        delete: operations["delete_user_api_admin_users__user_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -776,6 +845,23 @@ export interface paths {
         put?: never;
         /** Strip */
         post: operations["strip_api_library_files__song_id__strip_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/files/{song_id}/retag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retag */
+        post: operations["retag_api_library_files__song_id__retag_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1128,6 +1214,11 @@ export interface components {
              * @default false
              */
             has_cover: boolean;
+            /**
+             * Tag Failed
+             * @default false
+             */
+            tag_failed: boolean;
         };
         /** LibraryPage */
         LibraryPage: {
@@ -1157,6 +1248,11 @@ export interface components {
         /** Moved */
         Moved: {
             file: components["schemas"]["LibraryFile"] | null;
+        };
+        /** NewPassword */
+        NewPassword: {
+            /** Password */
+            password: string;
         };
         /** NewRadioPull */
         NewRadioPull: {
@@ -1196,6 +1292,18 @@ export interface components {
         NewSearch: {
             /** Query */
             query: string;
+        };
+        /** NewUser */
+        NewUser: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+            /**
+             * Is Admin
+             * @default false
+             */
+            is_admin: boolean;
         };
         /** OwnedCheck */
         OwnedCheck: {
@@ -1404,6 +1512,10 @@ export interface components {
             source: string;
             /** Query */
             query: string | null;
+            /** Title */
+            title?: string | null;
+            /** Artist */
+            artist?: string | null;
             /** Track State */
             track_state: string;
             /** Created At */
@@ -1516,6 +1628,24 @@ export interface components {
             /** Peers */
             peers: components["schemas"]["PeerView"][];
         };
+        /** ServiceInfo */
+        ServiceInfo: {
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            /** Main */
+            main: boolean;
+        };
+        /** ServicePing */
+        ServicePing: {
+            /** Name */
+            name: string;
+            /** State */
+            state: string;
+            /** Ms */
+            ms: number | null;
+        };
         /** SlskdPeer */
         SlskdPeer: {
             /** Username */
@@ -1604,6 +1734,11 @@ export interface components {
              * @default
              */
             cover_id: string;
+            /**
+             * Album
+             * @default
+             */
+            album: string;
         };
         /** TypedSearchOut */
         TypedSearchOut: {
@@ -1789,6 +1924,57 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    services_api_system_services_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceInfo"][];
+                };
+            };
+        };
+    };
+    ping_service_api_system_services__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicePing"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2062,6 +2248,7 @@ export interface operations {
             query?: {
                 page?: number;
                 page_size?: number;
+                track_state?: string | null;
             };
             header?: never;
             path?: never;
@@ -2877,6 +3064,101 @@ export interface operations {
             };
         };
     };
+    create_user_api_admin_users_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewUser"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_password_api_admin_users__user_id__password_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewPassword"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_user_api_admin_users__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     files_api_library_files_get: {
         parameters: {
             query?: {
@@ -3027,6 +3309,37 @@ export interface operations {
                 "application/json": components["schemas"]["Strip"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Moved"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retag_api_library_files__song_id__retag_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                song_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

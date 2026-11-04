@@ -213,6 +213,40 @@ export function confirm(question: string, action: string): Promise<boolean> {
   });
 }
 
+/** A small dialog of text inputs; resolves to their values, or null if cancelled. */
+export function modalForm(
+  title: string,
+  action: string,
+  fields: { label: string; name: string; type: string; autocomplete: string }[],
+): Promise<Record<string, string> | null> {
+  return new Promise((resolve) => {
+    let values: Record<string, string> | null = null;
+    const form = h(
+      "form",
+      {
+        class: "flex flex-col gap-2",
+        onsubmit: (event: Event) => {
+          event.preventDefault();
+          values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+          dialog.close();
+        },
+      },
+      h("p", { class: "mb-2" }, title),
+      ...fields.map((f) => h("input", { class: "input w-full", ...f, required: true, placeholder: f.label, "aria-label": f.label })),
+      h(
+        "div",
+        { class: "modal-action" },
+        h("button", { class: "btn", type: "button", onclick: () => dialog.close() }, "Cancel"),
+        h("button", { class: "btn btn-primary", type: "submit" }, action),
+      ),
+    );
+    const dialog = h("dialog", { class: "modal" }, h("div", { class: "modal-box bg-base-200 border border-line" }, form));
+    dialog.addEventListener("close", () => (dialog.remove(), resolve(values)));
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}
+
 const toasts = h("div", { class: "toast toast-end bottom-16 z-20", role: "status", "aria-live": "polite" });
 /** Short message in the corner; errors stay until clicked. */
 export function toast(text: string, tone: "ok" | "err" = "ok"): void {

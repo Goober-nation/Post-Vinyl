@@ -94,6 +94,9 @@ def parse_search_hit(raw: dict[str, Any]) -> Track:
         cover_id=next(
             (f"release/{r['id']}" for r in raw.get("releases") or [] if r.get("id")), ""
         ),
+        album=next(
+            (r["title"] for r in raw.get("releases") or [] if r.get("title")), ""
+        ),
         releases=tuple(
             ReleaseRef(
                 status=rel.get("status") or "",

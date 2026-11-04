@@ -68,3 +68,9 @@ MusicBrainz / ListenBrainz / Deezer / Cover Art Archive. Versions: `work-plan.md
 ## Across the loop
 - [ ] **Runs of many hours and slskd keeping searches for days**: #116 ran 1 h (user
   2026-10-30); a session refreshed by use never expires, a forced idle expiry re-logged in.
+
+## User management (2026-11-04)
+- [ ] **Password and delete through the routes** against a real Navidrome: the client calls ran live, the routes on the fake.
+- [ ] **A real rename in Navidrome** followed by a login: the store logic has a test only.
+- [ ] **`stop_user` cancelling real pulls and requests** when a user is deleted.
+- [ ] **`needs_reauth` moving background work** to the next admin on a real stale login.

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Post-Vinyl">
+  <!-- horn -->
+  <path fill="#f9bd2e" d="M8 6 40 4 25 30Z"/>
+  <path fill="#e9a820" d="M8 6 25 30 44 41 8 26Z"/>
+  <path fill="#c97f12" d="M40 4 44 41 25 30Z"/>
+  <!-- base and record -->
+  <rect x="10" y="46" width="44" height="12" rx="2" fill="#c97f12"/>
+  <rect x="42" y="40" width="4" height="7" fill="#c97f12"/>
+  <ellipse cx="29" cy="46" rx="15" ry="3.5" fill="#f9bd2e"/>
+</svg>

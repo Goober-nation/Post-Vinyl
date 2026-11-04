@@ -208,6 +208,24 @@ def test_search_artists_parse(monkeypatch: pytest.MonkeyPatch) -> None:
     assert (artist.id, artist.name, artist.source) == ("1234", "Mötley Crüe", "deezer")
 
 
+def test_search_artists_drops_profiles_without_albums(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    body = {
+        "data": [
+            {"id": 1, "name": "Real", "nb_album": 56},
+            {"id": 2, "name": "Empty", "nb_album": 0},
+        ]
+    }
+    client, _ = client_returning(monkeypatch, FakeResp(body))
+    assert [a.name for a in client.search_artists("x")] == ["Real"]
+
+
+def test_a_searched_track_names_its_album() -> None:
+    track = deezer.parse_track(TRACK | {"album": {"id": 7, "title": "Swimming"}})
+    assert track.album == "Swimming"
+
+
 # ------------------------------------------------------------ covers (#127)
 
 MD5 = "939a0f931485422493209a8158df0812"

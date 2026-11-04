@@ -116,6 +116,11 @@ class PullServiceBase(ABC):
         """Queued songs leave; downloads already started finish."""
 
     @abstractmethod
+    def stop_user(self, user_id: int) -> None:
+        """A deleted user: their pulls cancel and requests not yet downloading
+        are dropped; downloads already started finish."""
+
+    @abstractmethod
     def feed(self) -> None:
         """One worker tick: end settled pulls, start the next song."""
 
@@ -281,6 +286,24 @@ class PullService(PullServiceBase):
                 pass  # it moved on meanwhile: a started download finishes
         assert cancelled is not None
         return cancelled
+
+    def stop_user(self, user_id: int) -> None:
+        with self._db.transaction() as conn:
+            pulls = [
+                p.id
+                for p in self._pulls.for_user(conn, user_id)
+                if p.state == "running"
+            ]
+        for pull_id in pulls:
+            self.cancel(user_id, pull_id)
+        with self._db.transaction() as conn:
+            waiting = self._pulls.user_undownloaded_requests(conn, user_id)
+        for request_id in waiting:
+            try:
+                self._requests.drop(user_id, request_id)
+                self._dispatch.cancel(user_id, request_id)
+            except (IllegalTransition, StateChanged):
+                pass  # it moved on meanwhile: a started download finishes
 
     # ------------------------------------------------------------ the worker
 
