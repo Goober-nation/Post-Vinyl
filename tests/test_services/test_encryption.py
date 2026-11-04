@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from app.services.encryption import (
@@ -58,3 +60,25 @@ def test_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     key = generate_key()
     monkeypatch.setenv("PV_SECRET_KEY", key)
     assert SecretBox(key).decrypt(SecretBox.from_env().encrypt("x")) == "x"
+
+
+def test_a_key_is_made_once_when_none_is_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PV_SECRET_KEY", "")
+    path = tmp_path / "secret.key"
+    stored = SecretBox.from_env_or_file(path).encrypt("pw")
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert SecretBox.from_env_or_file(path).decrypt(stored) == "pw"
+
+
+def test_the_env_key_wins_over_the_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    key = generate_key()
+    monkeypatch.setenv("PV_SECRET_KEY", key)
+    path = tmp_path / "secret.key"
+    assert (
+        SecretBox(key).decrypt(SecretBox.from_env_or_file(path).encrypt("pw")) == "pw"
+    )
+    assert not path.exists()

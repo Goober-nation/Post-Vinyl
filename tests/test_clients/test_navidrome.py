@@ -15,7 +15,6 @@ from app.clients.navidrome import (
     NavidromeNotFound,
     Session,
 )
-from app.clients.navidrome_fake import FakeNavidromeClient
 
 
 class FakeResp:
@@ -156,15 +155,6 @@ def test_expired_session_is_auth_error(monkeypatch: pytest.MonkeyPatch) -> None:
     client, _ = client_returning(monkeypatch, FakeResp(401, "unauthorized"))
     with pytest.raises(NavidromeAuthError):
         client.get_song(session(), "s1")
-
-
-def test_fake_first_admin_only_once() -> None:
-    fake = FakeNavidromeClient()
-    fake.create_admin("admin", "pw")
-    with pytest.raises(NavidromeForbidden):
-        fake.create_admin("other", "pw")
-    with pytest.raises(NavidromeAuthError):
-        fake.login("admin", "wrong")
 
 
 def test_cover_art_is_the_image_navidrome_streams(

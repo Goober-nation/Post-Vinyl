@@ -1,7 +1,7 @@
 # slskd configuration reference for Post-Vinyl.
 #
 # slskd's *actual* runtime config lives in ./slskd_config/ (bind-mounted to
-# /app inside the container — see docker-compose.yml), which is entirely
+# /app inside the container — see the compose file), which is entirely
 # gitignored because it holds live state alongside config. This file is the
 # tracked reference companion.
 #
@@ -49,7 +49,7 @@ remote_configuration: true              # SLSKD_REMOTE_CONFIGURATION — lets th
 # env var docker-compose.yml passes in, so the key must stay absent/commented
 # for the env var to actually take effect.
 # directories:
-#   downloads: <set via SLSKD_DOWNLOADS_DIR env var — see docker-compose.yml>
+#   downloads: <set via SLSKD_DOWNLOADS_DIR env var — see the compose file>
 #   # Must live under /music (the volume shared with postvinyl) — slskd's
 #   # own default (<data_dir>/downloads, i.e. /app/downloads) is on the
 #   # ./slskd_config bind mount instead, which postvinyl can't see at all.

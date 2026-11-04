@@ -42,7 +42,7 @@ STATUS: dict[type[Exception], int] = {
     LibraryFileNotFound: 404,  # no such library song, or its file isn't in the library
     TagFailed: 422,  # e.g. a release that isn't one of the recording's
     CredentialCheckUnavailable: 503,  # ListenBrainz can't check a token now
-    NoAdmin: 503,  # no Post-Vinyl admin to reach Navidrome as (setup not run)
+    NoAdmin: 503,  # no admin has logged in yet to reach Navidrome as
     CatalogError: 502,  # the source failed while browsing
     CatalogUnavailable: 503,  # no source answered, or none enabled
     SourceOff: 409,  # the source this needs is turned off
