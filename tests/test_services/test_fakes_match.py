@@ -11,8 +11,10 @@ from pathlib import Path
 
 import pytest
 
-from app.clients.catalog import CatalogBusy, ReleaseRef, Track
+from app.clients.catalog import Album, CatalogBusy, ReleaseRef, Track
 from app.clients.catalog_fake import FakeCatalog
+from app.clients.listenbrainz import PopularRecording, SimilarArtist
+from app.clients.listenbrainz_fake import FakeListenBrainzClient
 from app.core.states import IllegalTransition
 from app.services.catalog import CatalogService, CatalogServiceBase, CatalogUnavailable
 from app.services.catalog_fake import FakeCatalogService
@@ -206,7 +208,7 @@ def test_catalog_errors(cat: Cat) -> None:
     with pytest.raises(SourceOff, match="unavailable without sources"):
         cat.svc.search_tracks(cat.user, "Feather")
     with pytest.raises(SourceOff, match="musicbrainz is turned off"):
-        cat.svc.album_editions(cat.user, "musicbrainz", "a1")
+        cat.svc.edition_tracks(cat.user, "musicbrainz", "a1")
 
 
 def test_catalog_resolve_and_browse(cat: Cat) -> None:
@@ -257,3 +259,35 @@ def test_catalog_resolve_stores_normalized_names(cat: Cat) -> None:
     song = cat.svc.resolve(cat.user, "musicbrainz", "m9")
     assert song.artist_name == "Nujabes featuring Cise Starr & Akin from CYNE"
     assert (song.query_title, song.main_artist) == ("Feather", "Nujabes")
+
+
+def test_musicbrainz_artists_get_listenbrainz_data_and_albums_sort_newest_first(
+    tmp_path: Path,
+) -> None:
+    db = Database(tmp_path / "lb.db")
+    db.migrate()
+    with db.transaction(write=True) as conn:
+        user = UsersStore().upsert_on_login(conn, "a", "enc", False, 1).id
+    mb = FakeCatalog("musicbrainz")
+    mb.albums = {
+        "old": Album("musicbrainz", "old", "Old", "A", "Album", (), "2001"),
+        "new": Album("musicbrainz", "new", "New", "A", "Album", (), "2020-05"),
+    }
+    mb.albums_by_artist["a1"] = ["old", "new"]
+    lb = FakeListenBrainzClient()
+    lb.popular["a1"] = [PopularRecording("r1", "Song", "A", 10.0, "rel")]
+    lb.similar["a1"] = [SimilarArtist("a2", "B", "")]
+    prefs = SourcePreferences(db, {"catalog": ("musicbrainz",)})
+    svc = CatalogService(db, prefs, [mb], listenbrainz=lb)
+    assert [a.id for a in svc.artist_albums(user, "musicbrainz", "a1")] == [
+        "new",
+        "old",
+    ]
+    [track] = svc.artist_top_tracks(user, "musicbrainz", "a1")
+    assert (track.source, track.id, track.cover_id) == (
+        "musicbrainz",
+        "r1",
+        "release/rel",
+    )
+    [similar] = svc.similar_artists(user, "musicbrainz", "a1")
+    assert (similar.source, similar.id) == ("musicbrainz", "a2")

@@ -91,6 +91,7 @@ def build_core(
         prefs,
         catalogs,
         covers={"deezer": deezer.cover, "musicbrainz": caa.thumb},
+        listenbrainz=lb,
     )
     requests = RequestService(db)
     pulls = PullService(db, lb, catalog, requests, dispatch, box, prefs)

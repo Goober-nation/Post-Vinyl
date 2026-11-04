@@ -28,9 +28,9 @@ from app.clients.catalog import (
     Artist,
     CatalogError,
     CatalogSource,
-    Edition,
     Track,
 )
+from app.clients.listenbrainz import ListenBrainzClientBase
 from app.core.catalog_order import track_key
 from app.core.normalize import credits_from_joined, query_names
 from app.services.sources import SourceOff, SourcePreferences, UnknownSource
@@ -41,6 +41,10 @@ from app.stores.songs import Song, SongFields, SongsStore
 log = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+
+TOP_TRACKS = 15
+SIMILAR_ARTISTS = 10
 
 
 class CatalogUnavailable(Exception):
@@ -116,9 +120,14 @@ class CatalogServiceBase(ABC):
     ) -> list[Album]: ...
 
     @abstractmethod
-    def album_editions(
-        self, user_id: int, source: str, album_id: str
-    ) -> list[Edition]: ...
+    def artist_top_tracks(
+        self, user_id: int, source: str, artist_id: str
+    ) -> list[Track]: ...
+
+    @abstractmethod
+    def similar_artists(
+        self, user_id: int, source: str, artist_id: str
+    ) -> list[Artist]: ...
 
     @abstractmethod
     def edition_tracks(
@@ -145,8 +154,10 @@ class CatalogService(CatalogServiceBase):
         catalogs: list[CatalogSource],
         clock: Callable[[], float] = time.time,
         covers: dict[str, Callable[[str, int], bytes | None]] | None = None,
+        listenbrainz: ListenBrainzClientBase | None = None,
     ) -> None:
         self._db = db
+        self._lb = listenbrainz  # top tracks and similar artists for MusicBrainz ids
         self._sources = sources
         self._catalogs = {c.source: c for c in catalogs}
         # per catalog, the client that holds its images: Deezer serves its own;
@@ -228,10 +239,31 @@ class CatalogService(CatalogServiceBase):
         return self._search(user_id, query, "artist", lambda c: c.search_artists(name))
 
     def artist_albums(self, user_id: int, source: str, artist_id: str) -> list[Album]:
-        return self._catalog(user_id, source).artist_albums(artist_id)
+        albums = self._catalog(user_id, source).artist_albums(artist_id)
+        return sorted(albums, key=lambda a: a.first_release_date, reverse=True)
 
-    def album_editions(self, user_id: int, source: str, album_id: str) -> list[Edition]:
-        return self._catalog(user_id, source).album_editions(album_id)
+    def artist_top_tracks(
+        self, user_id: int, source: str, artist_id: str
+    ) -> list[Track]:
+        catalog = self._catalog(user_id, source)
+        if source != "musicbrainz" or self._lb is None:
+            return catalog.artist_top_tracks(artist_id)
+        return [
+            Track(source, r.mbid, r.title, r.artist, (artist_id,), r.length_s, (), "",
+                  cover_id=f"release/{r.release_mbid}" if r.release_mbid else "")
+            for r in self._lb.top_recordings(artist_id)[:TOP_TRACKS]
+        ]  # fmt: skip
+
+    def similar_artists(
+        self, user_id: int, source: str, artist_id: str
+    ) -> list[Artist]:
+        catalog = self._catalog(user_id, source)
+        if source != "musicbrainz" or self._lb is None:
+            return catalog.similar_artists(artist_id)
+        return [
+            Artist(source, a.mbid, a.name, a.comment)
+            for a in self._lb.similar_artists(artist_id)[:SIMILAR_ARTISTS]
+        ]
 
     def edition_tracks(self, user_id: int, source: str, edition_id: str) -> list[Track]:
         return self._catalog(user_id, source).edition_tracks(edition_id)

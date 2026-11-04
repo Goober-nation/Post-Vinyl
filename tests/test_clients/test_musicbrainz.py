@@ -8,7 +8,13 @@ from typing import Any
 import pytest
 
 from app.clients import musicbrainz
-from app.clients.catalog import CatalogBusy, CatalogError, CatalogNotFound, ReleaseRef
+from app.clients.catalog import (
+    Album,
+    CatalogBusy,
+    CatalogError,
+    CatalogNotFound,
+    ReleaseRef,
+)
 from app.clients.musicbrainz import MusicBrainzClient
 
 CREDIT = [
@@ -107,9 +113,9 @@ def test_errors(monkeypatch: pytest.MonkeyPatch, status: int, error: type) -> No
 
 
 def test_browse_reads_every_page(monkeypatch: pytest.MonkeyPatch) -> None:
-    group = {"id": "g", "title": "T", "primary-type": "Album"}
-    page1 = {"release-groups": [group] * 100, "release-group-count": 101}
-    page2 = {"release-groups": [group], "release-group-count": 101}
+    rows = [{"id": f"r{n}", "title": f"T{n}"} for n in range(101)]
+    page1 = {"releases": rows[:100], "release-count": 101}
+    page2 = {"releases": rows[100:], "release-count": 101}
     client, calls = client_returning(
         monkeypatch, FakeResp(200, page1), FakeResp(200, page2)
     )
@@ -141,9 +147,8 @@ def test_recording_with_missing_fields() -> None:
 
 def test_browse_stops_on_empty_page(monkeypatch: pytest.MonkeyPatch) -> None:
     # a count that never gets reached must not loop forever
-    group = {"id": "g", "title": "T"}
-    page1 = {"release-groups": [group], "release-group-count": 5}
-    page2 = {"release-groups": [], "release-group-count": 5}
+    page1 = {"releases": [{"id": "r", "title": "T"}], "release-count": 5}
+    page2 = {"releases": [], "release-count": 5}
     client, calls = client_returning(
         monkeypatch, FakeResp(200, page1), FakeResp(200, page2)
     )
@@ -192,13 +197,17 @@ def test_unknown_isrc_is_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_search_albums_and_artists(monkeypatch: pytest.MonkeyPatch) -> None:
     body = {
-        "release-groups": [
+        "releases": [
             {
-                "id": "g1",
+                "id": "r1",
                 "title": "Dr. Feelgood",
-                "primary-type": "Album",
-                "secondary-types": ["Live"],
-                "first-release-date": "1989-08-28",
+                "date": "1989-08-28",
+                "track-count": 10,
+                "release-group": {
+                    "id": "g1",
+                    "primary-type": "Album",
+                    "secondary-types": ["Live"],
+                },
                 "artist-credit": CREDIT,
             }
         ],
@@ -207,7 +216,9 @@ def test_search_albums_and_artists(monkeypatch: pytest.MonkeyPatch) -> None:
     client, calls = client_returning(monkeypatch, FakeResp(200, body))
     [album] = client.search_albums("Dr. Feelgood", "A")
     [artist] = client.search_artists("A")
-    assert calls[0][1]["query"] == 'releasegroup:"Dr. Feelgood" AND artist:"A"'
+    assert calls[0][1]["query"] == (
+        'release:"Dr. Feelgood" AND status:official AND artist:"A"'
+    )
     assert album.secondary_types == ("Live",) and album.artist == "A feat. B"
     assert artist.disambiguation == "US band"
 
@@ -221,9 +232,18 @@ def test_edition_counts_tracks_over_media() -> None:
             {"format": None, "track-count": 4},
         ],
     }
-    edition = musicbrainz.parse_release(raw)
-    assert edition.formats == ("CD", "") and edition.track_count == 16
-    assert edition.date == "" and edition.status == ""
+    assert musicbrainz.parse_release(raw).track_count == 16
+
+
+def test_regional_copies_of_an_edition_collapse_to_the_earliest() -> None:
+    def album(date: str, title: str = "T", tracks: int = 10) -> Album:
+        return Album("musicbrainz", date, title, "A", "Album", (), date, "", tracks)
+
+    deluxe = album("2021", "T (deluxe)", 15)
+    assert musicbrainz.distinct_editions([album("2020"), album("2019"), deluxe]) == [
+        album("2019"),
+        deluxe,
+    ]
 
 
 def test_fake_catalog_behaves_like_a_source() -> None:
@@ -284,7 +304,7 @@ def test_cover_ids_name_a_release_or_release_group() -> None:
     )
     assert hit.cover_id == "release/rel-1"  # the first release it is on
     assert musicbrainz.parse_search_hit({"id": "r1", "title": "T"}).cover_id == ""
-    assert (
-        musicbrainz.parse_release_group({"id": "rg-1"}).cover_id == "release-group/rg-1"
-    )
-    assert musicbrainz.parse_release({"id": "rel-1"}).cover_id == "release/rel-1"
+    grouped = {"id": "rel-1", "release-group": {"id": "rg-1"}}
+    assert musicbrainz.parse_release(grouped).cover_id == "release-group/rg-1"
+    front = {**grouped, "cover-art-archive": {"front": True}}
+    assert musicbrainz.parse_release(front).cover_id == "release/rel-1"

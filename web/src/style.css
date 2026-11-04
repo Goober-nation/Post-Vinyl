@@ -183,6 +183,38 @@
   .tile-row {
     @apply flex items-center gap-3;
   }
+  .browse-head {
+    @apply mb-8 flex items-end gap-5;
+  }
+  .browse-head > .cover {
+    @apply size-32 flex-none rounded-[6px] text-3xl md:size-48;
+  }
+  .browse-head > .cover.round,
+  .round-tiles .cover {
+    @apply rounded-full;
+  }
+  .sleeves {
+    @apply grid grid-cols-2 gap-4 md:grid-cols-5;
+  }
+  .sleeves.wrap {
+    @apply md:grid-cols-4;
+  }
+  .popular {
+    @apply grid gap-x-6 md:grid-cols-3;
+  }
+  /* no cover here, so the row needs its own columns */
+  .tracklist .cover {
+    @apply hidden;
+  }
+  .tracklist .row {
+    @apply grid-cols-[minmax(0,1fr)_32px] md:grid-cols-[minmax(0,1fr)_6rem_6rem_32px];
+  }
+  .tracklist .row > :last-child {
+    @apply col-start-2 md:col-start-auto;
+  }
+  .tracklist .row .state {
+    @apply col-start-1 md:col-start-auto;
+  }
   .tile-row > .cover {
     @apply size-16 w-16 text-sm;
   }

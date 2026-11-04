@@ -13,7 +13,7 @@ from typing import TypeVar
 
 from fastapi import APIRouter, HTTPException, Query, Response
 
-from app.clients.catalog import Album, Artist, Edition, Track
+from app.clients.catalog import Album, Artist, Track
 from app.dependencies import Core, CoreDep, UserDep
 from app.services.catalog import Results
 
@@ -57,11 +57,18 @@ def artist_albums(
     return core.catalog.artist_albums(user.id, source, artist_id)
 
 
-@router.get("/{source}/albums/{album_id}/editions")
-def album_editions(
-    source: str, album_id: str, user: UserDep, core: CoreDep
-) -> list[Edition]:
-    return core.catalog.album_editions(user.id, source, album_id)
+@router.get("/{source}/artists/{artist_id}/top-tracks")
+def artist_top_tracks(
+    source: str, artist_id: str, user: UserDep, core: CoreDep
+) -> list[Track]:
+    return core.catalog.artist_top_tracks(user.id, source, artist_id)
+
+
+@router.get("/{source}/artists/{artist_id}/similar")
+def similar_artists(
+    source: str, artist_id: str, user: UserDep, core: CoreDep
+) -> list[Artist]:
+    return core.catalog.similar_artists(user.id, source, artist_id)
 
 
 @router.get("/{source}/editions/{edition_id}/tracks")

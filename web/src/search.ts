@@ -1,23 +1,54 @@
 // Search tab (#121): one search for songs, albums and artists together
-// from one box (user, 2026-10-30), browsing artist → albums → editions → tracks on the
-// source that answered, and the download cart. What is shown lives in the
-// hash (#/search?q=…), so reload and back work.
+// from one box (user, 2026-10-30), browsing artist → album on the source that
+// answered, and the download cart. What is shown lives in the hash
+// (#/search?q=…), so reload and back work; the last search stays for the
+// browser session, its results unrefetched (user, 2026-11-05).
 import { ApiError, api, type Schemas } from "./api";
 import { cart, CART_MAX, type CartEntry } from "./cart";
 import { h } from "./dom";
 import { button, cover, iconButton, paged, pageHead, railSection, row, state, toast } from "./ui";
 
-type View =
-  | { q: string }
-  | { browse: "artist" | "album" | "edition"; source: string; id: string; name: string; artist: string };
+type Browse = { browse: "artist" | "albums" | "album"; source: string; id: string; name: string; artist: string; cover: string; info: string };
+type View = { q: string } | Browse;
+const LAST_SEARCH = "pv-last-search";
+
+function remember(q: string): void {
+  try {
+    sessionStorage.setItem(LAST_SEARCH, q);
+  } catch {
+    // no storage: the Search tab just opens empty
+  }
+}
+
+function lastSearch(): string {
+  try {
+    return sessionStorage.getItem(LAST_SEARCH) ?? "";
+  } catch {
+    return "";
+  }
+}
 
 function readView(): View {
   const p = new URLSearchParams(location.hash.split("?")[1] ?? "");
   const browse = p.get("browse");
-  const artist = p.get("artist") ?? "";
-  if (browse === "artist" || browse === "album" || browse === "edition")
-    return { browse, source: p.get("source") ?? "", id: p.get("id") ?? "", name: p.get("name") ?? "", artist };
-  return { q: p.get("q") ?? "" };
+  if (browse === "artist" || browse === "albums" || browse === "album") {
+    const text = (k: string) => p.get(k) ?? "";
+    return { browse, source: text("source"), id: text("id"), name: text("name"), artist: text("artist"), cover: text("cover"), info: text("info") };
+  }
+  return { q: p.get("q") ?? lastSearch() };
+}
+
+// answers kept for the page's life, so Back shows them without searching again
+const answers = new Map<string, Promise<unknown>>();
+
+function fetched<T>(path: string): Promise<T> {
+  let answer = answers.get(path);
+  if (!answer) {
+    answer = api<T>("GET", path);
+    answers.set(path, answer);
+    answer.catch(() => answers.delete(path));
+  }
+  return answer as Promise<T>;
 }
 
 function go(params: Record<string, string>): void {
@@ -31,7 +62,7 @@ export function searchPage(): HTMLElement {
   const view = readView();
   // search and results stay centred on the window; the cart keeps to the
   // window's right edge (below the results on narrower screens)
-  const main = "q" in view ? [searchForm(view), ...searchResults(view)] : [browseHead(view), browseResults(view)];
+  const main = "q" in view ? [searchForm(view), ...searchResults(view)] : browsePage(view);
   return h("div", {}, h("div", { class: "center-main" }, ...main), h("aside", { class: "side-rail rail" }, cartRail()));
 }
 
@@ -70,21 +101,22 @@ function searchForm(view: { q: string }): HTMLElement {
  *  only holds up its own part. Each pages on its own. */
 function searchResults(view: { q: string }): HTMLElement[] {
   if (!view.q) return [];
+  remember(view.q);
   // sections with nothing in them drop out; if all three do, one line says so
   const none = h("p", { class: "hidden py-2 text-muted" }, `Nothing found for “${view.q}”.`);
   let empty = 0;
   const gone = () => ++empty === 3 && none.classList.remove("hidden");
   return [
     section("Artists", gone,  async () => {
-      const r = await api<Schemas["Results_Artist_"]>("GET", `/api/catalog/artists?name=${enc(view.q)}`);
+      const r = await fetched<Schemas["Results_Artist_"]>(`/api/catalog/artists?name=${enc(view.q)}`);
       return [r.items.map(artistTile), r.source];
     }, (tiles) => carousel(tiles, 3, "grid grid-cols-3 gap-4")),
     section("Albums", gone,  async () => {
-      const r = await api<Schemas["Results_Album_"]>("GET", `/api/catalog/albums?title=${enc(view.q)}`);
+      const r = await fetched<Schemas["Results_Album_"]>(`/api/catalog/albums?title=${enc(view.q)}`);
       return [r.items.map(albumTile), r.source];
     }, (tiles) => carousel(tiles, 6, "grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3")),
     section("Songs", gone,  async () => {
-      const r = await api<Schemas["Results_Track_"]>("GET", `/api/catalog/tracks?title=${enc(view.q)}`);
+      const r = await fetched<Schemas["Results_Track_"]>(`/api/catalog/tracks?title=${enc(view.q)}`);
       return [r.items.map((t) => trackRow(t, r.origin_id)), r.source];
     }),
     none,
@@ -118,21 +150,55 @@ function section(
 
 // ── browsing ────────────────────────────────────────────────────────────
 
-function browseHead(view: Exclude<View, { q: string }>): HTMLElement {
-  const back = h("button", { type: "button", class: "btn btn-ghost btn-sm -ml-2", onclick: () => history.back() }, "← Back");
-  const sub = view.browse === "artist" ? "Albums" : view.browse === "album" ? `${view.artist} · Editions` : view.artist;
-  return h("div", { class: "mb-4" }, back, pageHead(view.name, h("span", { class: "text-muted" }, sub)));
+function back(): HTMLElement {
+  return h("button", { type: "button", class: "btn btn-ghost btn-sm -ml-2 mb-4", onclick: () => history.back() }, "← Back");
 }
 
-function browseResults(view: Exclude<View, { q: string }>): HTMLElement {
-  const base = `/api/catalog/${enc(view.source)}`;
-  const label = { artist: "Albums", album: "Editions", edition: "Tracks" }[view.browse];
-  return section(label, null, async () => {
-    if (view.browse === "artist") return [(await api<Schemas["Album"][]>("GET", `${base}/artists/${enc(view.id)}/albums`)).map(albumRow), view.source];
-    if (view.browse === "album")
-      return [(await api<Schemas["Edition"][]>("GET", `${base}/albums/${enc(view.id)}/editions`)).map((e) => editionRow(e, view.artist)), view.source];
-    return [(await api<Schemas["Track"][]>("GET", `${base}/editions/${enc(view.id)}/tracks`)).map((t) => trackRow(t, null, view.name)), view.source];
+function browsePage(view: Browse): HTMLElement[] {
+  if (view.browse === "album") return albumPage(view);
+  return view.browse === "albums" ? allAlbumsPage(view) : artistPage(view);
+}
+
+const artistBase = (view: Browse) => `/api/catalog/${enc(view.source)}/artists/${enc(view.id)}`;
+
+function artistPage(view: Browse): HTMLElement[] {
+  const base = artistBase(view);
+  const head = h(
+    "div",
+    { class: "browse-head" },
+    cover(view.name, coverOf(view.source, view.cover, 300)),
+    h("div", { class: "min-w-0" }, h("div", { class: "text-muted" }, "Artist"), h("h1", {}, view.name)),
+  );
+  head.firstElementChild?.classList.add("round");
+  const all = () => go({ ...view, browse: "albums" });
+  const albums = section("Albums", null, async () => [(await fetched<Schemas["Album"][]>(`${base}/albums`)).slice(0, 5).map(albumSleeve), null], (tiles) => h("div", { class: "sleeves" }, ...tiles));
+  albums.querySelector("h2")?.append(h("button", { type: "button", class: "ml-auto normal-case text-base-content", onclick: all }, "View all ›"));
+  const popular = section("Popular tracks", () => {}, async () => [(await fetched<Schemas["Track"][]>(`${base}/top-tracks`)).map(popularRow), null], (rows) => h("div", { class: "popular" }, ...rows));
+  const similar = section("Similar artists", () => {}, async () => [(await fetched<Schemas["Artist"][]>(`${base}/similar`)).slice(0, 5).map(artistTile), null], (tiles) => h("div", { class: "sleeves round-tiles" }, ...tiles));
+  return [back(), head, albums, popular, similar];
+}
+
+function allAlbumsPage(view: Browse): HTMLElement[] {
+  return [
+    back(),
+    pageHead(`Albums by ${view.name}`),
+    section("Newest first", null, async () => [(await fetched<Schemas["Album"][]>(`${artistBase(view)}/albums`)).map(albumSleeve), null], (tiles) => h("div", { class: "sleeves wrap" }, ...tiles)),
+  ];
+}
+
+function albumPage(view: Browse): HTMLElement[] {
+  const head = h(
+    "div",
+    { class: "browse-head" },
+    cover(view.name, coverOf(view.source, view.cover, 300)),
+    h("div", { class: "min-w-0" }, h("div", { class: "text-muted" }, "Album"), h("h1", {}, view.name), h("div", { class: "text-muted" }, meta(view.artist, view.info))),
+  );
+  const tracks = section("Tracks", null, async () => [(await fetched<Schemas["Track"][]>(`/api/catalog/${enc(view.source)}/editions/${enc(view.id)}/tracks`)).map((t) => trackRow(t, null, view.name)), null], (rows) => {
+    const list = paged(rows, ["song", "songs"], "rows", Math.max(rows.length, 1));
+    list.classList.add("tracklist");
+    return list;
   });
+  return [back(), head, tracks];
 }
 
 const SOURCE_NAMES: Record<string, string> = { musicbrainz: "MusicBrainz", deezer: "Deezer", listenbrainz: "ListenBrainz" };
@@ -143,16 +209,20 @@ const year = (date: string) => date.slice(0, 4);
 const length = (s: number | null) => (s == null ? "" : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`);
 const meta = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" · ");
 
-function trackRow(t: Schemas["Track"], originId: number | null, album?: string): HTMLElement {
-  const name = t.disambiguation ? `${t.title} (${t.disambiguation})` : t.title;
-  const entry: CartEntry = { source: t.source, track_id: t.id, origin_id: originId, title: name, artist: t.artist };
+function entryOf(t: Schemas["Track"], originId: number | null): CartEntry {
+  const title = t.disambiguation ? `${t.title} (${t.disambiguation})` : t.title;
+  return { source: t.source, track_id: t.id, origin_id: originId, title, artist: t.artist };
+}
+
+/** The + / − button, with a mark that shows the song is in the cart. */
+function cartToggle(entry: CartEntry): [HTMLElement, HTMLElement] {
   const inCart = () => cart.has(entry);
   const mark = h("span");
   const toggle = h("button", { type: "button", class: "icon-btn text-lg" });
   const sync = () => {
     mark.replaceChildren(inCart() ? state("In cart", "accent") : "");
     toggle.textContent = inCart() ? "−" : "+";
-    toggle.setAttribute("aria-label", `${inCart() ? "Remove" : "Add"} ${name} ${inCart() ? "from" : "to"} the cart`);
+    toggle.setAttribute("aria-label", `${inCart() ? "Remove" : "Add"} ${entry.title} ${inCart() ? "from" : "to"} the cart`);
   };
   toggle.addEventListener("click", () => {
     if (inCart()) cart.remove(entry);
@@ -160,9 +230,15 @@ function trackRow(t: Schemas["Track"], originId: number | null, album?: string):
   });
   sync();
   cart.watch(toggle, sync);
+  return [mark, toggle];
+}
+
+function trackRow(t: Schemas["Track"], originId: number | null, album?: string): HTMLElement {
+  const entry = entryOf(t, originId);
+  const [mark, toggle] = cartToggle(entry);
   const side = t.position ? `${t.disc && t.disc > 1 ? `${t.disc}-` : ""}${t.position}` : undefined;
   return row({
-    title: name,
+    title: entry.title,
     cover: coverOf(t.source, t.cover_id ?? ""),
     artist: t.artist,
     album,
@@ -173,30 +249,15 @@ function trackRow(t: Schemas["Track"], originId: number | null, album?: string):
   });
 }
 
-function link(label: string, params: Record<string, string>): HTMLElement {
-  return h("button", { type: "button", class: "icon-btn", "aria-label": label, title: label, onclick: () => go(params) }, "›");
-}
-
-/** A row that opens something: the whole row is the target; the › button
- *  stays the keyboard and screen-reader way in. */
-function opens(el: HTMLElement, params: Record<string, string>): HTMLElement {
-  el.classList.add("cursor-pointer");
-  el.addEventListener("click", (e) => {
-    if (!(e.target as Element).closest("button")) go(params);
-  });
-  return el;
-}
-
-function albumRow(a: Schemas["Album"]): HTMLElement {
-  const types = [a.primary_type, ...a.secondary_types].filter(Boolean).join(", ");
-  const to = { browse: "album", source: a.source, id: a.id, name: a.title, artist: a.artist };
-  return opens(row({
-    title: a.title,
-    cover: coverOf(a.source, a.cover_id ?? ""),
-    artist: a.artist,
-    extra: h("span", { class: "sub" }, meta(year(a.first_release_date), types)),
-    action: link(`Editions of ${a.title}`, to),
-  }), to);
+function popularRow(t: Schemas["Track"]): HTMLElement {
+  const [, toggle] = cartToggle(entryOf(t, null));
+  return h(
+    "div",
+    { class: "flex min-w-0 items-center gap-3 py-1" },
+    cover(t.title, coverOf(t.source, t.cover_id ?? "")),
+    h("div", { class: "min-w-0 flex-1" }, h("div", { class: "title" }, t.title), h("div", { class: "sub" }, t.artist)),
+    toggle,
+  );
 }
 
 /** A few results at a time in a grid, with round ‹ › buttons beside it to
@@ -223,42 +284,45 @@ function carousel(items: HTMLElement[], perPage: number, cls: string): HTMLEleme
 
 /** An artist as a sleeve: the big square picture, the name under it. */
 function artistTile(a: Schemas["Artist"]): HTMLElement {
-  const to = { browse: "artist", source: a.source, id: a.id, name: a.name, artist: a.name };
+  const to = { browse: "artist", source: a.source, id: a.id, name: a.name, artist: a.name, cover: a.cover_id ?? "" };
   return h(
     "button",
-    { type: "button", class: "tile min-w-0 text-left", title: a.disambiguation || a.name, "aria-label": `Albums by ${a.name}`, onclick: () => go(to) },
+    { type: "button", class: "tile min-w-0 text-left", title: a.disambiguation || a.name, "aria-label": `Open ${a.name}`, onclick: () => go(to) },
     cover(a.name, coverOf(a.source, a.cover_id ?? "", 300)),
     h("div", { class: "title mt-2" }, a.name),
     a.disambiguation && h("div", { class: "sub text-xs" }, a.disambiguation),
   );
 }
 
+const albumInfo = (a: Schemas["Album"]) => meta(year(a.first_release_date), a.primary_type, !!a.track_count && `${a.track_count} tracks`);
+const openAlbum = (a: Schemas["Album"]) => () => go({ browse: "album", source: a.source, id: a.id, name: a.title, artist: a.artist, cover: a.cover_id ?? "", info: albumInfo(a) });
+
 /** An album: a small cover with the title and "by" credit beside it. */
 function albumTile(a: Schemas["Album"]): HTMLElement {
-  const to = { browse: "album", source: a.source, id: a.id, name: a.title, artist: a.artist };
   return h(
     "button",
-    { type: "button", class: "tile tile-row min-w-0 text-left", "aria-label": `Editions of ${a.title} by ${a.artist}`, onclick: () => go(to) },
+    { type: "button", class: "tile tile-row min-w-0 text-left", "aria-label": `Open ${a.title} by ${a.artist}`, onclick: openAlbum(a) },
     cover(a.title, coverOf(a.source, a.cover_id ?? "", 160)),
     h(
       "div",
       { class: "min-w-0" },
       h("div", { class: "title" }, a.title),
       h("div", { class: "sub" }, h("span", { class: "credit" }, a.artist)),
-      h("div", { class: "sub text-xs" }, meta(year(a.first_release_date), a.primary_type)),
+      h("div", { class: "sub text-xs" }, albumInfo(a)),
     ),
   );
 }
 
-function editionRow(e: Schemas["Edition"], artist: string): HTMLElement {
-  const to = { browse: "edition", source: e.source, id: e.id, name: e.title, artist };
-  return opens(row({
-    title: e.title,
-    cover: coverOf(e.source, e.cover_id ?? ""),
-    artist: meta(year(e.date), e.country, e.formats.join(" + ")) || artist,
-    extra: h("span", { class: "sub" }, meta(`${e.track_count} tracks`, e.status)),
-    action: link(`Tracks of the ${meta(year(e.date), e.country)} edition`, to),
-  }), to);
+/** An album on an artist's page: the big cover with its details under it. */
+function albumSleeve(a: Schemas["Album"]): HTMLElement {
+  return h(
+    "button",
+    { type: "button", class: "tile min-w-0 text-left", "aria-label": `Open ${a.title}`, onclick: openAlbum(a) },
+    cover(a.title, coverOf(a.source, a.cover_id ?? "", 300)),
+    h("div", { class: "title mt-2" }, a.title),
+    h("div", { class: "sub" }, h("span", { class: "credit" }, a.artist)),
+    h("div", { class: "sub text-xs" }, albumInfo(a)),
+  );
 }
 
 // ── the cart ────────────────────────────────────────────────────────────

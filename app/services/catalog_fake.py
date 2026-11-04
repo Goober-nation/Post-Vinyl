@@ -21,7 +21,6 @@ from app.clients.catalog import (
     Artist,
     CatalogError,
     CatalogSource,
-    Edition,
     Track,
 )
 from app.core.normalize import credits_from_joined, query_names
@@ -110,8 +109,15 @@ class FakeCatalogService(CatalogServiceBase):
     def artist_albums(self, user_id: int, source: str, artist_id: str) -> list[Album]:
         return self._catalog(source).artist_albums(artist_id)
 
-    def album_editions(self, user_id: int, source: str, album_id: str) -> list[Edition]:
-        return self._catalog(source).album_editions(album_id)
+    def artist_top_tracks(
+        self, user_id: int, source: str, artist_id: str
+    ) -> list[Track]:
+        return self._catalog(source).artist_top_tracks(artist_id)
+
+    def similar_artists(
+        self, user_id: int, source: str, artist_id: str
+    ) -> list[Artist]:
+        return self._catalog(source).similar_artists(artist_id)
 
     def edition_tracks(self, user_id: int, source: str, edition_id: str) -> list[Track]:
         return self._catalog(source).edition_tracks(edition_id)

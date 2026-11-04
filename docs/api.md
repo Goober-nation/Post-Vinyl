@@ -60,8 +60,9 @@ user's `catalog.results_per_search` setting.
 | `GET /api/catalog/tracks` | user | `title`, `artist?` | `{source, items: [track], origin_id}` |
 | `GET /api/catalog/albums` | user | `title`, `artist?` | `{source, items: [album], origin_id}` |
 | `GET /api/catalog/artists` | user | `name` | `{source, items: [artist], origin_id}` |
-| `GET /api/catalog/{source}/artists/{artist_id}/albums` | user | | `[album]` |
-| `GET /api/catalog/{source}/albums/{album_id}/editions` | user | | `[edition]` |
+| `GET /api/catalog/{source}/artists/{artist_id}/albums` | user | | `[album]`, newest first; each album is one edition, and its `id` opens its tracks |
+| `GET /api/catalog/{source}/artists/{artist_id}/top-tracks` | user | | `[track]`, most played first (ListenBrainz for MusicBrainz artists) |
+| `GET /api/catalog/{source}/artists/{artist_id}/similar` | user | | `[artist]`, most similar first (ListenBrainz for MusicBrainz artists) |
 | `GET /api/catalog/{source}/editions/{edition_id}/tracks` | user | | `[track]` with disc and position |
 | `GET /api/catalog/{source}/covers/{cover_id}` | user | `size?` (32–600 px, default 120) | the cover a track, album, edition or artist names in its `cover_id` (artist pictures: Deezer only), from that source's images (Deezer's own; MusicBrainz's from the Cover Art Archive); cached a week by the browser; never stored; `404` when there is none, `404` while the source is off |
 | `POST /api/requests` | user | `{source, track_id, origin_id?}` | `201` the request, already handed to the download source |

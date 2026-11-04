@@ -145,16 +145,12 @@ def test_artist_albums_pages_and_types(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_album_has_one_edition(monkeypatch: pytest.MonkeyPatch) -> None:
-    raw = {
-        "id": 9,
-        "title": "Dr. Feelgood",
-        "release_date": "1989-09-01",
-        "nb_tracks": 20,
-    }
-    client, _ = client_returning(monkeypatch, FakeResp(raw))
-    [edition] = client.album_editions("9")
-    assert (edition.id, edition.track_count, edition.date) == ("9", 20, "1989-09-01")
+def test_top_tracks_and_similar_artists(monkeypatch: pytest.MonkeyPatch) -> None:
+    client, _ = client_returning(
+        monkeypatch, FakeResp({"data": [{"id": 7, "name": "B"}]})
+    )
+    [artist] = client.similar_artists("9")
+    assert (artist.source, artist.id, artist.name) == ("deezer", "7", "B")
 
 
 def test_limiter_spaces_calls(

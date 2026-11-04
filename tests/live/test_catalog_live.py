@@ -59,6 +59,5 @@ def test_search_resolve_and_user_order(
     print("deezer pick:", res.items[0].title, "→ song", dz_song)
 
     albums = svc.search_albums(uid, "Modal Soul", "Nujabes")
-    editions = svc.album_editions(uid, albums.source or "", albums.items[0].id)
-    tracks = svc.edition_tracks(uid, albums.source or "", editions[0].id)
+    tracks = svc.edition_tracks(uid, albums.source or "", albums.items[0].id)
     assert any("Feather" in t.title for t in tracks)
