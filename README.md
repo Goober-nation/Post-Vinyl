@@ -195,9 +195,9 @@ Order and scope may change.
 - Uploading your own files
 - Notifications for failed downloads and service outages
 
-## API
+## Documentation
 
-Every endpoint is listed in [`docs/api.md`](docs/api.md).
+Guides, configuration, architecture and the API are in [`docs/`](docs/README.md).
 
 ## Development
 

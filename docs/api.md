@@ -1,6 +1,6 @@
 # Post-Vinyl API
 
-The backend the frontend is built on (milestone 7, stage 1). Every endpoint is listed here;
+The backend the frontend is built on. Every endpoint is listed here;
 `tests/test_routes/test_api_doc.py` fails when one isn't. With `PV_DEV=1` the app also serves
 the generated reference at `/docs` and `/openapi.json` (exact request and response models).
 
@@ -8,7 +8,7 @@ the generated reference at `/docs` and `/openapi.json` (exact request and respon
 
 - **Login**: `POST /api/auth/login` with a Navidrome username and password sets the
   `pv_session` cookie (HttpOnly, Secure, SameSite=Lax, 30 days, sliding). Everything except
-  login and `GET /api/system/ping` needs it: no cookie → `401`.
+  login, the first-admin calls and `GET /api/system/ping` needs it: no cookie → `401`.
 - **Same origin**: every `POST`, `PUT`, `PATCH` and `DELETE` needs an `Origin` (or, failing that,
   `Referer`) header equal to `PV_PUBLIC_ORIGIN`, or to the request's own host when that's unset,
   else `403`.
@@ -24,14 +24,14 @@ the generated reference at `/docs` and `/openapi.json` (exact request and respon
   | `409` | not possible right now: the request moved on, the queue is paused, or **a source this needs is turned off** (nothing is sent to it) |
   | `422` | the input doesn't fit (empty search, a value outside its range…) |
   | `429` | too many failed logins (`Retry-After` says how long) |
-  | `502` | a catalog source failed while browsing |
-  | `503` | a service isn't reachable or set up (no catalog answered, ListenBrainz can't check a token, setup not run) |
+  | `502` | a catalog source or ListenBrainz failed |
+  | `503` | a service isn't reachable or set up (no catalog answered, ListenBrainz can't check a token, no admin has logged in yet) |
 
 - **Sources**: every call to an outside service (MusicBrainz, Deezer, ListenBrainz, slskd) only
   happens while that source is on for the user the work is for: on in the install's config and
   not switched off in the user's settings.
 - **Polling**: the slskd and downloads tabs poll while open (1–2 s). Successful polls of
-  `/api/downloads`, `/api/slskd/searches` and `/api/requests` stay out of the access log.
+  `/api/downloads`, `/api/slskd/searches`, `/api/requests` and `/api/pulls` stay out of the access log.
 - **No file paths** are returned for our own files: slskd and Navidrome own them. Peer paths
   (what a peer shares) are shown in the slskd and downloads tabs.
 - **Ids**: requests, downloads and files are Post-Vinyl's numbers; catalog ids are the source's

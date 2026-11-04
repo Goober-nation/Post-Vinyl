@@ -11,11 +11,14 @@ CREATE TABLE users (
     nd_password_enc  TEXT    NOT NULL,          -- encrypted (PV_SECRET_KEY); refreshed each login
     lb_token_enc     TEXT,                      -- encrypted; NULL until the user enters it
     lb_username      TEXT,                      -- from the token check; cleared with the token
+    nd_id            TEXT,                      -- Navidrome's permanent id: a rename there keeps the row
     is_admin         INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0, 1)),  -- from Navidrome
     status           TEXT    NOT NULL DEFAULT 'active'
                              CHECK (status IN ('active', 'needs_reauth')),
-    created_at       INTEGER NOT NULL           -- failed logins / lockout: in memory (auth service)
+    created_at       INTEGER NOT NULL,          -- failed logins / lockout: in memory (auth service)
+    deleted_at       INTEGER                    -- the row stays, hidden: requests point at it
 );
+CREATE UNIQUE INDEX idx_users_nd_id ON users(nd_id) WHERE nd_id IS NOT NULL;
 
 -- login sessions, 30-day sliding expiry
 CREATE TABLE sessions (

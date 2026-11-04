@@ -1,8 +1,8 @@
 # AGENTS.md: Post-Vinyl AI guide
 
-Read this first. Post-Vinyl is being **rebuilt from scratch** (since 2026-10-27). The design lives in
-`agents_memory/rebuild/`; where anything else (old issues, old notes, `legacy/` code) disagrees with
-it, the rebuild notes win.
+Read this first. Post-Vinyl is being **rebuilt from scratch** (since 2026-10-27). The documentation
+lives in `docs/` (start at `docs/README.md`); where anything else (`agents_memory/rebuild/`, old
+issues, old notes, `legacy/` code) disagrees with it, `docs/` wins, and the code wins over `docs/`.
 
 ---
 
@@ -10,14 +10,8 @@ it, the rebuild notes win.
 
 1. Read this file.
 2. Read `agents_memory/MEMORY.md` (local only, may be missing on another machine).
-3. Read `agents_memory/rebuild/architecture.md`, then `rebuild/work-plan.md`. Read the other rebuild
-   notes only when the task touches them:
-   - `core-db-redesign.md`: schema (built + planned)
-   - `users-auth.md`: login, sessions, default deny
-   - `design-notes-compilation.md`: search & matching decisions
-   - `search-test-v2.md`: normalization test + search benchmark rerun
-   - `live-runs-log.md`: past runs on the test stack
-   - `lb-pulls.md`: ListenBrainz recommendations + radio pulls
+3. Read `docs/architecture.md`, then whichever `docs/` pages the task touches. The
+   `agents_memory/rebuild/` notes are history: read them only for why something was decided.
 4. Check the current GitHub milestone and its issues (`gh issue list --milestone "<title>"`).
 5. Check the branch (`git branch --show-current`); see Branches below.
 6. If the user gives a free-form idea mid-session, say which milestone/issue it belongs to (or that it
@@ -30,10 +24,10 @@ If anything is unclear or missing, ask before proceeding.
 ## Current state
 
 - **`app/`**: the new app, layered (`clients/`, `stores/`, `core/`, `services/`, `workers/`,
-  `routes/`). Layer rules in `rebuild/architecture.md`.
+  `routes/`). Layer rules in `docs/architecture.md`.
 - **`web/`**: the frontend (TypeScript, Vite), served by the app from `web/dist`.
 - **`legacy/`**: the old app and its tests, local only (gitignored). Reference only: never run, never imported, deleted when
-  the rebuild is done. Port pieces from it deliberately (the "stays" rows in `architecture.md` §5).
+  the rebuild is done. Port pieces from it deliberately (the "stays" rows in `agents_memory/rebuild/architecture.md` §5).
 - **`scripts/corpus/`** + **`tests/test_scripts/`** + **`tests/fixtures/corpus/`**: the search
   benchmark tooling. `plan.py` and `resolve_seeds.py` still import modules that now only exist in
   `legacy/`, so they're broken until those are ported.
@@ -68,7 +62,7 @@ If anything is unclear or missing, ask before proceeding.
 
 ---
 
-## Architecture rules (full version: `rebuild/architecture.md`)
+## Architecture rules (full version: `docs/architecture.md`)
 
 - Layers: `routes`/`workers` → `services` → `core` + `stores` + `clients`. Import only downward;
   routes and workers never touch a client or store directly.
@@ -144,13 +138,18 @@ After any implementation work, give the user the exact commands to run and exerc
 
 ## Agent memory
 
-- `agents_memory/rebuild/`: **committed**, the rebuild design. Edit in place as decisions change;
-  record each user decision with its date. Keep it free of secrets and personal details (public repo).
+- `agents_memory/rebuild/`: **committed**, the rebuild's design history, kept as is. Current facts
+  go through `docs/docs_updates/` into `docs/`.
 - `agents_memory/MEMORY.md` + `agents_memory/topics/`: **local only** (gitignored). `MEMORY.md` holds
   short durable facts and preferences; `topics/` holds API notes (slskd, Navidrome, ListenBrainz…),
   read on demand.
-- No session logs or scratchpads: progress goes into issue comments, decisions into the rebuild
-  notes.
+- No session logs or scratchpads: progress goes into issue comments, decisions into
+  `docs/docs_updates/`.
+- `docs/docs_updates/`: **local only** (gitignored). During work, note every meaningful change to
+  how the app functions here: concise, strictly to the point, one file per topic. If no file fits
+  a change or decision, make one; keep topics separate and narrow.
+- When the user says so (only then), these notes are turned into the documentation in `docs/`, and
+  the topic files move to `docs/docs_updates/archive/` (also gitignored), so they aren't lost.
 
 ---
 

@@ -20,7 +20,10 @@ How files returned by slskd are compared to the song is the matcher's job: see
 | Removed from the artist | A leading "The". |
 | Folding case, accents, punctuation | Not in queries. The matcher folds them on both sides when checking returned files. |
 
-Code: `scripts/corpus/normalize.py` (moves to `app/core/normalize.py` once settled).
+Code: `app/core/normalize.py`.
+
+The app later made catalog search use the user's source order (MusicBrainz first by default), and
+names come from the picked source.
 
 ## Song set
 

@@ -45,3 +45,6 @@ old_files/
 # skills installed locally with `npx skills add` (third-party, not ours)
 .agents/
 skills-lock.json
+
+# Pending documentation notes, local only (AGENTS.md)
+docs/docs_updates/
