@@ -157,12 +157,12 @@ ruff check app/ && mypy app/
 
 Special thanks to:
 
-- **[Soulbeet](https://github.com/terry90/soulbeet)**, a different service for managing searches and downloads that I took a lot of inspiration from.
+- **[Soulbeet](https://github.com/terry90/soulbeet)**, a different service for managing searches and downloads that I took a lot of inspiration from. Shoutout to Terry.
 - **[Yuzic](https://github.com/eftpmc/yuzic)**, for attempting slskd downloading directly in a mobile app.
 - Madvillainy by Madlib and MF DOOM, for being the perfect download test subject.
 - MacBook Air, for not dying on me.
-- **Anybody** who reaches out (goobernation@duck.com) to report bugs or share how it's going. It would mean a lot.
+- **Anybody** who reaches out (timofei.ruchkin.dev@gmail.com) to report bugs or share how it's going. It would mean a lot.
 
 ## License
 
-Apache License 2.0, see [`LICENSE`](LICENSE). Forks, modifications and redistribution are welcome; see [`TRADEMARKS.md`](TRADEMARKS.md) for the informal policy on the name. No warranty. You are responsible for following the Soulseek network's terms and your local laws on file sharing.
+Apache License 2.0, see [`LICENSE`](LICENSE). Forks, modifications and redistribution are welcome; No warranty. You are responsible for following the Soulseek network's terms and your local laws on file sharing.
