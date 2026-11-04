@@ -32,7 +32,7 @@ If anything is unclear or missing, ask before proceeding.
 - **`app/`**: the new app, layered (`clients/`, `stores/`, `core/`, `services/`, `workers/`,
   `routes/`). Layer rules in `rebuild/architecture.md`.
 - **`web/`**: the frontend (TypeScript, Vite), served by the app from `web/dist`.
-- **`legacy/`**: the old app and its tests. Reference only: never run, never imported, deleted when
+- **`legacy/`**: the old app and its tests, local only (gitignored). Reference only: never run, never imported, deleted when
   the rebuild is done. Port pieces from it deliberately (the "stays" rows in `architecture.md` §5).
 - **`scripts/corpus/`** + **`tests/test_scripts/`** + **`tests/fixtures/corpus/`**: the search
   benchmark tooling. `plan.py` and `resolve_seeds.py` still import modules that now only exist in
