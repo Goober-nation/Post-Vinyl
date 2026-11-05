@@ -57,6 +57,9 @@ class PullOut(BaseModel):
     name: str
     state: str
     created_at: int
+    lb_last_updated: int | None = None
+    first_rank: int | None = None
+    last_rank: int | None = None
     total: int
     queued: int
     downloading: int
@@ -68,6 +71,8 @@ def out(view: PullView) -> PullOut:
     p, c = view.pull, view.counts
     return PullOut(
         id=p.id, kind=p.kind, name=p.name, state=p.state, created_at=p.created_at,
+        lb_last_updated=p.lb_last_updated, first_rank=p.first_rank,
+        last_rank=p.last_rank,
         total=c.total, queued=c.queued, downloading=c.downloading,
         in_playlist=c.in_playlist, failed=c.failed,
     )  # fmt: skip

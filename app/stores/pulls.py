@@ -12,9 +12,13 @@ from dataclasses import dataclass
 from typing import Any
 
 PULL_TABLES = {"lb_recs": "user_lb_playlists", "lb_radio": "user_radio_requests"}
+_LIST_COLUMNS = {
+    "lb_recs": "lb_last_updated, first_rank, last_rank",
+    "lb_radio": "NULL AS lb_last_updated, NULL AS first_rank, NULL AS last_rank",
+}
 _ALL_PULLS = " UNION ALL ".join(
     f"""SELECT '{kind}' AS kind, id, user_id, name, state, navidrome_playlist_id,
-               created_at FROM {table}"""
+               created_at, {_LIST_COLUMNS[kind]} FROM {table}"""
     for kind, table in PULL_TABLES.items()
 )
 _STILL_RUNNING = "('requested', 'reRequested', 'searching', 'found', 'midDownload')"
@@ -35,6 +39,9 @@ class Pull:
     state: str
     navidrome_playlist_id: str | None
     created_at: int
+    lb_last_updated: int | None = None  # recommendations only
+    first_rank: int | None = None
+    last_rank: int | None = None
 
 
 @dataclass(frozen=True)

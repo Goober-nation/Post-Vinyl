@@ -1372,6 +1372,12 @@ export interface components {
             state: string;
             /** Created At */
             created_at: number;
+            /** Lb Last Updated */
+            lb_last_updated?: number | null;
+            /** First Rank */
+            first_rank?: number | null;
+            /** Last Rank */
+            last_rank?: number | null;
             /** Total */
             total: number;
             /** Queued */

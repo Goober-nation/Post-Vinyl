@@ -282,3 +282,9 @@ def test_no_download_while_the_library_cant_be_checked(env: Env) -> None:
     assert env.source.started == []
     with env.db.transaction() as conn:
         assert PullsStore().items(conn, pull)[0].state == "queued"
+
+
+def test_a_recs_pull_keeps_its_list_date_and_ranks(env: Env) -> None:
+    start_recs(env)
+    pull = env.pulls.pulls(env.user)[0].pull
+    assert (pull.lb_last_updated, pull.first_rank, pull.last_rank) == (77, 1, 4)
