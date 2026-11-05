@@ -397,7 +397,9 @@
     @apply border-error bg-error;
   }
   .side-rail {
-    @apply px-4 pb-24 md:px-6 xl:fixed xl:top-20 xl:right-[3vw] xl:max-h-[calc(100vh-6rem)] xl:w-72 xl:overflow-y-auto xl:p-0;
+    @apply px-4 pb-24 md:px-6 xl:fixed xl:top-20 xl:right-[3vw] xl:max-h-[calc(100vh-6rem)] xl:w-72 xl:overflow-x-hidden xl:overflow-y-auto xl:overscroll-contain xl:p-0;
+    /* a scrollbar that took width would resize the cover and could toggle itself */
+    scrollbar-gutter: stable;
   }
 
   /* bottom activity bar: the "player bar" of a download app */
