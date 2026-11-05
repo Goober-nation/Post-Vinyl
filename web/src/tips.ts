@@ -10,6 +10,7 @@ const TIPS: Record<string, string[]> = {
   ],
   listenbrainz: [
     "ListenBrainz makes your recommendations once in a while (no clue as to how often); \"Check for new\" looks for a fresh list",
+    "After your token is set, Listenbrainz will take its time to gather your tastes and figure out what you like, so until then I suggest using the radio mode",
     "Pulls run in the background. Anything manually requested via catalog or slskd is prioritized",
     "Searches are limited to 4 a minute, so a big pull takes a long time",
     "Songs you already own go straight into the playlist",

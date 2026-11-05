@@ -52,7 +52,7 @@ def clients(tmp_path: Path) -> tuple[TestClient, TestClient, CredentialsService]
         core,
     )
     alice, bob = logged_in(app, "alice"), logged_in(app, "bob")
-    return alice, bob, CredentialsService(db, lb, box, prefs)
+    return alice, bob, CredentialsService(db, lb, box, prefs, nd)
 
 
 def test_recs_need_a_token_then_a_list_shows(

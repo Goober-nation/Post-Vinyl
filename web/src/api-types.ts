@@ -1105,6 +1105,8 @@ export interface components {
             listenbrainz: boolean;
             /** Listenbrainz User */
             listenbrainz_user?: string | null;
+            /** Navidrome Linked */
+            navidrome_linked?: boolean | null;
         };
         /** DownloadDetail */
         DownloadDetail: {

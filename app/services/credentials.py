@@ -4,6 +4,9 @@ Only the ListenBrainz token for now (Yandex, Last.fm later). A token is checked
 with ListenBrainz before it's stored (user, 2026-10-30): an invalid one is
 refused and the old one kept; ListenBrainz unreachable refuses too. Checking
 is a request to ListenBrainz, so it needs ListenBrainz on for the user.
+
+A stored or removed token is passed on to the user's Navidrome account, which
+scrobbles with it. That's best effort: Post-Vinyl's own use doesn't depend on it.
 """
 
 from __future__ import annotations
@@ -13,7 +16,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from app.clients.listenbrainz import ListenBrainzClientBase, ListenBrainzError
-from app.services.encryption import SecretBox
+from app.clients.navidrome import NavidromeClientBase, NavidromeError
+from app.services.encryption import DecryptError, SecretBox
 from app.services.sources import SourcePreferences
 from app.stores.database import Database
 from app.stores.users import UsersStore
@@ -29,6 +33,7 @@ class CredentialCheckUnavailable(Exception):
 class CredentialsView:
     listenbrainz: bool  # a token is stored
     listenbrainz_user: str | None = None  # set right after a successful check
+    navidrome_linked: bool | None = None  # after a change: did Navidrome take it
 
 
 class CredentialsServiceBase(ABC):
@@ -47,9 +52,11 @@ class CredentialsService(CredentialsServiceBase):
         listenbrainz: ListenBrainzClientBase,
         box: SecretBox,
         sources: SourcePreferences,
+        navidrome: NavidromeClientBase,
     ) -> None:
         self._db = db
         self._lb = listenbrainz
+        self._nd = navidrome
         self._box = box
         self._sources = sources
         self._users = UsersStore()
@@ -63,7 +70,9 @@ class CredentialsService(CredentialsServiceBase):
         if token is None:
             with self._db.transaction(write=True) as conn:
                 self._users.set_lb_token(conn, user_id, None)
-            return CredentialsView(listenbrainz=False)
+            return CredentialsView(
+                listenbrainz=False, navidrome_linked=self._link(user_id, None)
+            )
         token = token.strip()
         if not token:
             raise ValueError("empty token")
@@ -81,4 +90,22 @@ class CredentialsService(CredentialsServiceBase):
             self._users.set_lb_token(
                 conn, user_id, self._box.encrypt(token), check.user_name
             )
-        return CredentialsView(listenbrainz=True, listenbrainz_user=check.user_name)
+        return CredentialsView(
+            listenbrainz=True,
+            listenbrainz_user=check.user_name,
+            navidrome_linked=self._link(user_id, token),
+        )
+
+    def _link(self, user_id: int, token: str | None) -> bool:
+        with self._db.transaction() as conn:
+            user = self._users.get(conn, user_id)
+        if user is None:
+            return False
+        try:
+            password = self._box.decrypt(user.nd_password_enc)
+            session = self._nd.login(user.username, password)
+            self._nd.link_listenbrainz(session, token)
+        except (NavidromeError, DecryptError) as e:
+            log.warning("Navidrome scrobbling link for %s: %s", user.username, e)
+            return False
+        return True

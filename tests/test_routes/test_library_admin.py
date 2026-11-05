@@ -148,7 +148,7 @@ def env(tmp_path: Path) -> Env:
     core = Core(
         FakeCatalogService(), RequestService(db), FakeDownloadDispatch(),
         library=LibraryService(db, files, tagging, box), admin=AdminService(db, nd, box),
-        credentials=CredentialsService(db, lb, box, prefs),
+        credentials=CredentialsService(db, lb, box, prefs, nd),
     )  # fmt: skip
     app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ORIGIN), auth, core)
     alice, bob = logged_in(app, "alice"), logged_in(app, "bob")
@@ -490,7 +490,8 @@ def test_listenbrainz_token_is_checked_before_it_is_stored(env: Env) -> None:
 
     r = put("good")
     assert r.status_code == 200 and r.json() == {"listenbrainz": True,
-                                                 "listenbrainz_user": "alice_lb"}  # fmt: skip
+                                                 "listenbrainz_user": "alice_lb",
+                                                 "navidrome_linked": True}  # fmt: skip
     assert put("bad").status_code == 422
     env.lb.down = True
     assert put("good").status_code == 503
@@ -501,4 +502,5 @@ def test_listenbrainz_token_is_checked_before_it_is_stored(env: Env) -> None:
     env.lb.down = False
     env.prefs.set_for_user(bob.id, "catalog", [], ["listenbrainz"])
     assert put("good").status_code == 409  # checking needs ListenBrainz on
-    assert put(None).json() == {"listenbrainz": False, "listenbrainz_user": None}
+    assert put(None).json() == {"listenbrainz": False, "listenbrainz_user": None,
+                                "navidrome_linked": True}  # fmt: skip

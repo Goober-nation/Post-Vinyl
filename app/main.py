@@ -116,7 +116,7 @@ def build_core(
         pause,
         library,
         AdminService(db, nd, box, pulls.stop_user),
-        CredentialsService(db, lb, box, prefs),
+        CredentialsService(db, lb, box, prefs, nd),
         UserSettings(db, prefs),
         InstallSettings(settings),
         workers,

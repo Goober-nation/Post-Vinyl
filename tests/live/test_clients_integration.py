@@ -164,3 +164,23 @@ def test_listenbrainz_lookup_maps_deezer_song_to_musicbrainz(
     assert found is not None
     recording = mb.get_track(found.mbid)
     assert recording.title.lower() == song.title.lower()
+
+
+def test_navidrome_takes_and_drops_a_listenbrainz_token(
+    navidrome: tuple[NavidromeClient, Session],
+) -> None:
+    client, session = navidrome
+
+    def linked() -> bool:
+        return bool(
+            requests.get(
+                f"{NAVIDROME_URL}/api/listenbrainz/link",
+                headers={"X-ND-Authorization": f"Bearer {session.jwt}"},
+                timeout=15,
+            ).json()["status"]
+        )
+
+    client.link_listenbrainz(session, os.environ["LISTENBRAINZ_TOKEN"])
+    assert linked()
+    client.link_listenbrainz(session, None)
+    assert not linked()

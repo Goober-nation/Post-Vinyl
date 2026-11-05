@@ -163,7 +163,7 @@ function listenBrainzRail(): HTMLElement {
     const put = async (token: string | null, done: string) => {
       try {
         const r = await api<Schemas["CredentialsView"]>("PUT", "/api/me/credentials", { listenbrainz_token: token } satisfies Schemas["Credentials"]);
-        toast(done);
+        toast(r.navidrome_linked === false ? `${done} Navidrome wasn't updated, so its scrobbling didn't change.` : done);
         drawRail(r);
       } catch (e) {
         // 422 ListenBrainz says the token is wrong; 503 it can't check (the old one stays); 409 it's off
@@ -192,7 +192,7 @@ function listenBrainzRail(): HTMLElement {
             : h("p", { class: "text-muted" }, "No token. With one, renames and tagging can ask ListenBrainz first."),
         form,
         c?.listenbrainz && h("button", { type: "button", class: "btn btn-ghost btn-xs mt-2 w-full text-muted", onclick: () => void put(null, "Token removed.") }, "Remove token"),
-        h("p", { class: "mt-3 text-xs text-muted" }, "Stored encrypted and never shown again; Post-Vinyl checks it with ListenBrainz before keeping it."),
+        h("p", { class: "mt-3 text-xs text-muted" }, "Stored encrypted and never shown again; Post-Vinyl checks it with ListenBrainz before keeping it, and passes it to your Navidrome account for scrobbling."),
       ),
     );
   };

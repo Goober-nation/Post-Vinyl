@@ -29,6 +29,7 @@ class FakeNavidromeClient(NavidromeClientBase):
         self.playlists: dict[
             str, tuple[str, str, list[str]]
         ] = {}  # id -> owner, name, songs
+        self.lb_links: dict[str, str] = {}  # username -> scrobbling token
 
     def _session(self, username: str) -> Session:
         return Session(
@@ -87,6 +88,13 @@ class FakeNavidromeClient(NavidromeClientBase):
         if username not in self.users:
             raise NavidromeNotFound(username)
         del self.users[username]
+
+    def link_listenbrainz(self, session: Session, token: str | None) -> None:
+        self._check(session)
+        if token:
+            self.lb_links[session.username] = token
+        else:
+            self.lb_links.pop(session.username, None)
 
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:
         self._check(session)

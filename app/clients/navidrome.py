@@ -148,6 +148,10 @@ class NavidromeClientBase(ABC):
         """Delete an account (admin only); NavidromeNotFound if it's already gone."""
 
     @abstractmethod
+    def link_listenbrainz(self, session: Session, token: str | None) -> None:
+        """Set the session user's scrobbling token; ``None`` unlinks it."""
+
+    @abstractmethod
     def start_scan(self, session: Session, full: bool = False) -> ScanStatus:
         """Start a library scan (admin only); returns the status once the scan
         has begun (Navidrome waits up to 3 s for that)."""
@@ -385,6 +389,16 @@ class NavidromeClient(NavidromeClientBase):
         self._request(
             "DELETE",
             f"/api/user/{record['id']}",
+            headers={_AUTH_HEADER: f"Bearer {session.jwt}"},
+        )
+
+    def link_listenbrainz(self, session: Session, token: str | None) -> None:
+        # Acts on the JWT's own user, so it can't be done with the admin's session.
+        # Only mounted while ListenBrainz.Enabled is on in Navidrome.
+        self._request(
+            "PUT" if token else "DELETE",
+            "/api/listenbrainz/link",
+            json={"token": token} if token else None,
             headers={_AUTH_HEADER: f"Bearer {session.jwt}"},
         )
 
