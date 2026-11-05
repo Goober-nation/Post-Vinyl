@@ -12,7 +12,7 @@ sources:
   # Possible values: musicbrainz, deezer, listenbrainz
   #   listenbrainz only maps an artist + title to a MusicBrainz id (needs the
   #   user's ListenBrainz token); typed searches skip it.
-  catalog: [musicbrainz, deezer, listenbrainz]
+  catalog: [deezer, musicbrainz, listenbrainz]
   # Where files are downloaded from.
   # Possible values: slskd
   download: [slskd]

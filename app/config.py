@@ -22,7 +22,7 @@ import yaml
 # Every source name each kind accepts; a new source adds its name here and to
 # the comment in post-vinyl.example.yaml in the same change.
 KNOWN_SOURCES: dict[str, tuple[str, ...]] = {
-    "catalog": ("musicbrainz", "deezer", "listenbrainz"),
+    "catalog": ("deezer", "musicbrainz", "listenbrainz"),
     "download": ("slskd",),
     "request": ("postradio", "yandex"),
 }

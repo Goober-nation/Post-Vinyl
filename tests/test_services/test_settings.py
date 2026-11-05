@@ -44,8 +44,8 @@ def test_schema_comes_from_the_code_and_folders_are_read_only() -> None:
     )
     assert spm.help.startswith("Searches started per minute")
     assert schema["sources.catalog"].choices == (
-        "musicbrainz",
         "deezer",
+        "musicbrainz",
         "listenbrainz",
     )
     assert (
@@ -62,7 +62,7 @@ def test_an_edit_keeps_every_comment_and_untouched_line(cfg: Path) -> None:
     changed = [(b, a) for b, a in zip(before, after, strict=True) if b != a]
     assert changed == [
         (
-            "  catalog: [musicbrainz, deezer, listenbrainz]",
+            "  catalog: [deezer, musicbrainz, listenbrainz]",
             "  catalog: [deezer, musicbrainz]",
         ),
         ("  searches_per_minute: 4", "  searches_per_minute: 3"),
