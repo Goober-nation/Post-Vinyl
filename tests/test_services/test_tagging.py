@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import struct
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import COMM, ID3, TALB, TXXX, USLT
 
-from app.clients.catalog import Album, CatalogError
+from app.clients.catalog import Album, CatalogError, Track
 from app.clients.catalog_fake import FakeCatalog
 from app.clients.coverart import FakeCoverArt
 from app.clients.listenbrainz import RecordingMetadata
@@ -488,3 +489,52 @@ def test_the_release_cover_is_the_last_resort(tmp_path: Path) -> None:
     c.svc._caa.covers = {"r1": b"release"}
     cover = c.svc._cover(RELEASE, None)
     assert cover is not None and cover.source == "release"
+
+
+def test_covers_follow_the_catalog_order(tmp_path: Path) -> None:
+    deezer = CoverCatalog()
+    deezer.albums["a"] = _album("Modal Soul", "Nujabes")
+    c = _covers(tmp_path, deezer)
+    c.svc._sources = SourcePreferences(c.db, {"catalog": ("musicbrainz", "deezer")})
+    with c.db.transaction() as conn:
+        uid = UsersStore().all(conn)[0].id
+    first = c.svc._cover(RELEASE, uid)
+    assert first is not None and first.source == "release group"
+    c.svc._sources = SourcePreferences(c.db, {"catalog": ("deezer", "musicbrainz")})
+    second = c.svc._cover(RELEASE, uid)
+    assert second is not None and second.source == "deezer"
+
+
+def _searching(c: Case, title: str, artist: str) -> None:
+    search = FakeCatalog("musicbrainz")
+    search.tracks[REC] = Track("musicbrainz", REC, title, artist, (), 175.0, (), "")
+    c.svc._search = search
+
+
+def test_a_download_falls_back_to_the_search_like_a_rename(tmp_path: Path) -> None:
+    c = Case(tmp_path, mbid=False)
+    c.svc._lb = FixedLB(None)
+    _searching(c, "Feather", "Nujabes")
+    assert c.svc.tag(c.fid)
+    assert c.state_and_rows()[0] == "tagged"
+
+
+def test_a_download_never_takes_a_different_song_from_the_search(
+    tmp_path: Path,
+) -> None:
+    c = Case(tmp_path, mbid=False)
+    c.svc._lb = FixedLB(None)
+    _searching(c, "Feather (Other Song)", "Somebody Else")
+    assert not c.svc.tag(c.fid)
+    assert c.state_and_rows() == ("verified", ["failTag:no_recording"])
+
+
+def test_a_known_recording_with_no_official_release_tries_the_lookup(
+    tmp_path: Path,
+) -> None:
+    c = Case(tmp_path)
+    c.mb.recordings["dead"] = replace(info(), releases=())
+    c.svc._lb = FixedLB(lb_hit("Nujabes", 175.0))
+    with c.db.transaction(write=True) as conn:
+        conn.execute("UPDATE song_identity SET source_id = 'dead'")
+    assert c.svc.tag(c.fid)
