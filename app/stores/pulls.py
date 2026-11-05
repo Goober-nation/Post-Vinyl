@@ -285,15 +285,18 @@ class PullsStore:
         old_id: str,
         new_id: str | None,
     ) -> None:
-        """A song's Navidrome id changed: its playlists are written again."""
+        """A song's Navidrome id changed: its playlists are written again. With
+        the new id unknown yet (a replacement), items found by the old id follow
+        ``song_id``'s file instead."""
         conn.execute(
             """UPDATE pull_items
                   SET in_playlist = 0,
-                      library_id = CASE WHEN library_id = ?
-                                        THEN COALESCE(?, library_id)
+                      song_id = CASE WHEN library_id = ?
+                                     THEN COALESCE(?, song_id) ELSE song_id END,
+                      library_id = CASE WHEN library_id = ? THEN ?
                                         ELSE library_id END
                 WHERE song_id = ? OR library_id = ?""",
-            (old_id, new_id, song_id, old_id),
+            (old_id, song_id, old_id, new_id, song_id, old_id),
         )
 
     def mark_in_playlist(self, conn: sqlite3.Connection, pull_id: int) -> None:

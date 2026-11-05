@@ -55,6 +55,8 @@ postvinyl:
 
 Your music folder needs `library/` (Navidrome's music folder) and `downloads/complete/soulseek/` (where slskd saves). Different folders are fine: set them under `files` in `post-vinyl.yaml`.
 
+Scrobbling to ListenBrainz needs `ND_LISTENBRAINZ_ENABLED=true` on Navidrome (its default); Post-Vinyl passes your token over.
+
 ### Starting From Nothing
 
 Create the two folders above, then fill in the `change-me` values and paths in this `docker-compose.yml`:
@@ -70,6 +72,7 @@ services:
       - ND_MUSICFOLDER=/music/library
       - ND_DATAFOLDER=/data
       - ND_SCANNER_PURGEMISSING=never
+      - ND_LISTENBRAINZ_ENABLED=true
     volumes:
       - /path/to/music:/music:ro
       - ./navidrome_data:/data

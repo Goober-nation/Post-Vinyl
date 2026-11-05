@@ -358,3 +358,19 @@ def test_a_moved_song_goes_into_its_playlists_again(env: Env) -> None:
         PullsStore().song_moved(conn, req.song_id, "nd-1", "nd-2")
         conn.execute("UPDATE file_management SET navidrome_id = 'nd-2'")
         assert len(PullsStore().pulls_to_sync(conn)) == 1
+
+
+def test_a_replaced_library_match_follows_the_new_file(env: Env) -> None:
+    start_recs(env)
+    env.pulls.feed()
+    first = env.source.started[0]
+    env.source.finish(first, "f")
+    with env.db.transaction(write=True) as conn:
+        req = RequestsStore().get(conn, first)
+        assert req is not None
+        conn.execute("UPDATE pull_items SET library_id = 'old' WHERE request_id = ?",
+                     (first,))  # fmt: skip
+        PullsStore().song_moved(conn, req.song_id, "old", None)
+        conn.execute("UPDATE file_management SET file_state = 'indexed', navidrome_id = 'new'")
+        pull = env.pulls.pulls(env.user)[0].pull.id
+        assert PullsStore().indexed_songs(conn, pull) == ["new"]

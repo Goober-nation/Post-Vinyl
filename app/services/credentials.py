@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from app.clients.listenbrainz import ListenBrainzClientBase, ListenBrainzError
 from app.clients.navidrome import NavidromeClientBase, NavidromeError
 from app.services.encryption import DecryptError, SecretBox
+from app.services.navidrome_login import NavidromeLogins
 from app.services.sources import SourcePreferences
 from app.stores.database import Database
 from app.stores.users import UsersStore
@@ -57,6 +58,7 @@ class CredentialsService(CredentialsServiceBase):
         self._db = db
         self._lb = listenbrainz
         self._nd = navidrome
+        self._logins = NavidromeLogins(db, navidrome, box)
         self._box = box
         self._sources = sources
         self._users = UsersStore()
@@ -102,8 +104,9 @@ class CredentialsService(CredentialsServiceBase):
         if user is None:
             return False
         try:
-            password = self._box.decrypt(user.nd_password_enc)
-            session = self._nd.login(user.username, password)
+            session = self._logins.session_for(user)
+            if session is None:
+                return False
             self._nd.link_listenbrainz(session, token)
         except (NavidromeError, DecryptError) as e:
             log.warning("Navidrome scrobbling link for %s: %s", user.username, e)
