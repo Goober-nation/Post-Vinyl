@@ -101,7 +101,7 @@ ListenBrainz token (`409`).
 | `GET /api/lb/radio` | user | `artist`, `level?` (`easy`, `medium`, `hard`) | a fresh radio; each call differs, nothing is stored |
 | `POST /api/pulls/recs` | user | `{last_updated, first_rank, last_rank, name?}` | `201` the pull; default name `recommendations-<date>` |
 | `POST /api/pulls/radio` | user | `{artist, level, tracks, name?}` | `201` the pull; default name `radio-<artist>-<date>` |
-| `GET /api/pulls` | user | | newest first: `id`, `kind`, `name`, `state`, `created_at`, `total`, `queued`, `downloading`, `in_playlist`, `failed` |
+| `GET /api/pulls` | user | | newest first: `id`, `kind`, `name`, `state`, `created_at`, `lb_last_updated`, `first_rank`, `last_rank` (recommendations only), `total`, `queued`, `downloading`, `in_playlist`, `failed` |
 | `POST /api/pulls/{pull_id}/cancel` | owner | | queued songs leave and requests not yet downloading are dropped; started downloads finish |
 
 ## slskd tab
@@ -134,9 +134,9 @@ library.
 
 | Call | Who | Takes | Answers |
 |---|---|---|---|
-| `GET /api/library/files` | user | `q?` (title, album, artists), `page`, `page_size` | songs with `has_cover`, and `file_id` / `file_state` where Post-Vinyl downloaded them |
+| `GET /api/library/files` | user | `q?` (title, album, artists), `page`, `page_size` | songs with `has_cover`, `bitrate` (kbps; `0` unknown), and `file_id` / `file_state` where Post-Vinyl downloaded them |
 | `POST /api/library/files/owned` | user | `{items: [{title, artist}]}` (up to 100) | `[bool]`, one per item: whether Navidrome already has that song |
-| `POST /api/library/files/{song_id}/rename` | admin | `{title, artist, album_artist?, album?, year?, track?, disc?}` | `{match, recording_id, release_id, via, tags, has_cover}` or `{match: false}` |
+| `POST /api/library/files/{song_id}/rename` | admin | `{title, artist, album?, year?, track?, disc?}` | `{match, recording_id, release_id, via, tags, has_cover, cover, cover_source}` or `{match: false}`. `cover` is a data URL of the exact image |
 | `POST /api/library/files/{song_id}/apply` | admin | `{recording_id, release_id}` | `{file}`: the song under its new id (`null` if Navidrome doesn't list it yet) |
 | `POST /api/library/files/{song_id}/strip` | admin | `{title, artist}` | `{file}` at `<artist>/<title>` |
 | `POST /api/library/files/{song_id}/retag` | admin | | tries tagging again from the file's name; on a match the tags are rewritten (no new cover keeps the old one): `{file}`. Nothing matched `422`, the file unchanged |

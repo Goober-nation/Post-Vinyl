@@ -102,6 +102,7 @@ class Song:
     missing: bool  # file gone from disk but still in the index
     has_cover: bool = False  # Navidrome found art for it (embedded or a folder image)
     bitrate: int = 0  # kbps; 0 when unknown
+    release_id: str = ""  # MusicBrainz release, "" when untagged
 
 
 @dataclass(frozen=True)
@@ -217,6 +218,7 @@ def parse_song(raw: dict[str, Any]) -> Song:
         missing=bool(raw.get("missing")),
         has_cover=bool(raw.get("hasCoverArt")),
         bitrate=int(raw.get("bitRate") or 0),
+        release_id=raw.get("mbzAlbumId") or "",
     )
 
 

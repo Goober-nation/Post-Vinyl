@@ -101,7 +101,7 @@ States are on [the pipeline page](pipeline.md).
 |---|---|
 | `lb_playlists` | Every song of each ListenBrainz generation, per user |
 | `user_lb_playlists`, `user_radio_requests` | One pull each: name, `state`, `navidrome_playlist_id`, its range or artist and level |
-| `pull_items` | Chosen songs in order: item `state`, `request_id`, `song_id`, `in_playlist` |
+| `pull_items` | Chosen songs in order: item `state`, `request_id`, `song_id`, `library_id` (a library song found by name), `in_playlist` |
 
 Pull `state`: `running`, `done`, `cancelled`. Item `state`: `queued`, `requested`, `reused`,
 `failed`, `cancelled`.

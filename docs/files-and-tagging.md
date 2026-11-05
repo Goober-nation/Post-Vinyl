@@ -17,17 +17,37 @@ What happens to a file after it arrives. The state flow is in
 
 No beets, no Picard. **Only tags known to be true**, from MusicBrainz and ListenBrainz.
 
-**Recording.** The song's MusicBrainz id, or ListenBrainz's name lookup with the **requester's**
-token. A lookup is accepted only when our main artist is in the credit and the length is within
-±6 s, so a wrong guess stays untagged, not mistagged.
+**Recording.** Downloads, renames and retags all use one lookup, `TaggingService._match`:
+
+1. The song's MusicBrainz id, if known.
+2. ListenBrainz's name lookup, accepted only when the artist is in the credit and the length is
+   within ±6 s.
+3. MusicBrainz search, up to 5 recordings of a fitting length.
+
+The first recording with an official release wins, so one with only withdrawn releases is skipped.
+Each step runs for the artist as written, then for the first named artist if that finds nothing:
+`Timbaland; Elton John`, then `Timbaland`. The whole name goes first so `Tyler, The Creator` stays
+one artist.
+
+A download uses the **requester's** token, and no one reviews its result, so its search must also
+name the same song. A wrong guess stays untagged, not mistagged. A rename uses the admin's token and
+is reviewed before it's applied.
 
 **Release** (`core/release_choice.py`): the earliest official plain album, then EP, then single.
 Plain means no secondary type such as Compilation or Live. With none of those, the earliest official
-release of any kind. The earliest edition's own disc and track layout is kept. If those details
+release of any kind. First, though, if the recording is on an official release the library already
+has songs of, it joins the one with the most, because Navidrome splits an album by release. A
+recording that isn't on that release stays on its own. The earliest edition's own disc and track layout is kept. If those details
 can't be had, the album is written without numbers, so the file still lands in the album folder.
 
 **Tags written**: title, artist, album artist, album, date, original date, track and disc with
-totals, MusicBrainz ids, ISRC when there is exactly one, and the Cover Art Archive front cover.
+totals, MusicBrainz ids, ISRC when there is exactly one, and a cover.
+
+**Cover.** It follows the user's catalog order. Deezer ahead of MusicBrainz tries Deezer's album
+first, used only when artist and album both match, then the Cover Art Archive. MusicBrainz ahead
+tries the archive first, then Deezer. At the archive the release group's front comes before this
+release's, because uploads for one edition are community scans. A failing source only moves on: a
+cover never stops a song being tagged. A source that's off is skipped.
 
 **Kept from the peer's file**: ReplayGain, Opus loudness (`R128_*`) and lyrics. Everything else is
 replaced. A file with no new cover keeps its old one.
@@ -67,14 +87,17 @@ Navidrome is reached as the first admin with a working saved login.
 Admin only, in two steps.
 
 1. **Suggest**: looks up the new names. ListenBrainz first with the admin's token, using the same
-   checks as tagging, then a MusicBrainz search filtered by length. It answers the full tag set, or
-   `{match: false}`.
+   checks as tagging, then a MusicBrainz search filtered by length. It answers the full tag set and
+   the exact cover with its source, or `{match: false}`.
 2. **Apply** writes the set and moves the file where the tags put it. Or **strip** removes every tag
    and moves it to `<Artist>/<Title>`. Then Navidrome rescans.
 
 A rename needs MusicBrainz on for the admin. The server rebuilds tags from the recording and release
-ids, and refuses a release that isn't the recording's. The song's Navidrome id changes, because it
-follows the path.
+ids, and refuses a release that isn't the recording's.
+
+A plain move kept the Navidrome id on 0.64.2, but a tag change gives the song a new one. So each
+user's star and rating are read first and written to the new id, for every user with a saved login.
+Play counts aren't carried. The old entry stays as a Missing row until it's removed in Navidrome.
 
 Files the pipeline still holds aren't in Navidrome yet, so renaming them answers `404`.
 
@@ -90,4 +113,5 @@ song again.
 ## Missing
 
 The hourly check marks files that vanished as `missing`. Files deleted through the app are `deleted`.
-Compose sets `ND_SCANNER_PURGEMISSING=always`, so Navidrome drops them on its next scan.
+Compose sets `ND_SCANNER_PURGEMISSING=never`, so Navidrome keeps a Missing row for them until it's
+removed on its Missing Files page. Post-Vinyl's Delete can't remove one: there is no file to find.

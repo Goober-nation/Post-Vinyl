@@ -74,7 +74,7 @@ Shown in the app, editable only in the file.
 |---|---|---|
 | `music_dir` | `/music` | The music mount inside the container |
 | `slskd_downloads_dir` | `downloads/complete/soulseek` | Inside `music_dir`: slskd's downloads folder |
-| `library_dir` | `library` | Inside `music_dir`: must be Navidrome's music folder |
+| `library_dir` | `library` | Inside `music_dir`: the library. Navidrome's music folder is this one, or `music_dir` itself |
 
 ### `workers`
 

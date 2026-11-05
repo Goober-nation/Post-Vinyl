@@ -69,7 +69,7 @@ services:
     environment:
       - ND_MUSICFOLDER=/music/library
       - ND_DATAFOLDER=/data
-      - ND_SCANNER_PURGEMISSING=always
+      - ND_SCANNER_PURGEMISSING=never
     volumes:
       - /path/to/music:/music:ro
       - ./navidrome_data:/data

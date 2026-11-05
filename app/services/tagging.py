@@ -28,7 +28,8 @@ from __future__ import annotations
 import logging
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterator
+from collections import Counter
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -64,6 +65,7 @@ from app.clients.musicbrainz import (
     RecordingRelease,
     ReleaseInfo,
 )
+from app.clients.navidrome import NavidromeError
 from app.config import FilesSettings
 from app.core import states
 from app.core.matcher import DURATION_TOLERANCE_S, norm, same_song
@@ -71,6 +73,7 @@ from app.core.normalize import artist_candidates
 from app.core.release_choice import choose_release
 from app.services.catalog import order_tracks
 from app.services.encryption import SecretBox
+from app.services.files import NoAdmin
 from app.services.sources import SourceOff, SourcePreferences
 from app.stores.database import Database
 from app.stores.files import FilesStore
@@ -333,7 +336,9 @@ class TaggingService(TaggingServiceBase):
         search: CatalogSource | None = None,  # MusicBrainz search for renames (#112)
         sources: SourcePreferences | None = None,  # None: every source on (tests)
         deezer: AlbumCovers | None = None,  # official covers
+        library_releases: Callable[[str], Counter[str]] | None = None,
     ) -> None:
+        self._library_releases = library_releases
         self._search = search
         self._deezer = deezer
         self._sources = sources
@@ -519,11 +524,33 @@ class TaggingService(TaggingServiceBase):
             same_album = [
                 r for r in info.releases if album and norm(r.title) == norm(album)
             ]
-            chosen = choose_release(same_album) or choose_release(info.releases)
+            chosen = (
+                self._library_release(same_album or info.releases)
+                or choose_release(same_album)
+                or choose_release(info.releases)
+            )
             if chosen is not None:
                 return Match(mbid, via, info, chosen)
             log.info("recording %s has no official release", mbid)
         return None
+
+    def _library_release(
+        self, releases: Sequence[RecordingRelease]
+    ) -> RecordingRelease | None:
+        """The official release the library has most songs of, so an album's songs
+        stay one album: Navidrome splits an album by release (user, 2026-11-05)."""
+        official = [r for r in releases if r.status == "Official"]
+        if self._library_releases is None or not official:
+            return None
+        counts: Counter[str] = Counter()
+        try:
+            for title in {r.title for r in official}:
+                counts.update(self._library_releases(title))
+        except (NavidromeError, NoAdmin) as e:
+            log.info("library release check failed: %s", e)
+            return None
+        owned = [r for r in official if counts[r.id]]
+        return max(owned, key=lambda r: counts[r.id]) if owned else None
 
     def _candidates(
         self, user_id: int | None, title: str, artist: str,

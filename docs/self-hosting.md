@@ -14,13 +14,29 @@ stack or starting from nothing, and the optional outgoing proxy.
 ## Folders
 
 ```
-/music                         one mount, the same in all three containers
-├── library/                   Navidrome's music folder
+/music                         the same path in all three containers
+├── library/                   the library, ideally Navidrome's music folder
 └── downloads/complete/soulseek/   slskd's downloads folder
 ```
 
-**Navidrome's music folder must be `library/` only**, so it never indexes half-finished downloads.
-Moves between the two folders are renames, so keep them on one mount.
+**Point Navidrome at `library/`.** Its music folder may also be `/music`: Post-Vinyl reads paths
+against both roots, and with the wider root it adds the downloads folder to `/music/.ndignore`. The
+status panel's **Library folders** check goes down when Navidrome's paths lead to no file, which
+means the mounts disagree.
+
+Don't change Navidrome's music folder on an existing library without a backup of `navidrome.db`.
+Track ids can change, and stars and plays go with them.
+
+**Keep `ND_SCANNER_PURGEMISSING=never`.** With `always`, a track wrongly seen as missing is deleted
+from Navidrome's database with its stars. The cost of `never` is that replaced entries stay as
+Missing rows until you remove them on Navidrome's Missing Files page.
+
+**Keep folder names distinct by more than case.** `Searches` and `searches` side by side lost 8
+tracks from the index on a live server, most likely because a selective scan treated them as one.
+
+One mount is fastest, because moves are plain renames. `/music/downloads` and `/music/library` may
+also be separate host folders: a move then copies to `<name>.partial`, renames it, and removes the
+source last, so a failed copy keeps the source.
 
 Other locations work: set them under `files` in `post-vinyl.yaml`. They must match your mounts, so
 they can only be changed in the file, not in the app.

@@ -75,6 +75,9 @@ activity, as text such as "62% · 1.2 MB/s".
   and page titles.
 - **A state is a dot plus words**, never colour alone. Queued is a hollow dot.
 - What is happening now shows a small turning record, still under reduced motion.
-- Logo `src/logo.svg`; favicon `src/favicon.svg`, its own simpler file.
+- Logo `src/logo.svg`; tab icon `src/favicon.svg`, its own simpler file, also rendered to
+  `public/favicon.ico` and `favicon-32.png`. iOS and Android icons in `public/` use the big logo,
+  padded on the dark background, and `site.webmanifest` lists them. Devices fetch these with no
+  session, so each one is in `ICON_FILES` in `app/middleware.py`.
 - Theme in `src/style.css`, components in `src/ui.ts`.
 - Below `md`, shelves scroll sideways in one row.

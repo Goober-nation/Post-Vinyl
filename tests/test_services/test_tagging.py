@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
@@ -23,6 +24,7 @@ from app.clients.musicbrainz import (
     ReleaseTrack,
 )
 from app.clients.musicbrainz_fake import FakeMusicBrainzTags
+from app.clients.navidrome import NavidromeError
 from app.config import FilesSettings
 from app.core.release_choice import choose_release
 from app.services.encryption import SecretBox, generate_key
@@ -538,3 +540,39 @@ def test_a_known_recording_with_no_official_release_tries_the_lookup(
     with c.db.transaction(write=True) as conn:
         conn.execute("UPDATE song_identity SET source_id = 'dead'")
     assert c.svc.tag(c.fid)
+
+
+def _two_editions() -> RecordingInfo:
+    return replace(
+        info(), releases=(rel("old", "2005-01-01"), rel("new", "2020-01-01"))
+    )
+
+
+def _pick(c: Case, counts: dict[str, int]) -> str | None:
+    c.svc._library_releases = lambda _album: Counter(counts)
+    chosen = c.svc._library_release(_two_editions().releases)
+    return chosen.id if chosen else None
+
+
+def test_a_song_joins_the_release_the_library_has_most_of(tmp_path: Path) -> None:
+    assert _pick(Case(tmp_path), {"new": 20, "old": 1}) == "new"
+
+
+def test_no_library_release_leaves_the_usual_choice(tmp_path: Path) -> None:
+    assert _pick(Case(tmp_path), {"another": 5}) is None
+
+
+def test_a_withdrawn_release_is_never_joined(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    c.svc._library_releases = lambda _album: Counter({"gone": 9})
+    assert c.svc._library_release((rel("gone", "2005", status="Withdrawn"),)) is None
+
+
+def test_a_library_failure_only_skips_the_preference(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+
+    def down(_album: str) -> Counter[str]:
+        raise NavidromeError("down")
+
+    c.svc._library_releases = down
+    assert c.svc._library_release(_two_editions().releases) is None

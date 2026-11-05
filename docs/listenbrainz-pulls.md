@@ -42,6 +42,8 @@ Every 5 s it:
 |---|---|
 | Not in the catalog | `failed`, then the next item |
 | Song already has an `indexed` file | `reused`, straight to the playlist, then the next item |
+| Navidrome has a song of that title and artist, however it got there | `reused`, with `library_id`, straight to the playlist, then the next item |
+| Navidrome can't be checked | Stays `queued`, so nothing downloads blind. Stops until the next tick |
 | Otherwise | Song resolved, request created and dispatched: `requested`. Stops until the next tick |
 
 So one song at a time goes ahead of a download, and **user requests always go first** without
@@ -53,7 +55,8 @@ Progress needs no new state: `pull_items.request_id` leads to the request's `tra
 ## Playlists
 
 The `pull-playlists` worker keeps each pull's playlist current. `services/playlists.py` takes the
-items whose song has an `indexed` file, in position order, and fully rewrites the Navidrome playlist.
+items whose song has an `indexed` file or a `library_id`, in position order, and fully rewrites the
+Navidrome playlist.
 It's the only writer of Navidrome playlists. Failed songs stay out, and a playlist removed in
 Navidrome is recreated.
 

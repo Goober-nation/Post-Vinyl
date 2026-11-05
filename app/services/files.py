@@ -32,6 +32,7 @@ import shutil
 import threading
 import time
 from abc import ABC, abstractmethod
+from collections import Counter
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,7 @@ SCAN_POLL_S = 2
 MIN_SIZE_RATIO = 0.8
 MAX_SEGMENT = 120  # characters per folder/file name
 _UNSAFE = re.compile(r"[\x00-\x1f/\\]")
+ALBUM_SONGS = 200  # library songs read when asking which releases an album has
 LAYOUT_SAMPLE = 20  # songs read to tell Navidrome's root from a few missing files
 _COVERS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
@@ -427,6 +429,11 @@ class FilesService(FilesServiceBase):
             lambda s: self._nd.list_songs(s, query, start, end)
         )
         return page
+
+    def release_counts(self, album: str) -> Counter[str]:
+        """How many library songs each MusicBrainz release of this album has."""
+        songs, _ = self.library_page(album, 0, ALBUM_SONGS)
+        return Counter(s.release_id for s in songs if s.release_id and not s.missing)
 
     def records(self, navidrome_ids: list[str]) -> dict[str, FileRecord]:
         with self._db.transaction() as conn:

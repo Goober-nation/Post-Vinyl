@@ -85,6 +85,7 @@ def build_core(
     tagging = TaggingService(
         db, mb, lb, caa, box, settings.files,
         search=mb, sources=prefs, deezer=deezer,
+        library_releases=files.release_counts,
     )  # fmt: skip
     pipeline = FilePipeline(db, files, tagging, settings.workers)
     cleanup = SlskdCleanup(db, slskd, settings.files)
