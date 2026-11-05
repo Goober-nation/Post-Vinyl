@@ -15,7 +15,9 @@ user, 2026-10-29:
   library, before the new one moves in.
 - **Index**: scan Navidrome, find the moved file by its path and store the
   ``navidrome_id``; Navidrome owns the path from then on. Navidrome's music
-  folder is the library only, so downloads are never indexed.
+  folder may be the library or the music folder above it (user, 2026-11-05): a
+  path is read against both, and with the wider root the downloads folder goes
+  into ``.ndignore`` so they are never indexed.
 - Navidrome is reached as the first Post-Vinyl admin, with the Navidrome
   password stored (encrypted) at their login.
 """
@@ -63,10 +65,16 @@ SCAN_POLL_S = 2
 MIN_SIZE_RATIO = 0.8
 MAX_SEGMENT = 120  # characters per folder/file name
 _UNSAFE = re.compile(r"[\x00-\x1f/\\]")
+LAYOUT_SAMPLE = 20  # songs read to tell Navidrome's root from a few missing files
+_COVERS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 
 class LibraryFileNotFound(LookupError):
     """No such library song, or its file isn't inside the library."""
+
+
+class LayoutMismatch(NavidromeError):
+    """Navidrome's paths don't lead to our library: the mounts disagree."""
 
 
 class NoAdmin(Exception):
@@ -154,6 +162,15 @@ def move_file(src: Path, target: Path) -> None:
     src.unlink()
 
 
+def _leftover(path: Path) -> bool:
+    """A cover or macOS file, worthless once its folder has no audio left."""
+    return path.is_file() and (
+        path.name == ".DS_Store"
+        or path.name.startswith("._")
+        or path.suffix.lower() in _COVERS
+    )
+
+
 def _numbered(path: Path, target: Path) -> bool:
     """``path`` is one of ``target``'s "(2)", "(3)"… names."""
     return (
@@ -202,6 +219,8 @@ class FilesService(FilesServiceBase):
         self._box = box
         self._music = Path(settings.music_dir)
         self._downloads = self._music / settings.slskd_downloads_dir
+        self._downloads_top = Path(settings.slskd_downloads_dir).parts[0]
+        self._ignore_checked = False
         self._library = self._music / settings.library_dir
         self._clock = clock
         self._sleep = sleep
@@ -314,18 +333,12 @@ class FilesService(FilesServiceBase):
             old = self._call(lambda s: self._nd.get_song(s, rec.navidrome_id or ""))
         except NavidromeNotFound:
             return  # Navidrome no longer has it: nothing to find
-        path = (Path(old.library_path) / old.path).resolve()
-        # Navidrome's library path is its own mount; map it onto ours by the
-        # path inside the library, and never delete outside the library
-        ours = (self._library / old.path).resolve()
-        if not ours.is_relative_to(self._library.resolve()):
-            log.warning(
-                "file %s: old copy %s is outside the library; kept", rec.id, path
-            )
+        ours = self._on_disk(old)
+        if ours is None:  # gone, or outside the library: never deleted
+            log.warning("file %s: old copy %s not in the library", rec.id, old.path)
             return
-        if ours.is_file():
-            ours.unlink()
-            log.info("file %s: deleted the replaced copy %s", rec.id, ours)
+        ours.unlink()
+        log.info("file %s: deleted the replaced copy %s", rec.id, ours)
 
     # ------------------------------------------------------------ index
 
@@ -333,18 +346,20 @@ class FilesService(FilesServiceBase):
         rec, _ = self._get(file_id)
         if rec.file_state != "moved":
             return False
-        library_rel = str(Path(rec.file_location).relative_to(Path(self._library.name)))
         if scan:
             self.scan()
-        song = self._call(lambda s: self._nd.find_song_by_path(s, library_rel))
+        song = self._find_in_navidrome(self._music / rec.file_location)
         if song is None:
-            log.info("file %s: Navidrome doesn't list %s yet", rec.id, library_rel)
+            log.info(
+                "file %s: Navidrome doesn't list %s yet", rec.id, rec.file_location
+            )
             return False
         with self._db.transaction(write=True) as conn:
             self._files.set_navidrome_id(conn, rec.id, song.id, self._now())
         return self._move_state(rec, states.file_indexed("moved"))
 
     def scan(self) -> None:
+        self._keep_downloads_out()
         status = self._call(lambda s: self._nd.start_scan(s))
         waited = 0.0
         while status.scanning and waited < SCAN_WAIT_S:
@@ -353,6 +368,7 @@ class FilesService(FilesServiceBase):
             status = self._call(lambda s: self._nd.scan_status(s))
         if status.error:
             log.warning("Navidrome scan error: %s", status.error)
+        self._keep_downloads_out()  # a first scan only now tells the root
 
     # ------------------------------------------------------------ cleanup
 
@@ -439,10 +455,78 @@ class FilesService(FilesServiceBase):
 
     def library_path(self, song: LibrarySong) -> Path:
         """Our path for a library song; never anything outside the library."""
-        ours = (self._library / song.path).resolve()
-        if not ours.is_relative_to(self._library.resolve()) or not ours.is_file():
+        ours = self._on_disk(song)
+        if ours is None:
             raise LibraryFileNotFound(f"{song.path} isn't a file in the library")
         return ours
+
+    def _on_disk(self, song: LibrarySong) -> Path | None:
+        """The song's file, or None. Navidrome's root may be the library or the
+        music folder; the root it reports goes first, so a same-named file under
+        the other root is never taken for this one."""
+        bases = (self._library, self._music)
+        if Path(song.library_path) == self._music:
+            bases = (self._music, self._library)
+        root = self._library.resolve()
+        for base in bases:
+            ours = (base / song.path).resolve()
+            if ours.is_relative_to(root) and ours.is_file():
+                return ours
+        return None
+
+    def _find_in_navidrome(self, path: Path) -> LibrarySong | None:
+        """The song at ``path``, whichever root Navidrome's paths start from."""
+        for base in (self._library, self._music):
+            song = self._song_at(str(path.relative_to(base)))
+            if song is not None:
+                return song
+        return None
+
+    def _song_at(self, rel: str) -> LibrarySong | None:
+        song: LibrarySong | None = self._call(
+            lambda s: self._nd.find_song_by_path(s, rel)
+        )
+        return song
+
+    def _sample(self) -> list[LibrarySong]:
+        songs: list[LibrarySong] = self._call(
+            lambda s: self._nd.list_songs(s, "", 0, LAYOUT_SAMPLE)
+        )[0]
+        return songs
+
+    def check_layout(self) -> None:
+        """Raises LayoutMismatch when no sampled song leads to a file: the mounts
+        disagree, which no single file's error would say."""
+        try:
+            songs = self._sample()
+        except NoAdmin:
+            return  # before setup there's nothing to check as
+        if songs and not any(self._on_disk(s) for s in songs):
+            raise LayoutMismatch(
+                f"Navidrome's {songs[0].library_path} doesn't match {self._library}"
+            )
+
+    def _keep_downloads_out(self) -> None:
+        """With Navidrome at the music folder, list the downloads in .ndignore so
+        half-finished files aren't indexed. Keeps every line already there."""
+        if self._ignore_checked:
+            return
+        songs = self._sample()
+        if not songs:
+            return  # nothing tells the root yet
+        self._ignore_checked = True
+        if Path(songs[0].library_path) != self._music:
+            return
+        line = f"/{self._downloads_top}/"
+        ignore = self._music / ".ndignore"
+        try:
+            text = ignore.read_text(encoding="utf-8") if ignore.exists() else ""
+            if line not in text.splitlines():
+                end = "" if not text or text.endswith("\n") else "\n"
+                ignore.write_text(f"{text}{end}{line}\n", encoding="utf-8")
+                log.info("added %s to %s", line, ignore)
+        except OSError as e:
+            log.warning("couldn't update %s: %s", ignore, e)
 
     def re_place(
         self, navidrome_id: str, title: str, artist: str
@@ -472,10 +556,7 @@ class FilesService(FilesServiceBase):
             log.info("library %s renamed: %s -> %s", navidrome_id, song.path,
                      target.relative_to(self._library))  # fmt: skip
         self.scan()
-        rel = str(target.relative_to(self._library))
-        new: LibrarySong | None = self._call(
-            lambda s: self._nd.find_song_by_path(s, rel)
-        )
+        new = self._find_in_navidrome(target)
         with self._db.transaction(write=True) as conn:
             rec = self._files.by_navidrome_ids(conn, [navidrome_id]).get(navidrome_id)
             if rec is not None:
@@ -505,12 +586,16 @@ class FilesService(FilesServiceBase):
         self.scan()
 
     def _prune(self, folder: Path) -> None:
-        """Remove folders left empty, up to (not including) the library."""
+        """Remove folders with nothing but leftovers (covers, macOS files), up to
+        (not including) the library."""
         root = self._library.resolve()
         folder = folder.resolve()
-        while (
-            folder != root and folder.is_relative_to(root) and not any(folder.iterdir())
-        ):
+        while folder != root and folder.is_relative_to(root):
+            items = list(folder.iterdir())
+            if not all(_leftover(item) for item in items):
+                return
+            for item in items:
+                item.unlink()
             folder.rmdir()
             folder = folder.parent
 

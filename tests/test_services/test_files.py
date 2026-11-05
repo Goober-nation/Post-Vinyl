@@ -17,6 +17,8 @@ from app.config import FilesSettings
 from app.services.encryption import SecretBox, generate_key
 from app.services.files import (
     FilesService,
+    LayoutMismatch,
+    LibraryFileNotFound,
     NoAdmin,
     free_path,
     layout,
@@ -308,3 +310,128 @@ def test_expired_session_logs_in_again(tmp_path: Path) -> None:
     assert c.svc._session is not None
     c.svc._session.username = "gone"  # the fake rejects it: like an expired session
     assert c.svc.index(fid)
+
+
+# ------------------------------------------------------------ Navidrome's root
+
+
+def wide_song(c: Case, rel: str = "library/A/B/1.wav") -> NdSong:
+    """A song as Navidrome reports it when its root is the music folder."""
+    song = NdSong("nd-1", rel, str(c.music), "t", "a", "", 1, 1, "wav", False)
+    c.nd.songs[song.id] = song
+    return song
+
+
+def test_file_found_with_navidrome_at_the_music_folder(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    wav(c.music / "library/A/B/1.wav", 1)
+    assert c.svc.library_path(wide_song(c)) == (c.music / "library/A/B/1.wav").resolve()
+
+
+def test_the_reported_root_wins_over_a_same_named_file(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    wav(c.music / "library/x.wav", 1)
+    wav(c.music / "library/library/x.wav", 1)
+    assert (
+        c.svc.library_path(wide_song(c, "library/x.wav"))
+        == (c.music / "library/x.wav").resolve()
+    )
+
+
+@pytest.mark.parametrize("rel", ["downloads/x.wav", "../../outside.wav"])
+def test_wider_root_still_stays_inside_the_library(tmp_path: Path, rel: str) -> None:
+    c = Case(tmp_path)
+    wav(c.music / "downloads/x.wav", 1)
+    wav(tmp_path / "outside.wav", 1)
+    with pytest.raises(LibraryFileNotFound):
+        c.svc.library_path(wide_song(c, rel))
+
+
+def test_index_finds_the_file_under_a_wider_root(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    fid = c.download("post-vinyl/1/1/a.wav")
+    c.svc.verify(fid)
+    c.svc.move(fid)
+    rel = c.file(fid).file_location
+    c.nd.pending.append(NdSong("nd-1", rel, str(c.music), "Feather", "Nujabes", "",
+                               175, 1, "wav", False))  # fmt: skip
+    assert c.svc.index(fid) and c.file(fid).navidrome_id == "nd-1"
+
+
+def test_replaced_copy_is_deleted_under_a_wider_root(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    fid = c.download("post-vinyl/1/1/a.wav")
+    old = c.music / "library/Old/old.wav"
+    wav(old, 1)
+    wide_song(c, "library/Old/old.wav")
+    with c.db.transaction() as conn:
+        FilesStore().set_navidrome_id(conn, fid, "nd-1", NOW)
+    c.svc.verify(fid)
+    c.svc.move(fid)
+    assert not old.exists()
+
+
+def test_layout_check_names_mounts_that_disagree(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    c.svc.check_layout()  # an empty library has nothing to disagree on
+    wide_song(c, "elsewhere/x.wav")
+    with pytest.raises(LayoutMismatch):
+        c.svc.check_layout()
+    wav(c.music / "library/ok.wav", 1)
+    c.nd.songs["nd-2"] = NdSong("nd-2", "ok.wav", "/music/library", "t", "a", "", 1, 1,
+                                "wav", False)  # fmt: skip
+    c.svc.check_layout()  # one missing file isn't a mismatch
+
+
+def test_layout_check_waits_for_setup(tmp_path: Path) -> None:
+    Case(tmp_path, admin=False).svc.check_layout()
+
+
+def test_wider_root_adds_downloads_to_ndignore_keeping_its_lines(
+    tmp_path: Path,
+) -> None:
+    c = Case(tmp_path)
+    (c.music / ".ndignore").parent.mkdir(parents=True, exist_ok=True)
+    (c.music / ".ndignore").write_text("# mine\n/complete/")
+    wide_song(c)
+    c.svc.scan()
+    c.svc.scan()
+    assert (c.music / ".ndignore").read_text() == "# mine\n/complete/\n/downloads/\n"
+
+
+def test_first_scan_of_an_empty_navidrome_still_writes_ndignore(
+    tmp_path: Path,
+) -> None:
+    c = Case(tmp_path)
+    c.nd.pending.append(NdSong("nd-1", "library/a.wav", str(c.music), "t", "a", "", 1,
+                               1, "wav", False))  # fmt: skip
+    (c.music).mkdir(parents=True)
+    c.svc.scan()
+    assert (c.music / ".ndignore").read_text() == "/downloads/\n"
+
+
+def test_library_root_writes_no_ndignore(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    c.nd.songs["nd-1"] = NdSong("nd-1", "x.wav", "/music/library", "t", "a", "", 1, 1,
+                                "wav", False)  # fmt: skip
+    c.svc.scan()
+    assert not (c.music / ".ndignore").exists()
+
+
+def test_prune_clears_leftovers_but_keeps_audio_and_other_files(
+    tmp_path: Path,
+) -> None:
+    c = Case(tmp_path)
+    junk = c.music / "library/A/B"
+    junk.mkdir(parents=True)
+    (junk / "cover.jpg").write_bytes(b"x")
+    (junk / ".DS_Store").write_bytes(b"x")
+    (junk / "._a.flac").write_bytes(b"x")
+    c.svc._prune(junk)
+    assert not (c.music / "library/A").exists() and (c.music / "library").is_dir()
+    kept = c.music / "library/C"
+    kept.mkdir()
+    (kept / "cover.jpg").write_bytes(b"x")
+    (kept / "booklet.pdf").write_bytes(b"x")
+    c.svc._prune(kept)
+    assert (kept / "cover.jpg").is_file()

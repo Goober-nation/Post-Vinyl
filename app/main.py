@@ -122,6 +122,7 @@ def build_core(
             [
                 Check("navidrome", "Navidrome", nd.has_no_users),
                 Check("slskd", "slskd", slskd.app_state, ("download", "slskd")),
+                Check("library", "Library folders", files.check_layout),
                 Check(
                     "musicbrainz",
                     "MusicBrainz",

@@ -87,8 +87,8 @@ class FilesSettings:
         "downloads/complete/soulseek", "Inside the music folder: where slskd saves "
         "finished downloads.")  # fmt: skip
     library_dir: str = setting(
-        "library", "Inside the music folder: Navidrome's library (Navidrome's music "
-        "folder must be exactly this one).")  # fmt: skip
+        "library", "Inside the music folder: the library. Navidrome's music folder "
+        "is this one, or the music folder itself.")  # fmt: skip
 
 
 @dataclass(frozen=True)

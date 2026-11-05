@@ -48,8 +48,8 @@ files:
   music_dir: /music
   # Inside music_dir: where slskd saves finished downloads...
   slskd_downloads_dir: downloads/complete/soulseek
-  # ...and Navidrome's library (Navidrome's music folder must be exactly this
-  # one, so it never indexes half-finished downloads).
+  # ...and the library. Navidrome's music folder is this one, or music_dir
+  # itself (Post-Vinyl then keeps the downloads out with .ndignore).
   library_dir: library
 
 # Advanced: how often the background workers run. Every value is optional.
