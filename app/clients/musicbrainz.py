@@ -290,6 +290,9 @@ class MusicBrainzClient(CatalogSource, MusicBrainzTagSourceBase):
             raise CatalogError(f"GET {path}: HTTP {resp.status_code} {resp.text[:200]}")
         return resp.json()
 
+    def ping(self) -> None:
+        self._get("/genre/all", limit=1)
+
     def _browse(self, path: str, key: str, **params: Any) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         while True:

@@ -112,6 +112,11 @@ function results(id: number, picks: Pick[], changed: () => void): HTMLElement {
       const box = document.querySelector<HTMLInputElement>('input[name="q"]');
       if (latest && box && !box.value) box.value = latest.query; // the search shown, ready to tweak
       if (!latest) {
+        const req = await api<Schemas["RequestOut"]>("GET", `/api/requests/${id}`);
+        if (req.track_state === "notFound") { // it failed before slskd took it
+          status.replaceChildren(state("Search failed", "err"));
+          return;
+        }
         status.replaceChildren(state("Waiting to search", "wait"));
       } else if (!latest.is_complete) {
         status.replaceChildren(state("Searching", "live"), h("span", { class: "font-mono text-muted" }, `${latest.response_count} peers · ${latest.file_count} files so far`));

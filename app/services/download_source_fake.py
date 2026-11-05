@@ -24,6 +24,7 @@ class FakeDownloadSource(DownloadSource):
         self._db = db
         self.started: list[int] = []  # request ids this source claimed
         self.cancelled: list[int] = []
+        self.fetched: list[int] = []
 
     def start(self, request: Request, song: Song) -> bool:
         store = RequestsStore()
@@ -39,6 +40,9 @@ class FakeDownloadSource(DownloadSource):
     def cancel(self, request_id: int) -> None:
         if request_id in self.started:
             self.cancelled.append(request_id)
+
+    def fetch_found(self, request_id: int) -> None:
+        self.fetched.append(request_id)
 
     def finish(self, request_id: int, file_location: str) -> None:
         """searching → found → midDownload → downloaded, with a completed row."""

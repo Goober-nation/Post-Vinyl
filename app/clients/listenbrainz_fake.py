@@ -15,6 +15,9 @@ from app.clients.listenbrainz import (
 
 
 class FakeListenBrainzClient(ListenBrainzClientBase):
+    def ping(self) -> None:
+        pass
+
     """``recordings`` by MBID; ``tokens`` maps token -> user name; lookups
     match exact (artist, title) pairs, case-insensitive."""
 

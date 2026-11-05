@@ -114,11 +114,29 @@ class DownloadDispatch(DownloadDispatchBase):
                 started += self.dispatch(req.user_id, req.id) is not None
             except NotStartable:
                 pass  # moved meanwhile
+        self._fetch_found(picks=False)
         return started
+
+    def _fetch_found(self, picks: bool) -> None:
+        """Requests a crash left ``found``. A typed search stays ``found``: it has
+        no song. ``picks``: only at startup, since a running pick is on its way
+        to the downloader with its file, and without that file it would fail."""
+        with self._db.transaction() as conn:
+            found = self._requests.in_state(conn, "found")
+        if self._paused():
+            return
+        for req in found:
+            if req.song_id is None or (req.source == "slskd" and not picks):
+                continue
+            names = self._prefs.for_user(req.user_id, "download")
+            source = next((self._sources[n] for n in names if n in self._sources), None)
+            if source is not None:
+                source.fetch_found(req.id)
 
     def resume(self) -> int:
         """At startup: requests left ``searching`` by the last run go back to
-        ``requested`` and are dispatched again; returns how many."""
+        ``requested`` and are dispatched again (returns how many); those left
+        ``found`` go on to their download."""
         with self._db.transaction(write=True) as conn:
             stuck = self._requests.in_state(conn, "searching")
             for req in stuck:
@@ -130,6 +148,7 @@ class DownloadDispatch(DownloadDispatchBase):
                 self.dispatch(req.user_id, req.id)
             except NotStartable as e:
                 log.info("request %s not resumed: %s", req.id, e)
+        self._fetch_found(picks=True)
         return len(stuck)
 
     def _owned(self, user_id: int, request_id: int) -> None:

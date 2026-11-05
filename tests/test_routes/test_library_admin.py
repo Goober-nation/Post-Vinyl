@@ -147,7 +147,7 @@ def env(tmp_path: Path) -> Env:
                              search=search, sources=prefs)  # fmt: skip
     core = Core(
         FakeCatalogService(), RequestService(db), FakeDownloadDispatch(),
-        library=LibraryService(db, files, tagging, box), admin=AdminService(db, nd, box),
+        library=LibraryService(db, files, tagging), admin=AdminService(db, nd, box),
         credentials=CredentialsService(db, lb, box, prefs, nd),
     )  # fmt: skip
     app = create_app(Settings(str(tmp_path / "pv.db"), "http://nd", ORIGIN), auth, core)

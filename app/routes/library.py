@@ -29,9 +29,6 @@ class RenameBody(BaseModel):
     title: str
     artist: str
     album: str = ""
-    year: str = ""
-    track: int | None = None
-    disc: int | None = None
 
 
 class SuggestionOut(BaseModel):

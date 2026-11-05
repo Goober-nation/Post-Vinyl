@@ -24,6 +24,9 @@ class FakeCatalog(CatalogSource):
         self.similar: dict[str, list[Artist]] = {}
         self.tracklists: dict[str, list[Track]] = {}  # by edition id
 
+    def ping(self) -> None:
+        pass
+
     def search_tracks(
         self, title: str, artist: str | None = None, limit: int = 25
     ) -> list[Track]:

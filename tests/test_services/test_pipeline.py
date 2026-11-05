@@ -6,6 +6,8 @@ import wave
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
+
 from app.clients.navidrome import Song as NdSong
 from app.clients.navidrome_fake import FakeNavidromeClient
 from app.clients.slskd import SlskdError, Transfer
@@ -328,3 +330,20 @@ def test_core_loop_resumes_then_starts_workers(tmp_path: Path) -> None:
         "download-monitor", "file-pipeline", "cleanup", "unverifiable", "missing-check",
         "redispatch", "pull-feeder", "pull-playlists",
     }  # fmt: skip
+
+
+def test_one_files_error_leaves_the_others_moving(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    c = Case(tmp_path)
+    bad, good = c.download("Bad"), c.download("Good")
+    real = c.files.move
+
+    def move(file_id: int) -> bool:
+        if file_id == bad:
+            raise OSError("disk")
+        return real(file_id)
+
+    monkeypatch.setattr(c.files, "move", move)
+    assert c.pipe.tick().moved == 1
+    assert (c.rec(bad).file_state, c.rec(good).file_state) == ("tagged", "indexed")

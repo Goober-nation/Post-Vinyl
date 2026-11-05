@@ -242,27 +242,39 @@ class CatalogService(CatalogServiceBase):
         albums = self._catalog(user_id, source).artist_albums(artist_id)
         return sorted(albums, key=lambda a: a.first_release_date, reverse=True)
 
+    def _listenbrainz(
+        self, user_id: int, source: str
+    ) -> ListenBrainzClientBase | None:
+        """ListenBrainz, for a MusicBrainz artist while it's on for the user."""
+        if source != "musicbrainz":
+            return None
+        return (
+            self._lb if self._sources.is_on(user_id, "catalog", "listenbrainz") else None
+        )
+
     def artist_top_tracks(
         self, user_id: int, source: str, artist_id: str
     ) -> list[Track]:
         catalog = self._catalog(user_id, source)
-        if source != "musicbrainz" or self._lb is None:
+        lb = self._listenbrainz(user_id, source)
+        if lb is None:
             return catalog.artist_top_tracks(artist_id)
         return [
             Track(source, r.mbid, r.title, r.artist, (artist_id,), r.length_s, (), "",
                   cover_id=f"release/{r.release_mbid}" if r.release_mbid else "")
-            for r in self._lb.top_recordings(artist_id)[:TOP_TRACKS]
+            for r in lb.top_recordings(artist_id)[:TOP_TRACKS]
         ]  # fmt: skip
 
     def similar_artists(
         self, user_id: int, source: str, artist_id: str
     ) -> list[Artist]:
         catalog = self._catalog(user_id, source)
-        if source != "musicbrainz" or self._lb is None:
+        lb = self._listenbrainz(user_id, source)
+        if lb is None:
             return catalog.similar_artists(artist_id)
         return [
             Artist(source, a.mbid, a.name, a.comment)
-            for a in self._lb.similar_artists(artist_id)[:SIMILAR_ARTISTS]
+            for a in lb.similar_artists(artist_id)[:SIMILAR_ARTISTS]
         ]
 
     def edition_tracks(self, user_id: int, source: str, edition_id: str) -> list[Track]:

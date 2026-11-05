@@ -28,6 +28,7 @@ from app.services.files import (
 from app.stores.database import Database
 from app.stores.downloads import DownloadsStore
 from app.stores.files import FilesStore
+from app.stores.pulls import NewItem, PullsStore
 from app.stores.requests import RequestsStore
 from app.stores.songs import Song, SongFields, SongsStore
 from app.stores.users import UsersStore
@@ -383,6 +384,13 @@ def test_layout_check_names_mounts_that_disagree(tmp_path: Path) -> None:
     c.svc.check_layout()  # one missing file isn't a mismatch
 
 
+def test_layout_check_ignores_rows_navidrome_marks_missing(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    c.nd.songs["nd-1"] = NdSong("nd-1", "gone.wav", "/music/library", "t", "a", "", 1,
+                                1, "wav", True)  # fmt: skip
+    c.svc.check_layout()
+
+
 def test_layout_check_waits_for_setup(tmp_path: Path) -> None:
     Case(tmp_path, admin=False).svc.check_layout()
 
@@ -469,3 +477,27 @@ def test_a_user_whose_login_fails_doesnt_stop_the_retag(tmp_path: Path) -> None:
                                "wav", False))  # fmt: skip
     assert c.svc.re_place("old", "t", "a") is not None
     assert c.nd.user_marks[("admin", "new")] == (True, 0)
+
+
+def test_a_rename_sends_the_song_back_into_its_playlists(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    wav(c.music / "library/old/a.wav", 1)
+    c.nd.songs["old"] = NdSong("old", "old/a.wav", "/music/library", "t", "a", "", 1, 1,
+                               "wav", False)  # fmt: skip
+    pulls = PullsStore()
+    with c.db.transaction(write=True) as conn:
+        user = UsersStore().upsert_on_login(conn, "ann", "e", False, NOW).id
+        pull = pulls.create(conn, "lb_radio", user, "p", NOW,
+                            artist="a", level="easy", size=1)  # fmt: skip
+        pulls.add_items(conn, pull.id, [NewItem("m", "t", "a")])
+        item = pulls.next_queued(conn, pull.id)
+        assert item is not None
+        pulls.set_item(conn, item, "reused", library_id="old")
+        pulls.mark_in_playlist(conn, pull.id)
+        assert pulls.pulls_to_sync(conn) == []
+    c.nd.pending.append(NdSong("new", "a/t.wav", "/music/library", "t", "a", "", 1, 1,
+                               "wav", False))  # fmt: skip
+    c.svc.re_place("old", "t", "a")
+    with c.db.transaction() as conn:
+        assert pulls.pulls_to_sync(conn) == [pull.id]
+        assert pulls.indexed_songs(conn, pull.id) == ["new"]

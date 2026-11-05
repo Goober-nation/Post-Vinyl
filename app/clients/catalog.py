@@ -88,6 +88,10 @@ class CatalogSource(ABC):
     source: str
 
     @abstractmethod
+    def ping(self) -> None:
+        """Raises CatalogError when the service can't be reached."""
+
+    @abstractmethod
     def search_tracks(
         self, title: str, artist: str | None = None, limit: int = 25
     ) -> list[Track]: ...

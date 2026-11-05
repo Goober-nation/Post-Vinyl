@@ -11,8 +11,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from app.clients.catalog import CatalogError
+from app.clients.listenbrainz import ListenBrainzError
 from app.clients.navidrome import NavidromeError
-from app.clients.reach import Unreachable
 from app.clients.slskd import SlskdError
 from app.services.sources import SourcePreferences
 
@@ -75,7 +76,7 @@ class StatusService(StatusServiceBase):
         started = time.monotonic()
         try:
             check.ping()
-        except (NavidromeError, SlskdError, Unreachable) as e:
+        except (NavidromeError, SlskdError, CatalogError, ListenBrainzError) as e:
             log.info("%s isn't reachable: %s", name, e)
             return ServicePing(name, "down", None)
         return ServicePing(name, "ok", int((time.monotonic() - started) * 1000))

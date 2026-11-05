@@ -130,6 +130,10 @@ class ListenBrainzClientBase(ABC):
         """The recording ListenBrainz maps ``artist`` + ``title`` to, or None."""
 
     @abstractmethod
+    def ping(self) -> None:
+        """Raises ListenBrainzError when the service can't be reached."""
+
+    @abstractmethod
     def validate_token(self, token: str) -> TokenCheck: ...
 
     @abstractmethod
@@ -281,6 +285,9 @@ class ListenBrainzClient(ListenBrainzClientBase):
             artist_tags=(),
             release_group_tags=(),
         )
+
+    def ping(self) -> None:
+        self._call("GET", "/status/get-dump-info")
 
     def validate_token(self, token: str) -> TokenCheck:
         data = self._call("GET", "/validate-token", token=token)

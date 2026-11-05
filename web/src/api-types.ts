@@ -1497,15 +1497,6 @@ export interface components {
              * @default
              */
             album: string;
-            /**
-             * Year
-             * @default
-             */
-            year: string;
-            /** Track */
-            track?: number | null;
-            /** Disc */
-            disc?: number | null;
         };
         /** RequestOut */
         RequestOut: {

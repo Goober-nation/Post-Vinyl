@@ -185,14 +185,10 @@ function renameForm(rail: HTMLElement, f: File, me: Me, adminOnly: () => boolean
         e.preventDefault();
         if (adminOnly()) return;
         const d = new FormData(form);
-        const num = (k: string) => (d.get(k) ? Number(d.get(k)) : null);
         const body: Schemas["RenameBody"] = {
           title: String(d.get("title")).trim(),
           artist: String(d.get("artist")).trim(),
           album: String(d.get("album") ?? "").trim(),
-          year: String(d.get("year") ?? "").trim(),
-          track: num("track"),
-          disc: num("disc"),
         };
         out.replaceChildren(h("p", { class: "text-muted", role: "status" }, "Looking the names up…"));
         try {
@@ -207,7 +203,6 @@ function renameForm(rail: HTMLElement, f: File, me: Me, adminOnly: () => boolean
     field("Title", "title", f.title),
     field("Artist", "artist", f.artist),
     field("Album", "album", f.album),
-    h("div", { class: "grid grid-cols-3 gap-2" }, field("Year", "year"), field("Track", "track", "", "number"), field("Disc", "disc", "", "number")),
     h("button", { type: "submit", class: "btn btn-sm btn-outline border-line mt-2 w-full" }, "Look up the new names"),
   );
   form.querySelectorAll("input").forEach((i) => ["title", "artist"].includes(i.name) && (i.required = true));

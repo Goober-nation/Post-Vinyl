@@ -58,15 +58,6 @@ def test_every_create_is_a_new_requested_row(setup: Setup) -> None:
     assert (a.track_state, a.song_id, a.source) == ("requested", song, "catalog")
 
 
-def test_slskd_query_repeat_bumps_one_row(setup: Setup) -> None:
-    svc, _, alice, _, _ = setup
-    a = svc.record_slskd_query(alice, "nujabes  feather")
-    b = svc.record_slskd_query(alice, "Nujabes Feather")
-    assert a.id == b.id and b.last_used_at > a.last_used_at
-    with pytest.raises(ValueError):
-        svc.record_slskd_query(alice, "   ")
-
-
 def test_drop_and_re_request_follow_the_state_graph(setup: Setup) -> None:
     svc, _, alice, _, song = setup
     req = svc.create(alice, song, "catalog")

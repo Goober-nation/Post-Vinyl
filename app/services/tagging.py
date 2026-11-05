@@ -383,10 +383,13 @@ class TaggingService(TaggingServiceBase):
                        cover.data if cover else None)  # fmt: skip
         except (TagFailed, CatalogError, ListenBrainzError, mutagen.MutagenError) as e:
             error = str(e) if isinstance(e, TagFailed) else f"{type(e).__name__}: {e}"
-            with self._db.transaction(write=True) as conn:
-                self._files.add_tagging(conn, rec.id, "failTag", now, error=error,
-                                        mb_recording_id=mbid, mb_release_id=release_id)  # fmt: skip
+            self._tag_failed(rec.id, now, error, mbid, release_id)
             log.info("file %s not tagged: %s", rec.id, error)
+            return False
+        except Exception as e:  # any error: one bad file must not stop the others
+            log.exception("file %s: tagging crashed", rec.id)
+            error = f"{type(e).__name__}: {e}"
+            self._tag_failed(rec.id, now, error, mbid, release_id)
             return False
         written = {**tags, "cover": cover is not None}
         with self._db.transaction(write=True) as conn:
@@ -399,6 +402,14 @@ class TaggingService(TaggingServiceBase):
         log.info("file %s tagged as %s – %s (%s)", rec.id, tags.get("artist"),
                  tags.get("title"), tags.get("album"))  # fmt: skip
         return True
+
+    def _tag_failed(
+        self, file_id: int, now: int, error: str,
+        mbid: str | None, release_id: str | None,
+    ) -> None:  # fmt: skip
+        with self._db.transaction(write=True) as conn:
+            self._files.add_tagging(conn, file_id, "failTag", now, error=error,
+                                    mb_recording_id=mbid, mb_release_id=release_id)  # fmt: skip
 
     def _build(
         self, info: RecordingInfo, chosen: RecordingRelease, what: str,
@@ -479,17 +490,18 @@ class TaggingService(TaggingServiceBase):
 
     def suggest(
         self, user_id: int, title: str, artist: str, album: str,
-        length_s: float | None, token: str | None,
+        length_s: float | None,
     ) -> Suggestion | None:  # fmt: skip
         """The tag set new names point at, or None. ListenBrainz first (with
-        ``token``, same checks as tagging), MusicBrainz search when there's no
+        the user's token, same checks as tagging), MusicBrainz search when there's no
         token or ListenBrainz finds nothing, mismatches or fails (user,
         2026-10-30). A typed album picks among the recording's releases. Each
         service only while it's on for ``user_id``; without MusicBrainz no tag
         set can be built, so that refuses."""
         if not self._on(user_id, "musicbrainz"):
             raise SourceOff("musicbrainz is turned off")
-        match = self._match(user_id, title, artist, album, length_s, token)
+        match = self._match(user_id, title, artist, album, length_s,
+                            self._token(user_id))  # fmt: skip
         if match is None:
             return None
         tags, cover = self._build(

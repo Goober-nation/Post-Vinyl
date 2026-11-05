@@ -297,3 +297,35 @@ def test_redispatch_waiting_starts_requests_left_waiting(case: Case) -> None:
     assert case.svc.redispatch_waiting() == 1
     assert case.state(case.req) == "searching"
     assert case.svc.redispatch_waiting() == 0  # nothing waiting now
+
+
+def stranded(tmp_path: Path) -> tuple[DownloadDispatch, FakeDownloadSource, int, int, int]:
+    """A catalog request, a slskd pick and a typed search, all ``found``."""
+    db = Database(tmp_path / "found.db")
+    db.migrate()
+    with db.transaction(write=True) as conn:
+        uid = UsersStore().upsert_on_login(conn, "alice", "e", False, NOW).id
+        song = SongsStore().create(conn, SongFields("t", "a")).id
+        store = RequestsStore()
+        catalog = store.create(conn, uid, "catalog", NOW, song_id=song).id
+        pick = store.create_pick(conn, uid, song, NOW).id
+        typed = store.record_slskd_query(conn, uid, "q", NOW).id
+        for rid in (catalog, pick, typed):
+            store.set_track_state(conn, rid, "found")
+    source = FakeDownloadSource(db)
+    prefs = SourcePreferences(db, {"download": ("fake",)})
+    return DownloadDispatch(db, prefs, [source]), source, catalog, pick, typed
+
+
+def test_a_running_app_picks_up_a_stranded_found_but_not_a_pick(tmp_path: Path) -> None:
+    svc, source, catalog, _, _ = stranded(tmp_path)
+    svc.redispatch_waiting()
+    assert source.fetched == [catalog]
+
+
+def test_startup_picks_up_stranded_found_and_leaves_typed_searches(
+    tmp_path: Path,
+) -> None:
+    svc, source, catalog, pick, _ = stranded(tmp_path)
+    svc.resume()
+    assert source.fetched == [catalog, pick]

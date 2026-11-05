@@ -307,12 +307,18 @@ class SlskdDownloader:
         with self._lock:
             with self._db.transaction() as conn:
                 running = self._store.running_attempts(conn)
-                waiting = self._waiting(conn)
+                waiting, dropped = self._waiting(conn)
+            if dropped:
+                with self._db.transaction(write=True) as conn:
+                    for download_id in dropped:
+                        self._downloads.set_state(conn, download_id, "cancelled")
             if (running or waiting) and not self._slskd_up():
                 return  # nothing readable; logged once
             for attempt in running:
                 if attempt.transfer_id is None:
-                    continue  # being queued right now
+                    # queueing holds this lock, so a crash cut this one off
+                    self._end(attempt, "interrupted")
+                    continue
                 try:
                     transfer = self._client.get_download(
                         attempt.username, attempt.transfer_id
@@ -321,22 +327,27 @@ class SlskdDownloader:
                     log.info("transfer %s unreadable: %s", attempt.transfer_id, e)
                     continue
                 self._follow(attempt, transfer)
+            with self._db.transaction() as conn:
+                waiting, _ = self._waiting(conn)
             for download_id, request_id in waiting:
                 self._next(download_id, request_id)
 
-    def _waiting(self, conn: sqlite3.Connection) -> list[tuple[int, int]]:
-        """Running downloads with no running attempt: they waited for slskd."""
-        out = []
+    def _waiting(
+        self, conn: sqlite3.Connection
+    ) -> tuple[list[tuple[int, int]], list[int]]:
+        """Running downloads with no running attempt: those that waited for slskd,
+        and the ids of those whose request was dropped meanwhile."""
+        waiting, dropped = [], []
         for state in ("queued", "downloading"):
             for d in self._downloads.in_state(conn, state, "slskd"):
+                if self._store.running_for_download(conn, d.id) is not None:
+                    continue
                 req = self._requests.get(conn, d.request_id)
-                if (
-                    req is not None
-                    and req.track_state == "midDownload"
-                    and (self._store.running_for_download(conn, d.id) is None)
-                ):
-                    out.append((d.id, d.request_id))
-        return out
+                if req is not None and req.track_state == "midDownload":
+                    waiting.append((d.id, d.request_id))
+                elif req is not None:
+                    dropped.append(d.id)
+        return waiting, dropped
 
     def _follow(self, attempt: SlskdAttempt, transfer: Transfer) -> None:
         with self._db.transaction() as conn:

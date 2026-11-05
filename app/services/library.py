@@ -22,7 +22,6 @@ from app.clients.navidrome import Song as LibrarySong
 from app.core.file_song import UNKNOWN_ARTIST, names_from_path
 from app.core.matcher import same_song
 from app.core.normalize import strip_feat
-from app.services.encryption import SecretBox
 from app.services.files import FilesService
 from app.services.requests import DEFAULT_PAGE_SIZE, clamp_page
 from app.services.tagging import (
@@ -67,14 +66,11 @@ class LibraryPage:
 
 @dataclass(frozen=True)
 class Rename:
-    """The core tag set an admin may change (user, 2026-10-30)."""
+    """The names a rename looks up; the tags come from what they match."""
 
     title: str
     artist: str
     album: str = ""
-    year: str = ""
-    track: int | None = None
-    disc: int | None = None
 
 
 def item(song: LibrarySong, rec: FileRecord | None, failed: set[int]) -> LibraryFile:
@@ -126,12 +122,11 @@ class LibraryServiceBase(ABC):
 
 class LibraryService(LibraryServiceBase):
     def __init__(
-        self, db: Database, files: FilesService, tagging: TaggingService, box: SecretBox
+        self, db: Database, files: FilesService, tagging: TaggingService
     ) -> None:
         self._db = db
         self._files = files
         self._tagging = tagging
-        self._box = box
 
     def _out(self, song: LibrarySong | None) -> LibraryFile | None:
         if song is None:  # Navidrome doesn't list the new path yet
@@ -174,9 +169,8 @@ class LibraryService(LibraryServiceBase):
             raise ValueError("a rename needs a title and an artist")
         song = self._files.library_song(song_id)
         self._files.library_path(song)  # refuse before any lookup
-        token = self._box.decrypt(admin.lb_token_enc) if admin.lb_token_enc else None
         return self._tagging.suggest(admin.id, title, artist, rename.album,
-                                     song.duration or None, token)  # fmt: skip
+                                     song.duration or None)  # fmt: skip
 
     def apply(
         self, admin: User, song_id: str, recording_id: str, release_id: str

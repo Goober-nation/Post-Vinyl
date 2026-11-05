@@ -20,7 +20,6 @@ from app.clients.deezer import DeezerClient
 from app.clients.listenbrainz import ListenBrainzClient
 from app.clients.musicbrainz import MusicBrainzClient
 from app.clients.navidrome import NavidromeClient, NavidromeClientBase
-from app.clients.reach import check_reachable
 from app.clients.slskd import SlskdClient
 from app.config import Settings
 from app.dependencies import Core
@@ -97,7 +96,7 @@ def build_core(
         listenbrainz=lb,
     )
     requests = RequestService(db)
-    library = LibraryService(db, files, tagging, box)
+    library = LibraryService(db, files, tagging)
     pulls = PullService(
         db, lb, catalog, requests, dispatch, box, prefs, in_library=library.find
     )
@@ -125,26 +124,15 @@ def build_core(
             prefs,
             [
                 Check("navidrome", "Navidrome", nd.has_no_users),
-                Check("slskd", "slskd", slskd.app_state, ("download", "slskd")),
+                Check("slskd", "slskd", slskd.ping, ("download", "slskd")),
                 Check("library", "Library folders", files.check_layout),
                 Check(
-                    "musicbrainz",
-                    "MusicBrainz",
-                    lambda: check_reachable("https://musicbrainz.org/ws/2/"),
-                    ("catalog", "musicbrainz"),
+                    "musicbrainz", "MusicBrainz", mb.ping, ("catalog", "musicbrainz")
                 ),
                 Check(
-                    "listenbrainz",
-                    "ListenBrainz",
-                    lambda: check_reachable("https://api.listenbrainz.org/1/"),
-                    ("catalog", "listenbrainz"),
+                    "listenbrainz", "ListenBrainz", lb.ping, ("catalog", "listenbrainz")
                 ),
-                Check(
-                    "deezer",
-                    "Deezer",
-                    lambda: check_reachable("https://api.deezer.com/infos"),
-                    ("catalog", "deezer"),
-                ),
+                Check("deezer", "Deezer", deezer.ping, ("catalog", "deezer")),
             ],
         ),
     )

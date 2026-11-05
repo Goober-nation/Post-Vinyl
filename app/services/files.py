@@ -53,8 +53,10 @@ from app.config import FilesSettings
 from app.core import states
 from app.core.matcher import DURATION_TOLERANCE_S
 from app.services.encryption import DecryptError, SecretBox
+from app.services.navidrome_login import NavidromeLogins
 from app.stores.database import Database
 from app.stores.files import FileRecord, FilesStore
+from app.stores.pulls import PullsStore
 from app.stores.songs import Song, SongsStore
 from app.stores.users import UsersStore
 
@@ -219,6 +221,7 @@ class FilesService(FilesServiceBase):
         self._db = db
         self._nd = navidrome
         self._box = box
+        self._logins = NavidromeLogins(db, navidrome, box)
         self._music = Path(settings.music_dir)
         self._downloads = self._music / settings.slskd_downloads_dir
         self._downloads_top = Path(settings.slskd_downloads_dir).parts[0]
@@ -228,6 +231,7 @@ class FilesService(FilesServiceBase):
         self._sleep = sleep
         self._files = FilesStore()
         self._songs = SongsStore()
+        self._pulls = PullsStore()
         self._session: Session | None = None
         # moves, renames, deletes and the missing check one at a time: the check
         # must never see a file between its move and our record of it (live #114)
@@ -313,6 +317,8 @@ class FilesService(FilesServiceBase):
         rel = layout(audio.tags if audio else None, song, ext, tagged)
         if rec.navidrome_id:  # a replacement: the old copy goes first
             self._delete_old(rec)
+            with self._db.transaction(write=True) as conn:
+                self._pulls.song_moved(conn, rec.song_id, rec.navidrome_id, None)
         target = free_path(self._library / rel)
         if target != self._library / rel:
             log.warning("file %s: %s exists, saving as %s", rec.id, rel, target.name)
@@ -503,9 +509,10 @@ class FilesService(FilesServiceBase):
 
     def check_layout(self) -> None:
         """Raises LayoutMismatch when no sampled song leads to a file: the mounts
-        disagree, which no single file's error would say."""
+        disagree, which no single file's error would say. Rows Navidrome itself
+        marks missing say nothing about the mounts, so they don't count."""
         try:
-            songs = self._sample()
+            songs = [s for s in self._sample() if not s.missing]
         except NoAdmin:
             return  # before setup there's nothing to check as
         if songs and not any(self._on_disk(s) for s in songs):
@@ -559,7 +566,7 @@ class FilesService(FilesServiceBase):
         if target.resolve() != src:
             target = free_path(target)
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(src, target)
+            move_file(src, target)
             self._prune(src.parent)
             log.info("library %s renamed: %s -> %s", navidrome_id, song.path,
                      target.relative_to(self._library))  # fmt: skip
@@ -578,6 +585,9 @@ class FilesService(FilesServiceBase):
                 self._files.set_location(conn, rec.id, loc, self._now())
                 self._files.set_navidrome_id(conn, rec.id, new.id if new else None,
                                              self._now())  # fmt: skip
+            if new is not None and new.id != navidrome_id:
+                self._pulls.song_moved(conn, rec.song_id if rec else None,
+                                       navidrome_id, new.id)  # fmt: skip
         return new
 
     def delete_library_file(self, navidrome_id: str) -> None:
@@ -606,12 +616,12 @@ class FilesService(FilesServiceBase):
         sessions = []
         for user in users:
             try:
-                password = self._box.decrypt(user.nd_password_enc)
-                sessions.append(
-                    (user.username, self._nd.login(user.username, password))
-                )
+                session = self._logins.session_for(user)
             except (NavidromeError, DecryptError) as e:
                 log.warning("no Navidrome session for %s: %s", user.username, e)
+                continue
+            if session is not None:
+                sessions.append((user.username, session))
         return sessions
 
     def _read_marks(self, song_id: str) -> list[tuple[Session, bool, int]]:
@@ -673,10 +683,6 @@ class FilesService(FilesServiceBase):
                 admin = UsersStore().first_admin(conn)
             if admin is None:
                 raise NoAdmin("no admin has a working login")
-            password = self._box.decrypt(admin.nd_password_enc)
-            try:
-                return self._nd.login(admin.username, password)
-            except NavidromeAuthError:
-                log.warning("Navidrome refused the saved login of an admin")
-                with self._db.transaction(write=True) as conn:
-                    UsersStore().mark_login_refused(conn, admin.id)
+            session = self._logins.session_for(admin)
+            if session is not None:
+                return session

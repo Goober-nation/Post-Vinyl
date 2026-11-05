@@ -67,25 +67,36 @@ class FilePipeline:
         return [r.tagged_at for r in rows
                 if r.status == "failTag" and r.tagged_at >= rec.downloaded_at]  # fmt: skip
 
+    def _safely(self, step: Callable[[int], bool], rec: FileRecord) -> bool:
+        """One file's step; any error stays with that file, and a later tick tries
+        it again."""
+        try:
+            return step(rec.id)
+        except Exception:
+            log.exception("file %s: pipeline step failed", rec.id)
+            return False
+
     def tick(self) -> TickResult:
         out = TickResult()
         for rec in self._in("downloaded"):
             if rec.verification is None:
-                out.verified += self._files.verify(rec.id)
+                out.verified += self._safely(self._files.verify, rec)
         retag_s = self._settings.retag_after_seconds
         for rec in self._in("verified"):
             fails = self._failed_tags(rec)
             if not fails or (len(fails) == 1 and self._clock() - fails[0] >= retag_s):
                 out.tagged += self._tagging.tag(rec.id)
             elif len(fails) >= 2:
-                out.moved += self._files.move(rec.id)  # untagged, as decided
+                out.moved += self._safely(self._files.move, rec)  # untagged, as decided
         for rec in self._in("tagged"):
-            out.moved += self._files.move(rec.id)
+            out.moved += self._safely(self._files.move, rec)
         moved = self._in("moved")
         if moved:
             self._files.scan()
             for rec in moved:
-                out.indexed += self._files.index(rec.id, scan=False)
+                out.indexed += self._safely(
+                    lambda i: self._files.index(i, scan=False), rec
+                )
         if any(vars(out).values()):
             log.info("file pipeline: %s", out)
         return out

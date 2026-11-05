@@ -61,8 +61,12 @@ def test_login_sets_strict_cookie_and_logout_ends_it(client: TestClient) -> None
     cookie = r.headers["set-cookie"].lower()
     for flag in ("httponly", "secure", "samesite=lax", "max-age=2592000", "path=/"):
         assert flag in cookie
-    assert client.get("/api/auth/me").json()["username"] == "alice"
-    assert client.post("/api/auth/logout", headers=SAME).status_code == 204
+    me = client.get("/api/auth/me")
+    assert me.json()["username"] == "alice"
+    assert "max-age=2592000" in me.headers["set-cookie"].lower()  # slides with use
+    out = client.post("/api/auth/logout", headers=SAME)
+    assert out.status_code == 204
+    assert "max-age=0" in out.headers["set-cookie"].lower()  # not set back
     assert client.get("/api/auth/me").status_code == 401
 
 

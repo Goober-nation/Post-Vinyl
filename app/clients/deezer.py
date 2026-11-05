@@ -142,6 +142,9 @@ class DeezerClient(CatalogSource):
             time.sleep(backoff)
         raise AssertionError("unreachable")
 
+    def ping(self) -> None:
+        self._get("/infos")
+
     def _paged(self, path: str) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         while True:

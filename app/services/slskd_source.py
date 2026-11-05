@@ -70,6 +70,10 @@ class SlskdSource(DownloadSource):
     def cancel(self, request_id: int) -> None:
         """Nothing to stop yet: a dropped search stops on its own (#102 adds transfers)."""
 
+    def fetch_found(self, request_id: int) -> None:
+        if self._downloader is not None:
+            self._downloader.start(request_id)
+
     def stop(self) -> None:
         """Finish the queued requests (re-queued ones too), then end the worker."""
         if self._worker is not None:

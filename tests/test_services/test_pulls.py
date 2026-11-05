@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from app.clients.catalog import Track
+from app.clients.catalog import CatalogError, Track
 from app.clients.catalog_fake import FakeCatalog
 from app.clients.listenbrainz import (
     RadioTrack,
@@ -288,3 +288,73 @@ def test_a_recs_pull_keeps_its_list_date_and_ranks(env: Env) -> None:
     start_recs(env)
     pull = env.pulls.pulls(env.user)[0].pull
     assert (pull.lb_last_updated, pull.first_rank, pull.last_rank) == (77, 1, 4)
+
+
+def prefs_of(env: Env) -> SourcePreferences:
+    return SourcePreferences(
+        env.db, {"catalog": ("musicbrainz", "listenbrainz"), "download": ("fake",)}
+    )
+
+
+def test_catalog_outage_keeps_the_song_queued(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    start_recs(env)
+
+    def down(track_id: str) -> Track:
+        raise CatalogError("down")
+
+    with monkeypatch.context() as m:
+        m.setattr(env.mb, "get_track", down)
+        env.pulls.feed()
+    assert env.source.started == []
+    env.pulls.feed()
+    assert len(env.source.started) == 1
+
+
+def test_owner_turning_the_catalog_off_keeps_the_song_queued(env: Env) -> None:
+    start_recs(env)
+    prefs = prefs_of(env)
+    prefs.set_for_user(env.user, "catalog", [], ["musicbrainz"])
+    env.pulls.feed()
+    assert env.source.started == []
+    prefs.set_for_user(env.user, "catalog", [], [])
+    env.pulls.feed()
+    assert len(env.source.started) == 1
+
+
+def test_a_user_with_no_download_source_blocks_nobody(env: Env) -> None:
+    start_recs(env)
+    env.pulls.feed()
+    first = env.source.started[0]
+    env.source.finish(first, "f")
+    with env.db.transaction(write=True) as conn:
+        bob = UsersStore().upsert_on_login(conn, "bob", "e", False, 1).id
+    prefs_of(env).set_for_user(bob, "download", [], ["fake"])
+    env.requests.create(bob, 1, "catalog")
+    env.pulls.feed()
+    assert len(env.source.started) == 2
+
+
+def test_a_pull_waits_while_its_owner_has_no_download_source(env: Env) -> None:
+    start_recs(env)
+    prefs_of(env).set_for_user(env.user, "download", [], ["fake"])
+    env.pulls.feed()
+    with env.db.transaction() as conn:
+        assert PullsStore().users_with_waiting_requests(conn) == []
+
+
+def test_a_moved_song_goes_into_its_playlists_again(env: Env) -> None:
+    start_recs(env)
+    env.pulls.feed()
+    first = env.source.started[0]
+    env.source.finish(first, "f")
+    index(env, first, "nd-1")
+    env.playlists.sync()
+    with env.db.transaction(write=True) as conn:
+        assert PullsStore().pulls_to_sync(conn) == []
+        req = RequestsStore().get(conn, first)
+        assert req is not None
+        PullsStore().song_moved(conn, req.song_id, "nd-1", "nd-2")
+        conn.execute("UPDATE file_management SET navidrome_id = 'nd-2'")
+        assert len(PullsStore().pulls_to_sync(conn)) == 1

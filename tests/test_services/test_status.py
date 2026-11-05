@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from app.clients.reach import Unreachable
+from app.clients.catalog import CatalogError
 from app.services.sources import SourcePreferences
 from app.services.status import Check, StatusService, UnknownService
 from app.stores.database import Database
 
 
 def broken() -> None:
-    raise Unreachable("x")
+    raise CatalogError("x")
 
 
 def test_ping_reports_up_down_and_off_without_calling_off_sources(

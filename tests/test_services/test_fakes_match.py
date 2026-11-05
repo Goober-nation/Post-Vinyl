@@ -93,17 +93,6 @@ def test_requests_create_rules(req: Req) -> None:
         s.create(req.alice, req.song, "catalog", req.bob_origin)
 
 
-def test_requests_slskd_query_rules(req: Req) -> None:
-    s = req.svc
-    a = s.record_slskd_query(req.alice, " Nujabes   Feather ")
-    b = s.record_slskd_query(req.alice, "nujabes feather")
-    assert a.id == b.id and a.query == "Nujabes Feather"
-    assert b.last_used_at > a.last_used_at
-    assert s.record_slskd_query(req.bob, "nujabes feather").id != a.id
-    with pytest.raises(ValueError):
-        s.record_slskd_query(req.alice, "  ")
-
-
 def test_requests_states_and_ownership(req: Req) -> None:
     s = req.svc
     r = s.create(req.alice, req.song, "catalog")
@@ -118,10 +107,8 @@ def test_requests_states_and_ownership(req: Req) -> None:
 def test_requests_history(req: Req) -> None:
     s = req.svc
     ids = [s.create(req.alice, req.song, "catalog").id for _ in range(3)]
-    q = s.record_slskd_query(req.alice, "x")
-    s.record_slskd_query(req.alice, "x")  # bumped: newest-used now
     page = s.history(req.alice, page=1, page_size=2)
-    assert [r.id for r in page.items] == [q.id, ids[2]] and page.total == 4
+    assert len(page.items) == 2 and page.total == len(ids)
     assert s.history(req.alice).page_size == 20
     assert s.history(req.alice, page=0).page == 1
     assert s.history(req.alice, page_size=500).page_size == 100
@@ -277,7 +264,7 @@ def test_musicbrainz_artists_get_listenbrainz_data_and_albums_sort_newest_first(
     lb = FakeListenBrainzClient()
     lb.popular["a1"] = [PopularRecording("r1", "Song", "A", 10.0, "rel")]
     lb.similar["a1"] = [SimilarArtist("a2", "B", "")]
-    prefs = SourcePreferences(db, {"catalog": ("musicbrainz",)})
+    prefs = SourcePreferences(db, {"catalog": ("musicbrainz", "listenbrainz")})
     svc = CatalogService(db, prefs, [mb], listenbrainz=lb)
     assert [a.id for a in svc.artist_albums(user, "musicbrainz", "a1")] == [
         "new",
@@ -291,3 +278,19 @@ def test_musicbrainz_artists_get_listenbrainz_data_and_albums_sort_newest_first(
     )
     [similar] = svc.similar_artists(user, "musicbrainz", "a1")
     assert (similar.source, similar.id) == ("musicbrainz", "a2")
+
+
+def test_musicbrainz_artists_stay_off_listenbrainz_while_it_is_off(
+    tmp_path: Path,
+) -> None:
+    db = Database(tmp_path / "off.db")
+    db.migrate()
+    with db.transaction(write=True) as conn:
+        user = UsersStore().upsert_on_login(conn, "a", "e", False, 1).id
+    mb = FakeCatalog("musicbrainz")
+    lb = FakeListenBrainzClient()
+    lb.popular["a1"] = [PopularRecording("r1", "Song", "A", 10.0, "rel")]
+    prefs = SourcePreferences(db, {"catalog": ("musicbrainz", "listenbrainz")})
+    prefs.set_for_user(user, "catalog", [], ["listenbrainz"])
+    svc = CatalogService(db, prefs, [mb], listenbrainz=lb)
+    assert svc.artist_top_tracks(user, "musicbrainz", "a1") == []

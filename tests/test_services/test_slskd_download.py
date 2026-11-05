@@ -5,15 +5,23 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import cast
 
 import pytest
 
-from app.clients.slskd import AppState, PeerFile, PeerResponse, SlskdNotFound
+from app.clients.slskd import (
+    AppState,
+    PeerFile,
+    PeerResponse,
+    SlskdError,
+    SlskdNotFound,
+)
 from app.clients.slskd_fake import FakeSlskdClient
 from app.config import SlskdSettings
 from app.services.slskd_download import SlskdDownloader, local_name, transfer_phase
 from app.services.slskd_gate import SlskdGate
 from app.services.slskd_search import SlskdSearcher
+from app.services.slskd_source import SlskdSource
 from app.stores.database import Database
 from app.stores.downloads import Download, DownloadsStore
 from app.stores.requests import RequestsStore
@@ -428,3 +436,44 @@ def test_next_peer_on_the_last_candidate_ends_the_request(tmp_path: Path) -> Non
     assert c.dl.next_peer(c.download().id)
     assert c.state() == "notDownloaded" and c.download().state == "failed"
     assert not c.dl.next_peer(c.download().id)  # nothing running any more
+
+
+def test_an_attempt_a_crash_left_without_a_transfer_is_queued_again(
+    tmp_path: Path,
+) -> None:
+    c = build(tmp_path, PEERS)
+    c.dl.start(c.req)
+    with c.db.transaction(write=True) as conn:
+        conn.execute("UPDATE slskd_attempts SET transfer_id = NULL")
+    c.dl.poll()
+    first, second = c.attempts()
+    assert first.outcome == "interrupted"
+    assert second.outcome is None and second.transfer_id
+    assert (second.username, c.state()) == (first.username, "midDownload")
+
+
+def test_dropping_with_no_running_attempt_cancels_the_download(tmp_path: Path) -> None:
+    c = build(tmp_path, PEERS)
+    c.dl.start(c.req)
+    with c.db.transaction(write=True) as conn:
+        conn.execute("UPDATE slskd_attempts SET outcome = 'interrupted', ended_at = 1")
+        conn.execute("UPDATE requests SET track_state = 'dropped'")
+    c.dl.poll()
+    assert c.download().state == "cancelled"
+
+
+def test_a_stranded_found_request_reaches_its_download(tmp_path: Path) -> None:
+    c = build(tmp_path, PEERS)
+    source = SlskdSource(c.db, cast(SlskdSearcher, None), c.dl)
+    source.fetch_found(c.req)
+    assert c.state() == "midDownload" and c.attempts()[0].transfer_id
+    source.fetch_found(c.req)  # moved on: nothing happens twice
+    assert len(c.attempts()) == 1
+
+
+def test_ping_needs_slskd_logged_in_to_soulseek() -> None:
+    slskd = FakeSlskdClient({})
+    slskd.ping()
+    slskd.state = AppState(logged_in=False, has_parent=False)
+    with pytest.raises(SlskdError):
+        slskd.ping()

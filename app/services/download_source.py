@@ -34,3 +34,7 @@ class DownloadSource(ABC):
 
     @abstractmethod
     def cancel(self, request_id: int) -> None: ...
+
+    @abstractmethod
+    def fetch_found(self, request_id: int) -> None:
+        """Start the download of a ``found`` request that nothing is following."""

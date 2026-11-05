@@ -7,13 +7,9 @@ playlist removed in Navidrome is simply created again.
 
 from __future__ import annotations
 
-from app.clients.navidrome import (
-    NavidromeAuthError,
-    NavidromeClientBase,
-    NavidromeNotFound,
-    Session,
-)
+from app.clients.navidrome import NavidromeClientBase, NavidromeNotFound, Session
 from app.services.encryption import SecretBox
+from app.services.navidrome_login import NavidromeLogins
 from app.stores.database import Database
 from app.stores.pulls import Pull, PullsStore
 from app.stores.users import UsersStore
@@ -25,7 +21,7 @@ class PlaylistService:
     ) -> None:
         self._db = db
         self._nd = navidrome
-        self._box = box
+        self._logins = NavidromeLogins(db, navidrome, box)
         self._pulls = PullsStore()
         self._users = UsersStore()
 
@@ -40,15 +36,7 @@ class PlaylistService:
         with self._db.transaction() as conn:
             user = self._users.get(conn, pull.user_id)
         assert user is not None  # pulls go with their user
-        if user.status != "active":
-            return None
-        password = self._box.decrypt(user.nd_password_enc)
-        try:
-            return self._nd.login(user.username, password)
-        except NavidromeAuthError:
-            with self._db.transaction(write=True) as conn:
-                self._users.mark_login_refused(conn, user.id)
-            return None
+        return self._logins.session_for(user)
 
     def _sync_pull(self, pull_id: int) -> None:
         with self._db.transaction() as conn:

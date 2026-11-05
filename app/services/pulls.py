@@ -15,17 +15,17 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from app.clients.catalog import CatalogNotFound
+from app.clients.catalog import CatalogError, CatalogNotFound
 from app.clients.listenbrainz import ListenBrainzClientBase, RadioTrack
 from app.clients.navidrome import NavidromeError
 from app.core.pulls import is_excluded, radio_name, recs_name
 from app.core.states import IllegalTransition
-from app.services.catalog import CatalogServiceBase
+from app.services.catalog import CatalogServiceBase, CatalogUnavailable
 from app.services.dispatch import DownloadDispatchBase, NotStartable
 from app.services.encryption import SecretBox
 from app.services.files import NoAdmin
 from app.services.requests import RequestServiceBase, StateChanged
-from app.services.sources import SourcePreferences
+from app.services.sources import SourceOff, SourcePreferences, UnknownSource
 from app.stores.database import Database
 from app.stores.files import FilesStore
 from app.stores.pulls import (
@@ -317,13 +317,19 @@ class PullService(PullServiceBase):
             for pull in running:
                 if self._pulls.is_settled(conn, pull.id):
                     self._pulls.set_state(conn, pull, "done")
-            busy = self._pulls.user_requests_waiting(conn)
-        if busy:
+            waiting = self._pulls.users_with_waiting_requests(conn)
+        # a user with no download source on can't move theirs; nobody waits for it
+        if any(self._sources.for_user(u, "download") for u in waiting):
             return
         for pull in running:
-            while item := self._next(pull.id):
-                if self._start_item(pull, item):
-                    return
+            if not self._sources.for_user(pull.user_id, "download"):
+                continue
+            try:
+                while item := self._next(pull.id):
+                    if self._start_item(pull, item):
+                        return
+            except (SourceOff, UnknownSource, CatalogError, CatalogUnavailable) as e:
+                log.info("pull %s waits for the catalog: %s", pull.id, e)
 
     def _next(self, pull_id: int) -> PullItem | None:
         with self._db.transaction() as conn:

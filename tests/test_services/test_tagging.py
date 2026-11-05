@@ -576,3 +576,16 @@ def test_a_library_failure_only_skips_the_preference(tmp_path: Path) -> None:
 
     c.svc._library_releases = down
     assert c.svc._library_release(_two_editions().releases) is None
+
+
+def test_a_disk_error_while_tagging_is_a_fail_tag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    c = Case(tmp_path)
+
+    def full(*_: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr("app.services.tagging.write_tags", full)
+    assert not c.svc.tag(c.fid)
+    assert c.state_and_rows() == ("verified", ["failTag:OSError: disk full"])

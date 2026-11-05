@@ -97,6 +97,11 @@ class QueueResult:
 
 
 class SlskdClientBase(ABC):
+    def ping(self) -> None:
+        """Raises SlskdError unless slskd answers and is logged in to Soulseek."""
+        if not self.app_state().logged_in:
+            raise SlskdError("not logged in to Soulseek")
+
     @abstractmethod
     def app_state(self) -> AppState: ...
 

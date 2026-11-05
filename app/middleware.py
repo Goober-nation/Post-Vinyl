@@ -16,7 +16,7 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from app.services.auth import AuthServiceBase
+from app.services.auth import SESSION_LIFETIME_S, AuthServiceBase
 
 SESSION_COOKIE = "pv_session"
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
@@ -40,6 +40,17 @@ ICON_FILES = frozenset(
     }
 )
 DEV_OPEN_PATHS = frozenset({"/docs", "/openapi.json", "/docs/oauth2-redirect"})
+
+
+def set_session_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=SESSION_LIFETIME_S,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
 
 
 def is_web_file(method: str, path: str) -> bool:
@@ -90,6 +101,10 @@ def make_guard(
         if user is None:
             return JSONResponse({"detail": "not logged in"}, 401)
         request.state.user = user
-        return await call_next(request)
+        response = await call_next(request)
+        # the session slides, so the cookie must too; logout sets its own
+        if "set-cookie" not in response.headers:
+            set_session_cookie(response, token or "")
+        return response
 
     return guard

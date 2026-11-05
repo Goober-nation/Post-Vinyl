@@ -12,7 +12,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.clients.navidrome import (
-    NavidromeAuthError,
     NavidromeClientBase,
     NavidromeDuplicate,
     NavidromeError,
@@ -20,6 +19,7 @@ from app.clients.navidrome import (
     Session,
 )
 from app.services.encryption import SecretBox
+from app.services.navidrome_login import NavidromeLogins
 from app.stores.database import Database
 from app.stores.slskd import SlskdPeer, SlskdStore
 from app.stores.users import User, UsersStore
@@ -107,6 +107,7 @@ class AdminService(AdminServiceBase):
         self._db = db
         self._navidrome = navidrome
         self._box = box
+        self._logins = NavidromeLogins(db, navidrome, box)
         self._stop_user = stop_user
         self._clock = clock
         self._slskd = SlskdStore()
@@ -193,12 +194,9 @@ class AdminService(AdminServiceBase):
 
     def _session(self, admin: User) -> Session:
         try:
-            return self._navidrome.login(
-                admin.username, self._box.decrypt(admin.nd_password_enc)
-            )
-        except NavidromeAuthError as e:
-            raise AdminLoginStale(
-                "Navidrome refused your saved login; log in again"
-            ) from e
+            session = self._logins.session_for(admin)
         except NavidromeError as e:
             raise UserNotCreated(f"Navidrome can't be reached: {e}") from e
+        if session is None:
+            raise AdminLoginStale("Navidrome refused your saved login; log in again")
+        return session

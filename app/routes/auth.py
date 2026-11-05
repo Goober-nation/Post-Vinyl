@@ -6,9 +6,8 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from app.dependencies import AuthDep, UserDep
-from app.middleware import SESSION_COOKIE
+from app.middleware import SESSION_COOKIE, set_session_cookie
 from app.services.auth import (
-    SESSION_LIFETIME_S,
     AdminExists,
     InvalidCredentials,
     LoginLocked,
@@ -39,14 +38,7 @@ class Me(BaseModel):
 
 
 def _logged_in(response: Response, result: LoginResult) -> Me:
-    response.set_cookie(
-        SESSION_COOKIE,
-        result.token,
-        max_age=SESSION_LIFETIME_S,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-    )
+    set_session_cookie(response, result.token)
     return Me(username=result.user.username, is_admin=bool(result.user.is_admin))
 
 

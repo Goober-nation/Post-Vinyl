@@ -250,13 +250,13 @@ class PullsStore:
         ).fetchone()
         return PullCounts(**row)
 
-    def user_requests_waiting(self, conn: sqlite3.Connection) -> bool:
-        """A request (a user's or a pull's) hasn't reached a download yet."""
-        row = conn.execute(
-            f"""SELECT 1 FROM requests
-                WHERE song_id IS NOT NULL AND track_state IN {_BEFORE_DOWNLOAD} LIMIT 1"""
-        ).fetchone()
-        return row is not None
+    def users_with_waiting_requests(self, conn: sqlite3.Connection) -> list[int]:
+        """Users with a request (their own or a pull's) not yet at a download."""
+        rows = conn.execute(
+            f"""SELECT DISTINCT user_id FROM requests
+                WHERE song_id IS NOT NULL AND track_state IN {_BEFORE_DOWNLOAD}"""
+        )
+        return [r["user_id"] for r in rows]
 
     # ------------------------------------------------------------ playlists
 
@@ -277,6 +277,24 @@ class PullsStore:
             (pull_id,),
         )
         return list(dict.fromkeys(r["nd_id"] for r in rows))
+
+    def song_moved(
+        self,
+        conn: sqlite3.Connection,
+        song_id: int | None,
+        old_id: str,
+        new_id: str | None,
+    ) -> None:
+        """A song's Navidrome id changed: its playlists are written again."""
+        conn.execute(
+            """UPDATE pull_items
+                  SET in_playlist = 0,
+                      library_id = CASE WHEN library_id = ?
+                                        THEN COALESCE(?, library_id)
+                                        ELSE library_id END
+                WHERE song_id = ? OR library_id = ?""",
+            (old_id, new_id, song_id, old_id),
+        )
 
     def mark_in_playlist(self, conn: sqlite3.Connection, pull_id: int) -> None:
         conn.execute(

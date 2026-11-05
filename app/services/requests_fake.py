@@ -53,27 +53,6 @@ class FakeRequestService(RequestServiceBase):
         self.requests[req.id] = req
         return req
 
-    def record_slskd_query(self, user_id: int, query: str) -> Request:
-        query = " ".join(query.split())
-        if not query:
-            raise ValueError("empty search")
-        now = self._tick()
-        for req in self.requests.values():
-            if (
-                req.user_id == user_id
-                and req.source == "slskd"
-                and (req.query or "").lower() == query.lower()
-            ):
-                req = replace(req, last_used_at=now)
-                self.requests[req.id] = req
-                return req
-        req = Request(
-            len(self.requests) + 1, user_id, None, "slskd", None, query,
-            "requested", now, now,
-        )  # fmt: skip
-        self.requests[req.id] = req
-        return req
-
     def get(self, user_id: int, request_id: int) -> Request:
         req = self.requests.get(request_id)
         if req is None or req.user_id != user_id:
