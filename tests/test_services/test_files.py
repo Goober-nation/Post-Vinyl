@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import errno
+import os
+import shutil
 import struct
 import wave
 from pathlib import Path
@@ -12,7 +15,14 @@ from app.clients.navidrome import Song as NdSong
 from app.clients.navidrome_fake import FakeNavidromeClient
 from app.config import FilesSettings
 from app.services.encryption import SecretBox, generate_key
-from app.services.files import FilesService, NoAdmin, free_path, layout, segment
+from app.services.files import (
+    FilesService,
+    NoAdmin,
+    free_path,
+    layout,
+    move_file,
+    segment,
+)
 from app.stores.database import Database
 from app.stores.downloads import DownloadsStore
 from app.stores.files import FilesStore
@@ -84,6 +94,38 @@ def test_free_path_never_overwrites(tmp_path: Path) -> None:
 
 
 # ------------------------------------------------------------ the service
+
+
+def cross_device(src: object, dst: object) -> None:
+    raise OSError(errno.EXDEV, "cross-device link")
+
+
+def test_move_across_mounts_copies_then_removes_the_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(os, "rename", cross_device)
+    src, target = tmp_path / "a.flac", tmp_path / "b.flac"
+    src.write_bytes(b"audio")
+    move_file(src, target)
+    assert target.read_bytes() == b"audio"
+    assert not src.exists()
+    assert not (tmp_path / "b.flac.partial").exists()
+
+
+def test_failed_copy_across_mounts_keeps_the_source_and_leaves_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def disk_full(*_: object) -> None:
+        raise OSError(errno.ENOSPC, "no space")
+
+    monkeypatch.setattr(os, "rename", cross_device)
+    monkeypatch.setattr(shutil, "copyfileobj", disk_full)
+    src, target = tmp_path / "a.flac", tmp_path / "b.flac"
+    src.write_bytes(b"audio")
+    with pytest.raises(OSError):
+        move_file(src, target)
+    assert src.read_bytes() == b"audio"
+    assert [p.name for p in tmp_path.iterdir()] == ["a.flac"]
 
 
 class Case:

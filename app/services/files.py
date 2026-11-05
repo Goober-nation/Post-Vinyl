@@ -22,7 +22,9 @@ user, 2026-10-29:
 
 from __future__ import annotations
 
+import errno
 import logging
+import os
 import re
 import shutil
 import threading
@@ -123,6 +125,33 @@ def free_path(target: Path) -> Path:
         candidate = target.with_name(f"{target.stem} ({n}){target.suffix}")
         n += 1
     return candidate
+
+
+def move_file(src: Path, target: Path) -> None:
+    """Move without ever showing a partial file at ``target``.
+
+    Downloads and library may be separate mounts, where a rename fails. The copy
+    then goes under a name Navidrome doesn't index, and the source goes last, so
+    a crash or a full disk at any point leaves the source whole.
+    """
+    try:
+        os.rename(src, target)
+        return
+    except OSError as e:
+        if e.errno != errno.EXDEV:
+            raise
+    partial = target.with_name(f"{target.name}.partial")
+    try:
+        with src.open("rb") as source, partial.open("wb") as copy:
+            shutil.copyfileobj(source, copy)
+            copy.flush()
+            os.fsync(copy.fileno())
+        shutil.copystat(src, partial)
+        os.replace(partial, target)
+    except OSError:
+        partial.unlink(missing_ok=True)
+        raise
+    src.unlink()
 
 
 def _numbered(path: Path, target: Path) -> bool:
@@ -267,7 +296,7 @@ class FilesService(FilesServiceBase):
         if target != self._library / rel:
             log.warning("file %s: %s exists, saving as %s", rec.id, rel, target.name)
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(src, target)
+        move_file(src, target)
         with self._db.transaction(write=True) as conn:
             self._files.set_location(
                 conn, rec.id, str(target.relative_to(self._music)), self._now()
