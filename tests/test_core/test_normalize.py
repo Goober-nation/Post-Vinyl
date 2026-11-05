@@ -100,3 +100,26 @@ def test_source_spelling_kept():
     jay = n.query_names("Empire State of Mind", [n.Credit("JAY‐Z")], None)
     assert jay.artist == "JAY‐Z"
     assert n.query_names("с тобой", [n.Credit("Би-2")], None).artist == "Би-2"
+
+
+@pytest.mark.parametrize(
+    ("typed", "tried"),
+    [
+        ("Timbaland; Elton John", ["Timbaland; Elton John", "Timbaland"]),
+        (
+            "Kendrick Lamar ft. Tanna Leone",
+            ["Kendrick Lamar ft. Tanna Leone", "Kendrick Lamar"],
+        ),
+        ("Sugadaisy • Johny Lovan", ["Sugadaisy • Johny Lovan", "Sugadaisy"]),
+        ("Baby Keem & Kendrick Lamar", ["Baby Keem & Kendrick Lamar", "Baby Keem"]),
+        (
+            "Tyler, The Creator",
+            ["Tyler, The Creator", "Tyler"],
+        ),  # whole name goes first
+        ("Timbaland", ["Timbaland"]),
+    ],
+)
+def test_artist_candidates_try_the_whole_name_first(
+    typed: str, tried: list[str]
+) -> None:
+    assert n.artist_candidates(typed) == tried

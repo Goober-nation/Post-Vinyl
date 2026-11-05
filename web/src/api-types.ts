@@ -1483,11 +1483,6 @@ export interface components {
             /** Artist */
             artist: string;
             /**
-             * Album Artist
-             * @default
-             */
-            album_artist: string;
-            /**
              * Album
              * @default
              */
@@ -1681,6 +1676,10 @@ export interface components {
              * @default false
              */
             has_cover: boolean;
+            /** Cover */
+            cover?: string | null;
+            /** Cover Source */
+            cover_source?: string | null;
         };
         /** Track */
         Track: {

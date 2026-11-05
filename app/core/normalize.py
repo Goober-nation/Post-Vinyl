@@ -39,6 +39,9 @@ _FEAT_BRACKET_RE = re.compile(rf"\s*[(\[]\s*{_FEAT_WORD}\s[^)\]]*[)\]]", re.IGNO
 _FEAT_TAIL_RE = re.compile(r"\s+(?:feat\.?|ft\.?|featuring)\s.*$", re.IGNORECASE)
 _FEAT_JOIN_RE = re.compile(rf"^\s*[(\[]?\s*{_FEAT_WORD}\s*$", re.IGNORECASE)
 _TITLE_CREDIT_SEP = r"\s*(?:\+|×|,|&|\s[xX])\s+"
+_ARTIST_SPLIT_RE = re.compile(
+    r"\s*(?:[;,•/]|\s&\s|\s(?:feat\.?|ft\.?|featuring|with|and|x)\s)\s*", re.IGNORECASE
+)
 _THE_RE = re.compile(r"^the\s+(?=\S)", re.IGNORECASE)
 
 
@@ -56,6 +59,14 @@ class QueryNames:
     artist: str  # main artist, for the query
     album: str
     credit: str  # full credit as the source writes it, for the matcher
+
+
+def artist_candidates(text: str) -> list[str]:
+    """Typed artists to try, whole first: ``Tyler, The Creator`` and ``Joey Valence
+    & Brae`` are one name, so a cut is only ever the fallback (user, 2026-11-05)."""
+    whole = text.strip()
+    lead = _ARTIST_SPLIT_RE.split(whole, maxsplit=1)[0].strip()
+    return [whole, lead] if lead and lead != whole else [whole]
 
 
 def squash(text: str | None) -> str:

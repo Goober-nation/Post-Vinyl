@@ -84,7 +84,7 @@ def build_core(
     lb = ListenBrainzClient()
     tagging = TaggingService(
         db, mb, lb, caa, box, settings.files,
-        search=mb, sources=prefs,
+        search=mb, sources=prefs, deezer=deezer,
     )  # fmt: skip
     pipeline = FilePipeline(db, files, tagging, settings.workers)
     cleanup = SlskdCleanup(db, slskd, settings.files)
@@ -96,7 +96,10 @@ def build_core(
         listenbrainz=lb,
     )
     requests = RequestService(db)
-    pulls = PullService(db, lb, catalog, requests, dispatch, box, prefs)
+    library = LibraryService(db, files, tagging, box)
+    pulls = PullService(
+        db, lb, catalog, requests, dispatch, box, prefs, in_library=library.find
+    )
     workers = CoreLoopWorkers(
         settings.workers, dispatch, pipeline, downloader.poll, cleanup.tick,
         pulls.feed, PlaylistService(db, nd, box).sync,
@@ -110,7 +113,7 @@ def build_core(
         ),
         DownloadsService(db, slskd, downloader, sources=prefs),
         pause,
-        LibraryService(db, files, tagging, box),
+        library,
         AdminService(db, nd, box, pulls.stop_user),
         CredentialsService(db, lb, box, prefs),
         UserSettings(db, prefs),

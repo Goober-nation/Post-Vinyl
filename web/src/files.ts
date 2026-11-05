@@ -186,7 +186,6 @@ function renameForm(rail: HTMLElement, f: File, me: Me, adminOnly: () => boolean
         const body: Schemas["RenameBody"] = {
           title: String(d.get("title")).trim(),
           artist: String(d.get("artist")).trim(),
-          album_artist: String(d.get("album_artist") ?? "").trim(),
           album: String(d.get("album") ?? "").trim(),
           year: String(d.get("year") ?? "").trim(),
           track: num("track"),
@@ -204,7 +203,6 @@ function renameForm(rail: HTMLElement, f: File, me: Me, adminOnly: () => boolean
     },
     field("Title", "title", f.title),
     field("Artist", "artist", f.artist),
-    field("Album artist", "album_artist"),
     field("Album", "album", f.album),
     h("div", { class: "grid grid-cols-3 gap-2" }, field("Year", "year"), field("Track", "track", "", "number"), field("Disc", "disc", "", "number")),
     h("button", { type: "submit", class: "btn btn-sm btn-outline border-line mt-2 w-full" }, "Look up the new names"),
@@ -212,6 +210,12 @@ function renameForm(rail: HTMLElement, f: File, me: Me, adminOnly: () => boolean
   form.querySelectorAll("input").forEach((i) => ["title", "artist"].includes(i.name) && (i.required = true));
   return railSection("Rename", h("p", { class: "mb-3 text-xs text-muted" }, "New names can mean a different release: Post-Vinyl looks them up and suggests the full tag set."), form, out);
 }
+
+const coverOrigin: Record<string, string> = {
+  deezer: "Deezer (official artwork)",
+  "release group": "the Cover Art Archive (the album's main cover)",
+  release: "the Cover Art Archive (a community upload for this edition)",
+};
 
 /** A release matched: show its tags, apply them on confirm. */
 function suggestion(rail: HTMLElement, f: File, me: Me, s: Schemas["SuggestionOut"], reload: () => Promise<void>): HTMLElement {
@@ -235,14 +239,22 @@ function suggestion(rail: HTMLElement, f: File, me: Me, s: Schemas["SuggestionOu
     }
   }, "primary");
   apply.classList.add("mt-3", "w-full");
+  const newCover = s.cover
+    ? h("img", {
+        src: s.cover,
+        alt: "Cover these tags would apply",
+        class: "mb-3 aspect-square w-full rounded-[6px] object-cover",
+      })
+    : null;
   return h(
     "div",
     {},
+    newCover,
     h("div", { class: "mb-2" }, state(`Matched via ${s.via === "listenbrainz" ? "ListenBrainz" : "MusicBrainz"}`, "ok")),
     pairs(named),
     ids.length > 0 &&
       h("details", { class: "mt-2 text-xs" }, h("summary", { class: "cursor-pointer text-muted" }, `MusicBrainz ids (${ids.length})`), h("div", { class: "mt-2 font-mono break-all" }, pairs(ids.map(([k, v]) => [k.replace("musicbrainz_", ""), v])))),
-    h("p", { class: "mt-2 text-xs text-muted" }, s.has_cover ? "With its cover art." : "No cover art for this release."),
+    h("p", { class: "mt-2 text-xs text-muted" }, s.cover_source ? `This cover goes on with the tags, from ${coverOrigin[s.cover_source] ?? s.cover_source}.` : "No cover art found; the file keeps its own."),
     apply,
   );
 }

@@ -7,6 +7,7 @@ takes every tag off and moves the file by the new names.
 
 from __future__ import annotations
 
+import base64
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Response
@@ -19,10 +20,14 @@ from app.services.requests import DEFAULT_PAGE_SIZE
 router = APIRouter(prefix="/api/library/files", tags=["library"])
 
 
+def data_url(image: bytes) -> str:
+    kind = "png" if image.startswith(b"\x89PNG") else "jpeg"
+    return f"data:image/{kind};base64,{base64.b64encode(image).decode()}"
+
+
 class RenameBody(BaseModel):
     title: str
     artist: str
-    album_artist: str = ""
     album: str = ""
     year: str = ""
     track: int | None = None
@@ -36,6 +41,8 @@ class SuggestionOut(BaseModel):
     via: str | None = None  # "listenbrainz" | "musicbrainz"
     tags: dict[str, Any] | None = None
     has_cover: bool = False
+    cover: str | None = None  # data: URL, the image apply would write
+    cover_source: str | None = None
 
 
 class Apply(BaseModel):
@@ -86,7 +93,9 @@ def rename(
     if s is None:
         return SuggestionOut(match=False)
     return SuggestionOut(match=True, recording_id=s.recording_id, release_id=s.release_id,
-                         via=s.via, tags=s.tags, has_cover=s.has_cover)  # fmt: skip
+                         via=s.via, tags=s.tags, has_cover=s.cover is not None,
+                         cover=data_url(s.cover.data) if s.cover else None,
+                         cover_source=s.cover.source if s.cover else None)  # fmt: skip
 
 
 @router.post("/{song_id}/apply")

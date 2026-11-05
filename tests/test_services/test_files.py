@@ -435,3 +435,37 @@ def test_prune_clears_leftovers_but_keeps_audio_and_other_files(
     (kept / "booklet.pdf").write_bytes(b"x")
     c.svc._prune(kept)
     assert (kept / "cover.jpg").is_file()
+
+
+# ------------------------------------------------------------ stars across a retag
+
+
+def test_stars_and_ratings_follow_a_song_to_its_new_id(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    c.nd.users["bob"] = ("bobpw", False)
+    with c.db.transaction(write=True) as conn:
+        UsersStore().upsert_on_login(conn, "bob", c.box.encrypt("bobpw"), False, NOW)
+    wav(c.music / "library/old/a.wav", 1)
+    c.nd.songs["old"] = NdSong("old", "old/a.wav", "/music/library", "t", "a", "", 1, 1,
+                               "wav", False)  # fmt: skip
+    c.nd.user_marks[("admin", "old")] = (True, 0)
+    c.nd.user_marks[("bob", "old")] = (False, 4)
+    target = "a/t.wav"
+    c.nd.pending.append(NdSong("new", target, "/music/library", "t", "a", "", 1, 1,
+                               "wav", False))  # fmt: skip
+    new = c.svc.re_place("old", "t", "a")
+    assert new is not None and new.id == "new"
+    assert c.nd.user_marks[("admin", "new")] == (True, 0)
+    assert c.nd.user_marks[("bob", "new")] == (False, 4)
+
+
+def test_a_user_whose_login_fails_doesnt_stop_the_retag(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    wav(c.music / "library/old/a.wav", 1)
+    c.nd.songs["old"] = NdSong("old", "old/a.wav", "/music/library", "t", "a", "", 1, 1,
+                               "wav", False)  # fmt: skip
+    c.nd.user_marks[("admin", "old")] = (True, 0)  # bob's stored secret is junk
+    c.nd.pending.append(NdSong("new", "a/t.wav", "/music/library", "t", "a", "", 1, 1,
+                               "wav", False))  # fmt: skip
+    assert c.svc.re_place("old", "t", "a") is not None
+    assert c.nd.user_marks[("admin", "new")] == (True, 0)

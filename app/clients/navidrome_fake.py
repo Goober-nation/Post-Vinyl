@@ -25,6 +25,7 @@ class FakeNavidromeClient(NavidromeClientBase):
         self.pending: list[Song] = []
         self.scans = 0
         self.covers: dict[str, bytes] = {}  # song id -> image (JPEG bytes)
+        self.user_marks: dict[tuple[str, str], tuple[bool, int]] = {}
         self.playlists: dict[
             str, tuple[str, str, list[str]]
         ] = {}  # id -> owner, name, songs
@@ -118,6 +119,16 @@ class FakeNavidromeClient(NavidromeClientBase):
         if song_id not in self.covers:
             raise NavidromeNotFound(f"/rest/getCoverArt: subsonic error 70 {song_id}")
         return Cover(self.covers[song_id], "image/jpeg")
+
+    def marks(self, session: Session, song_id: str) -> tuple[bool, int]:
+        self._check(session)
+        return self.user_marks.get((session.username, song_id), (False, 0))
+
+    def set_marks(
+        self, session: Session, song_id: str, starred: bool, rating: int
+    ) -> None:
+        self._check(session)
+        self.user_marks[(session.username, song_id)] = (starred, rating)
 
     def find_song_by_path(self, session: Session, path: str) -> Song | None:
         self._check(session)

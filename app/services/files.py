@@ -51,7 +51,7 @@ from app.clients.navidrome import Song as LibrarySong
 from app.config import FilesSettings
 from app.core import states
 from app.core.matcher import DURATION_TOLERANCE_S
-from app.services.encryption import SecretBox
+from app.services.encryption import DecryptError, SecretBox
 from app.stores.database import Database
 from app.stores.files import FileRecord, FilesStore
 from app.stores.songs import Song, SongsStore
@@ -541,6 +541,7 @@ class FilesService(FilesServiceBase):
         ``<artist>/<title>``), rescan, relink our record. Never overwrites."""
         song = self.library_song(navidrome_id)
         src = self.library_path(song)
+        marks = self._read_marks(navidrome_id)
         audio = mutagen.File(src, easy=True)
         tags = audio.tags if audio else None
         names = Song(0, title, artist, title, artist, None, None, None, None, None)
@@ -557,6 +558,12 @@ class FilesService(FilesServiceBase):
                      target.relative_to(self._library))  # fmt: skip
         self.scan()
         new = self._find_in_navidrome(target)
+        if new is None:
+            if marks:
+                log.warning("library %s: stars not carried, %s isn't listed",
+                            navidrome_id, target)  # fmt: skip
+        elif new.id != navidrome_id:
+            self._write_marks(new.id, marks)
         with self._db.transaction(write=True) as conn:
             rec = self._files.by_navidrome_ids(conn, [navidrome_id]).get(navidrome_id)
             if rec is not None:
@@ -584,6 +591,45 @@ class FilesService(FilesServiceBase):
                                       self._now())  # fmt: skip
         log.info("library %s deleted: %s", navidrome_id, song.path)
         self.scan()
+
+    def _user_sessions(self) -> list[tuple[str, Session]]:
+        """A session per user we hold a working Navidrome login for."""
+        with self._db.transaction() as conn:
+            users = UsersStore().all(conn)
+        sessions = []
+        for user in users:
+            try:
+                password = self._box.decrypt(user.nd_password_enc)
+                sessions.append(
+                    (user.username, self._nd.login(user.username, password))
+                )
+            except (NavidromeError, DecryptError) as e:
+                log.warning("no Navidrome session for %s: %s", user.username, e)
+        return sessions
+
+    def _read_marks(self, song_id: str) -> list[tuple[Session, bool, int]]:
+        """Each user's star and rating: a retag can give the song a new id, and
+        they stay behind on the old one (user, 2026-11-05)."""
+        marks = []
+        for username, session in self._user_sessions():
+            try:
+                starred, rating = self._nd.marks(session, song_id)
+            except NavidromeError as e:
+                log.warning("couldn't read %s's star on %s: %s", username, song_id, e)
+                continue
+            if starred or rating:
+                marks.append((session, starred, rating))
+        return marks
+
+    def _write_marks(
+        self, song_id: str, marks: list[tuple[Session, bool, int]]
+    ) -> None:
+        for session, starred, rating in marks:
+            try:
+                self._nd.set_marks(session, song_id, starred, rating)
+            except NavidromeError as e:
+                log.warning("couldn't carry %s's star to %s: %s",
+                            session.username, song_id, e)  # fmt: skip
 
     def _prune(self, folder: Path) -> None:
         """Remove folders with nothing but leftovers (covers, macOS files), up to

@@ -175,6 +175,16 @@ class NavidromeClientBase(ABC):
         """Create a playlist, or replace ``playlist_id``'s songs; returns its id."""
 
     @abstractmethod
+    def marks(self, session: Session, song_id: str) -> tuple[bool, int]:
+        """The session's own (starred, rating 0-5) on a song."""
+
+    @abstractmethod
+    def set_marks(
+        self, session: Session, song_id: str, starred: bool, rating: int
+    ) -> None:
+        """Star a song and rate it, as the session's own user."""
+
+    @abstractmethod
     def find_song_by_path(self, session: Session, path: str) -> Song | None:
         """The song at exactly ``path`` (relative to its library), or None."""
 
@@ -398,6 +408,18 @@ class NavidromeClient(NavidromeClientBase):
         return [parse_song(r) for r in rows], int(
             resp.headers.get("X-Total-Count", len(rows))
         )
+
+    def marks(self, session: Session, song_id: str) -> tuple[bool, int]:
+        song = self._subsonic(session, "getSong", id=song_id)["song"]
+        return bool(song.get("starred")), int(song.get("userRating") or 0)
+
+    def set_marks(
+        self, session: Session, song_id: str, starred: bool, rating: int
+    ) -> None:
+        if starred:
+            self._subsonic(session, "star", id=song_id)
+        if rating:
+            self._subsonic(session, "setRating", id=song_id, rating=rating)
 
     def find_song_by_path(self, session: Session, path: str) -> Song | None:
         # Navidrome's path filter is a prefix match; keep exact hits only.

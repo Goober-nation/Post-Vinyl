@@ -17,11 +17,13 @@ from dataclasses import dataclass
 
 from app.clients.catalog import CatalogNotFound
 from app.clients.listenbrainz import ListenBrainzClientBase, RadioTrack
+from app.clients.navidrome import NavidromeError
 from app.core.pulls import is_excluded, radio_name, recs_name
 from app.core.states import IllegalTransition
 from app.services.catalog import CatalogServiceBase
 from app.services.dispatch import DownloadDispatchBase, NotStartable
 from app.services.encryption import SecretBox
+from app.services.files import NoAdmin
 from app.services.requests import RequestServiceBase, StateChanged
 from app.services.sources import SourcePreferences
 from app.stores.database import Database
@@ -136,6 +138,7 @@ class PullService(PullServiceBase):
         box: SecretBox,
         sources: SourcePreferences,
         clock: Callable[[], float] = time.time,
+        in_library: Callable[[str, str], str | None] = lambda _title, _artist: None,
     ) -> None:
         self._db = db
         self._lb = listenbrainz
@@ -145,6 +148,7 @@ class PullService(PullServiceBase):
         self._box = box
         self._sources = sources
         self._clock = clock
+        self._in_library = in_library
         self._pulls = PullsStore()
         self._users = UsersStore()
         self._files = FilesStore()
@@ -339,6 +343,16 @@ class PullService(PullServiceBase):
             if file and file.file_state == "indexed":
                 self._pulls.set_item(conn, item, "reused", song_id=song.id)
                 return False
+        try:
+            library_id = self._in_library(song.title, song.artist_name)
+        except (NavidromeError, NoAdmin) as e:
+            log.info("pull %s waits for the library check: %s", pull.id, e)
+            return True  # stays queued: never download blind
+        if library_id:
+            with self._db.transaction(write=True) as conn:
+                self._pulls.set_item(conn, item, "reused", song_id=song.id,
+                                     library_id=library_id)  # fmt: skip
+            return False
         req = self._requests.create(pull.user_id, song.id, pull.kind, pull.id)
         with self._db.transaction(write=True) as conn:
             self._pulls.set_item(

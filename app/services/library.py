@@ -21,6 +21,7 @@ from app.clients.navidrome import Cover
 from app.clients.navidrome import Song as LibrarySong
 from app.core.file_song import UNKNOWN_ARTIST, names_from_path
 from app.core.matcher import same_song
+from app.core.normalize import strip_feat
 from app.services.encryption import SecretBox
 from app.services.files import FilesService
 from app.services.requests import DEFAULT_PAGE_SIZE, clamp_page
@@ -69,7 +70,6 @@ class Rename:
 
     title: str
     artist: str
-    album_artist: str = ""
     album: str = ""
     year: str = ""
     track: int | None = None
@@ -139,12 +139,20 @@ class LibraryService(LibraryServiceBase):
         return item(song, rec, self._files.tag_failed([rec.id] if rec else []))
 
     def owned(self, songs: list[tuple[str, str]]) -> list[bool]:
-        return [self._has(title, artist) for title, artist in songs]
+        return [self.find(title, artist) is not None for title, artist in songs]
 
-    def _has(self, title: str, artist: str) -> bool:
-        hits, _ = self._files.library_page(" ".join(title.split()), 0, OWNED_HITS)
-        return any(
-            not s.missing and same_song(title, artist, s.title, s.artist) for s in hits
+    def find(self, title: str, artist: str) -> str | None:
+        """The library's copy of a song by name, whoever got it there. The search
+        drops "(feat. X)": every word must hit, and the file may not credit X."""
+        query = " ".join(strip_feat(title).split())
+        hits, _ = self._files.library_page(query, 0, OWNED_HITS)
+        return next(
+            (
+                s.id
+                for s in hits
+                if not s.missing and same_song(title, artist, s.title, s.artist)
+            ),
+            None,
         )
 
     def page(

@@ -10,6 +10,8 @@ import pytest
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import COMM, ID3, TALB, TXXX, USLT
 
+from app.clients.catalog import Album, CatalogError
+from app.clients.catalog_fake import FakeCatalog
 from app.clients.coverart import FakeCoverArt
 from app.clients.listenbrainz import RecordingMetadata
 from app.clients.listenbrainz_fake import FakeListenBrainzClient
@@ -423,3 +425,66 @@ def test_nothing_is_sent_to_a_source_turned_off_for_the_requester(
     assert not svc.tag(c.fid)
     assert c.state_and_rows() == ("verified", [f"failTag:{error}"])
     assert mb.calls == 0 and lb.calls == 0
+
+
+# ------------------------------------------------------------ official covers
+
+
+class CoverCatalog(FakeCatalog):
+    """Answers like Deezer's plain search: by words, whoever the artist is."""
+
+    def __init__(self, broken: bool = False) -> None:
+        super().__init__("deezer")
+        self.broken = broken
+
+    def search_albums(
+        self, title: str, artist: str | None = None, limit: int = 25
+    ) -> list[Album]:
+        if self.broken:
+            raise CatalogError("down")
+        return super().search_albums(title, None, limit)
+
+    def cover(self, cover_id: str, size: int) -> bytes | None:
+        return f"deezer-{cover_id}".encode()
+
+
+def _album(title: str, artist: str) -> Album:
+    return Album("deezer", title, title, artist, "Album", (), "2005", "abc")
+
+
+def _covers(tmp_path: Path, deezer: CoverCatalog | None) -> Case:
+    c = Case(tmp_path)
+    c.svc._deezer = deezer
+    c.svc._caa = FakeCoverArt()
+    c.svc._caa.covers = {"release-group/g1": b"group", "r1": b"release"}
+    return c
+
+
+RELEASE = ReleaseInfo("r1", "Modal Soul", "2005", "g1", "2005", "Nujabes", (), {}, (),
+                      True)  # fmt: skip
+
+
+def test_deezer_cover_wins_when_artist_and_album_match(tmp_path: Path) -> None:
+    deezer = CoverCatalog()
+    deezer.albums["a"] = _album("Modal Soul", "Nujabes")
+    cover = _covers(tmp_path, deezer).svc._cover(RELEASE, None)
+    assert cover is not None and (cover.data, cover.source) == (b"deezer-abc", "deezer")
+
+
+def test_a_same_named_album_by_someone_else_isnt_used(tmp_path: Path) -> None:
+    deezer = CoverCatalog()
+    deezer.albums["a"] = _album("Modal Soul", "Tribute Band")
+    cover = _covers(tmp_path, deezer).svc._cover(RELEASE, None)
+    assert cover is not None and cover.source == "release group"
+
+
+def test_a_failing_source_only_moves_on(tmp_path: Path) -> None:
+    cover = _covers(tmp_path, CoverCatalog(broken=True)).svc._cover(RELEASE, None)
+    assert cover is not None and cover.data == b"group"
+
+
+def test_the_release_cover_is_the_last_resort(tmp_path: Path) -> None:
+    c = _covers(tmp_path, None)
+    c.svc._caa.covers = {"r1": b"release"}
+    cover = c.svc._cover(RELEASE, None)
+    assert cover is not None and cover.source == "release"

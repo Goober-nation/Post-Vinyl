@@ -16,6 +16,7 @@ from app.clients.listenbrainz import (
     RecordingMetadata,
 )
 from app.clients.listenbrainz_fake import FakeListenBrainzClient
+from app.clients.navidrome import NavidromeError
 from app.clients.navidrome_fake import FakeNavidromeClient
 from app.core.pulls import is_excluded
 from app.services.catalog import CatalogService
@@ -249,3 +250,35 @@ def test_playlist_removed_in_navidrome_comes_back(env: Env) -> None:
     index(env, env.source.started[2], "nd-2")
     env.playlists.sync()
     assert [p[2] for p in env.nd.playlists.values()] == [["nd-0", "nd-1", "nd-2"]]
+
+
+def library_pull(env: Env, found: dict[str, str] | Exception) -> int:
+    def lookup(title: str, _artist: str) -> str | None:
+        if isinstance(found, Exception):
+            raise found
+        return found.get(title)
+
+    env.pulls._in_library = lookup
+    return start_recs(env)
+
+
+def test_song_already_in_navidrome_isnt_downloaded_and_joins_the_playlist(
+    env: Env,
+) -> None:
+    pull = library_pull(env, {TITLES[1]: "lib-1"})
+    env.pulls.feed()
+    with env.db.transaction() as conn:
+        first = PullsStore().items(conn, pull)[0]
+        assert first.state == "reused" and first.request_id is None
+        assert PullsStore().indexed_songs(conn, pull) == ["lib-1"]
+    env.playlists.sync()
+    with env.db.transaction() as conn:
+        assert PullsStore().items(conn, pull)[0].in_playlist == 1
+
+
+def test_no_download_while_the_library_cant_be_checked(env: Env) -> None:
+    pull = library_pull(env, NavidromeError("down"))
+    env.pulls.feed()
+    assert env.source.started == []
+    with env.db.transaction() as conn:
+        assert PullsStore().items(conn, pull)[0].state == "queued"

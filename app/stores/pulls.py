@@ -19,8 +19,11 @@ _ALL_PULLS = " UNION ALL ".join(
 )
 _STILL_RUNNING = "('requested', 'reRequested', 'searching', 'found', 'midDownload')"
 _BEFORE_DOWNLOAD = "('requested', 'reRequested', 'searching', 'found')"
-_INDEXED_SONG = """JOIN file_management f ON f.song_id = i.song_id
-                   WHERE f.file_state = 'indexed' AND f.navidrome_id IS NOT NULL"""
+# a pull song is playable through our file record, or through a library song
+# found by name (``library_id``)
+_PLAYABLE = """LEFT JOIN file_management f ON f.song_id = i.song_id
+                   AND f.file_state = 'indexed' AND f.navidrome_id IS NOT NULL
+               WHERE COALESCE(i.library_id, f.navidrome_id) IS NOT NULL"""
 
 
 @dataclass(frozen=True)
@@ -45,6 +48,7 @@ class PullItem:
     request_id: int | None
     song_id: int | None
     in_playlist: int
+    library_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -177,11 +181,13 @@ class PullsStore:
         state: str,
         song_id: int | None = None,
         request_id: int | None = None,
+        library_id: str | None = None,
     ) -> None:
         conn.execute(
-            """UPDATE pull_items SET state = ?, song_id = ?, request_id = ?
+            """UPDATE pull_items SET state = ?, song_id = ?, request_id = ?,
+                      library_id = ?
                WHERE origin_id = ? AND position = ?""",
-            (state, song_id, request_id, item.origin_id, item.position),
+            (state, song_id, request_id, library_id, item.origin_id, item.position),
         )
 
     def cancel_queued(self, conn: sqlite3.Connection, pull_id: int) -> None:
@@ -250,7 +256,7 @@ class PullsStore:
     def pulls_to_sync(self, conn: sqlite3.Connection) -> list[int]:
         """Pulls with an indexed song their playlist doesn't have yet."""
         rows = conn.execute(
-            f"""SELECT DISTINCT i.origin_id FROM pull_items i {_INDEXED_SONG}
+            f"""SELECT DISTINCT i.origin_id FROM pull_items i {_PLAYABLE}
                 AND i.in_playlist = 0 ORDER BY i.origin_id"""
         )
         return [r["origin_id"] for r in rows]
@@ -258,18 +264,19 @@ class PullsStore:
     def indexed_songs(self, conn: sqlite3.Connection, pull_id: int) -> list[str]:
         """The pull's playable songs as Navidrome ids, in pull order."""
         rows = conn.execute(
-            f"""SELECT f.navidrome_id FROM pull_items i {_INDEXED_SONG}
+            f"""SELECT COALESCE(i.library_id, f.navidrome_id) AS nd_id
+                FROM pull_items i {_PLAYABLE}
                 AND i.origin_id = ? ORDER BY i.position""",
             (pull_id,),
         )
-        return [r["navidrome_id"] for r in rows]
+        return list(dict.fromkeys(r["nd_id"] for r in rows))
 
     def mark_in_playlist(self, conn: sqlite3.Connection, pull_id: int) -> None:
         conn.execute(
             """UPDATE pull_items SET in_playlist = 1
-                WHERE origin_id = ? AND song_id IN
+                WHERE origin_id = ? AND (library_id IS NOT NULL OR song_id IN
                     (SELECT song_id FROM file_management
-                     WHERE file_state = 'indexed' AND navidrome_id IS NOT NULL)""",
+                     WHERE file_state = 'indexed' AND navidrome_id IS NOT NULL))""",
             (pull_id,),
         )
 

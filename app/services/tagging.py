@@ -11,7 +11,9 @@ No beets, no Picard. Decided with the user, 2026-10-29:
 - **Tags**: title, artist, album artist, album, date, original date, track and
   disc number with totals, MusicBrainz ids (recording, release track, release,
   release group, artists, album artists), the ISRC when MusicBrainz has
-  exactly one, and the front cover from the Cover Art Archive.
+  exactly one, and a cover: the album on Deezer (label artwork) when artist
+  and album match, else the release group's chosen front at the Cover Art
+  Archive, else this release's (community uploads; user, 2026-11-05).
 - **The peer's tags**: everything is replaced, except ReplayGain and lyrics.
 - One ``tagging`` row per attempt. A failure (``failTag``) never blocks the
   file: it stays ``verified`` and the files service moves it untagged.
@@ -28,7 +30,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import mutagen
 from mutagen.flac import FLAC, Picture
@@ -52,7 +54,7 @@ from mutagen.mp4 import MP4, MP4Cover, MP4FreeForm
 from mutagen.oggopus import OggOpus
 from mutagen.oggvorbis import OggVorbis
 
-from app.clients.catalog import CatalogError, CatalogSource
+from app.clients.catalog import Album, CatalogError, CatalogSource
 from app.clients.coverart import CoverArtClientBase
 from app.clients.listenbrainz import ListenBrainzClientBase, ListenBrainzError
 from app.clients.musicbrainz import (
@@ -63,7 +65,8 @@ from app.clients.musicbrainz import (
 )
 from app.config import FilesSettings
 from app.core import states
-from app.core.matcher import DURATION_TOLERANCE_S, norm
+from app.core.matcher import DURATION_TOLERANCE_S, norm, same_song
+from app.core.normalize import artist_candidates
 from app.core.release_choice import choose_release
 from app.services.catalog import order_tracks
 from app.services.encryption import SecretBox
@@ -75,6 +78,9 @@ from app.stores.songs import Song, SongsStore
 from app.stores.users import UsersStore
 
 log = logging.getLogger(__name__)
+
+DEEZER_COVER_PX = 1000  # Deezer serves any square size
+CAA_COVER_PX = 500  # as the release front
 
 
 class TagFailed(Exception):
@@ -271,6 +277,22 @@ def fits(found_s: float | None, file_s: float | None) -> bool:
     return not found_s or not file_s or abs(found_s - file_s) <= DURATION_TOLERANCE_S
 
 
+class AlbumCovers(Protocol):
+    """What the official cover lookup needs from Deezer."""
+
+    def search_albums(
+        self, title: str, artist: str | None = None, limit: int = 25
+    ) -> list[Album]: ...
+
+    def cover(self, cover_id: str, size: int) -> bytes | None: ...
+
+
+@dataclass(frozen=True)
+class Cover:
+    data: bytes
+    source: str  # "deezer" | "release group" | "release"
+
+
 @dataclass(frozen=True)
 class Suggestion:
     """The tag set new names point at (#112); the user accepts or strips."""
@@ -279,7 +301,7 @@ class Suggestion:
     release_id: str
     via: str  # "listenbrainz" | "musicbrainz"
     tags: dict[str, Any]
-    has_cover: bool
+    cover: Cover | None
 
 
 class TaggingServiceBase(ABC):
@@ -300,8 +322,10 @@ class TaggingService(TaggingServiceBase):
         clock: Callable[[], float] = time.time,
         search: CatalogSource | None = None,  # MusicBrainz search for renames (#112)
         sources: SourcePreferences | None = None,  # None: every source on (tests)
+        deezer: AlbumCovers | None = None,  # official covers
     ) -> None:
         self._search = search
+        self._deezer = deezer
         self._sources = sources
         self._db = db
         self._mb = musicbrainz
@@ -333,8 +357,9 @@ class TaggingService(TaggingServiceBase):
             if chosen is None:
                 raise TagFailed("no_release")
             release_id = chosen.id
-            tags, cover = self._build(info, chosen, f"file {rec.id}")
-            write_tags(self._downloads / rec.file_location, tags, cover)
+            tags, cover = self._build(info, chosen, f"file {rec.id}", requester)
+            write_tags(self._downloads / rec.file_location, tags,
+                       cover.data if cover else None)  # fmt: skip
         except (TagFailed, CatalogError, ListenBrainzError, mutagen.MutagenError) as e:
             error = str(e) if isinstance(e, TagFailed) else f"{type(e).__name__}: {e}"
             with self._db.transaction(write=True) as conn:
@@ -355,18 +380,56 @@ class TaggingService(TaggingServiceBase):
         return True
 
     def _build(
-        self, info: RecordingInfo, chosen: RecordingRelease, what: str
-    ) -> tuple[dict[str, Any], bytes | None]:
+        self, info: RecordingInfo, chosen: RecordingRelease, what: str,
+        user_id: int | None,
+    ) -> tuple[dict[str, Any], Cover | None]:  # fmt: skip
         """The tag set from a recording and one of its releases, plus its cover."""
         try:
             release = self._mb.release_info(chosen.id)
             tags = build_tags(info, release)
-            cover = self._caa.front(release.id) if release.has_front_cover else None
+            cover = self._cover(release, user_id)
         except (TagFailed, CatalogError) as e:  # no disc/track details
             log.info("%s: release %s details unusable (%s); album only",
                      what, chosen.id, e)  # fmt: skip
             return build_album_tags(info, chosen), None
         return tags, cover
+
+    def _cover(self, release: ReleaseInfo, user_id: int | None) -> Cover | None:
+        """The most official image we can find. A source failing only moves on:
+        a cover is never why a song stays untagged."""
+        fetchers: tuple[tuple[str, Callable[[], bytes | None]], ...] = (
+            ("deezer", lambda: self._deezer_cover(release, user_id)),
+            ("release group", lambda: self._group_cover(release)),
+            ("release", lambda: self._release_cover(release)),
+        )
+        for source, fetch in fetchers:
+            try:
+                data = fetch()
+            except CatalogError as e:
+                log.info("cover from %s failed: %s", source, e)
+                continue
+            if data:
+                return Cover(data, source)
+        return None
+
+    def _deezer_cover(self, release: ReleaseInfo, user_id: int | None) -> bytes | None:
+        if self._deezer is None or not self._on(user_id, "deezer"):
+            return None
+        albums = self._deezer.search_albums(release.title, release.artist, limit=10)
+        for album in albums:
+            if album.cover_id and same_song(
+                release.title, release.artist, album.title, album.artist
+            ):
+                return self._deezer.cover(album.cover_id, DEEZER_COVER_PX)
+        return None
+
+    def _group_cover(self, release: ReleaseInfo) -> bytes | None:
+        if not release.group_id:
+            return None
+        return self._caa.thumb(f"release-group/{release.group_id}", CAA_COVER_PX)
+
+    def _release_cover(self, release: ReleaseInfo) -> bytes | None:
+        return self._caa.front(release.id) if release.has_front_cover else None
 
     # ------------------------------------------------------------ renames (#112)
 
@@ -388,6 +451,28 @@ class TaggingService(TaggingServiceBase):
         set can be built, so that refuses."""
         if not self._on(user_id, "musicbrainz"):
             raise SourceOff("musicbrainz is turned off")
+        mbid, via = None, "listenbrainz"
+        for name in artist_candidates(artist):
+            mbid, via = self._find_recording(user_id, title, name, length_s, token)
+            if mbid is not None:
+                break
+        if mbid is None:
+            return None
+        info = self._mb.recording_info(mbid)
+        same_album = [
+            r for r in info.releases if album and norm(r.title) == norm(album)
+        ]
+        chosen = choose_release(same_album) or choose_release(info.releases)
+        if chosen is None:
+            return None
+        tags, cover = self._build(info, chosen, f"rename suggestion {mbid}", user_id)
+        return Suggestion(mbid, chosen.id, via, tags, cover)
+
+    def _find_recording(
+        self, user_id: int, title: str, artist: str,
+        length_s: float | None, token: str | None,
+    ) -> tuple[str | None, str]:  # fmt: skip
+        """One artist name: ListenBrainz, then MusicBrainz search."""
         mbid, via = None, "listenbrainz"
         if token and self._on(user_id, "listenbrainz"):
             try:
@@ -416,17 +501,7 @@ class TaggingService(TaggingServiceBase):
                 ),
                 None,
             )
-        if mbid is None:
-            return None
-        info = self._mb.recording_info(mbid)
-        same_album = [
-            r for r in info.releases if album and norm(r.title) == norm(album)
-        ]
-        chosen = choose_release(same_album) or choose_release(info.releases)
-        if chosen is None:
-            return None
-        tags, cover = self._build(info, chosen, f"rename suggestion {mbid}")
-        return Suggestion(mbid, chosen.id, via, tags, cover is not None)
+        return mbid, via
 
     def record_retag(
         self, file_id: int, recording_id: str, release_id: str, tags: dict[str, Any]
@@ -449,7 +524,8 @@ class TaggingService(TaggingServiceBase):
         chosen = next((r for r in info.releases if r.id == release_id), None)
         if chosen is None:
             raise TagFailed("release_not_of_recording")
-        return self._build(info, chosen, f"rename {recording_id}")
+        tags, cover = self._build(info, chosen, f"rename {recording_id}", user_id)
+        return tags, cover.data if cover else None
 
     def _lookup(self, song: Song) -> str:
         """No MBID: ListenBrainz with the requester's token, checked against the song."""
