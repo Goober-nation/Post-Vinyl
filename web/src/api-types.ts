@@ -1203,6 +1203,8 @@ export interface components {
             duration: number;
             /** Suffix */
             suffix: string;
+            /** Bitrate */
+            bitrate?: number;
             /** Missing */
             missing: boolean;
             /** File Id */

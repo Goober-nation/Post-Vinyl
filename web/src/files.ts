@@ -84,6 +84,8 @@ export function filesPage(me: Me): HTMLElement {
 export const coverUrl = (songId: string, size: number) => `/api/library/files/${encodeURIComponent(songId)}/cover?size=${size}`;
 const length = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
+const kbps = (rate?: number) => (rate ? `${rate} kbps` : "");
+
 function fileRow(f: File, pick: () => void): HTMLElement {
   const r = row({
     title: f.title || "(no title)",
@@ -95,7 +97,7 @@ function fileRow(f: File, pick: () => void): HTMLElement {
       "div",
       { class: "file-meta" },
       f.missing ? state("Missing", "err") : f.tag_failed ? state("Tagging failed", "err") : f.file_id ? tag("Post-Vinyl") : "",
-      h("span", { class: "sub font-mono" }, `${length(f.duration)} · ${f.suffix.toUpperCase()}`),
+      h("span", { class: "sub font-mono" }, [length(f.duration), f.suffix.toUpperCase(), kbps(f.bitrate)].filter(Boolean).join(" · ")),
     ),
     action: h("button", { type: "button", class: "icon-btn", "aria-label": `Open ${f.title}` }, "›"),
   });
@@ -155,6 +157,7 @@ function showFile(rail: HTMLElement, f: File, me: Me, reload: () => Promise<void
         kv([
           ["Length", length(f.duration)],
           ["Format", f.suffix.toUpperCase()],
+          ...(f.bitrate ? [["Bitrate", kbps(f.bitrate)] as [string, string]] : []),
           ["Downloaded by", f.file_id ? "Post-Vinyl" : "—"],
           ...(f.file_state ? [["File state", f.file_state] as [string, string]] : []),
         ]),

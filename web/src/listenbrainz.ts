@@ -208,8 +208,8 @@ function pullLine(p: Pull, reload: () => void): HTMLElement {
     "div",
     { class: "mb-3" },
     h("div", { class: "title" }, p.name),
-    p.first_rank != null &&
-      h("div", { class: "text-muted" }, `${p.lb_last_updated ? `Playlist of ${day(p.lb_last_updated)} · ` : ""}pulled from №${p.first_rank} to №${p.last_rank}`),
+    p.lb_last_updated != null && h("div", { class: "text-muted" }, `Playlist of ${day(p.lb_last_updated)}`),
+    p.first_rank != null && h("div", { class: "text-muted" }, `Pulled from №${p.first_rank} to №${p.last_rank}`),
     h("div", { class: "text-muted" }, `${p.in_playlist} of ${p.total} in playlist · ${p.queued} queued · ${p.failed} failed`),
     h("div", { class: "flex items-center gap-2" }, state(p.state, TONES[p.state]), p.state === "running" ? button("Cancel", cancel, "danger") : ""),
   );

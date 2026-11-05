@@ -119,6 +119,7 @@ class Env:
     box: SecretBox
     alice_id: int
     files: FilesService
+    mb: FakeMusicBrainzTags
 
 
 @pytest.fixture
@@ -157,7 +158,7 @@ def env(tmp_path: Path) -> Env:
     with db.transaction() as conn:
         u = UsersStore().get_by_username(conn, "alice")
     assert u is not None
-    return Env(alice, bob, db, library, nd, lb, prefs, box, u.id, files)
+    return Env(alice, bob, db, library, nd, lb, prefs, box, u.id, files, mb)
 
 
 def song_id(env: Env) -> str:
@@ -280,6 +281,19 @@ def test_rename_with_several_artists_falls_back_to_the_first(env: Env) -> None:
                        headers=SAME)  # fmt: skip
     assert r.json()["match"] and r.json()["via"] == "listenbrainz"
     assert env.lb.lookups == 2  # the whole name, then the first artist
+
+
+def test_a_recording_with_no_official_release_moves_on_to_the_search(env: Env) -> None:
+    """Live: ListenBrainz gave DUCKWORTH. a recording with only withdrawn releases."""
+    track_by_us(env)
+    with env.db.transaction(write=True) as conn:
+        UsersStore().set_lb_token(conn, env.alice_id, env.box.encrypt("good"))
+    env.lb.recordings[REC] = replace(env.lb.recordings[REC], mbid="withdrawn")
+    env.mb.recordings["withdrawn"] = replace(info(), releases=())
+    r = env.alice.post(f"/api/library/files/{song_id(env)}/rename",
+                       json={"title": "Feather", "artist": "Nujabes"}, headers=SAME)  # fmt: skip
+    assert r.json()["match"] and r.json()["via"] == "musicbrainz"
+    assert r.json()["recording_id"] == REC
 
 
 def test_rename_falls_back_to_musicbrainz_and_respects_sources(env: Env) -> None:

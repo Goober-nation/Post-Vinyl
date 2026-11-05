@@ -14,6 +14,7 @@ from app.clients.navidrome import (
     NavidromeForbidden,
     NavidromeNotFound,
     Session,
+    parse_song,
 )
 
 
@@ -185,3 +186,8 @@ def test_save_playlist_replaces_by_id_over_post(monkeypatch: pytest.MonkeyPatch)
     method, _, kwargs = calls[0]
     assert method == "POST" and kwargs["data"]["songId"] == ["a", "b"]
     assert kwargs["data"]["playlistId"] == "p1" and "name" not in kwargs["data"]
+
+
+def test_song_bitrate_is_read_and_may_be_absent() -> None:
+    assert parse_song(song("a.flac") | {"bitRate": 823}).bitrate == 823
+    assert parse_song(song("a.flac")).bitrate == 0

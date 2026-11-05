@@ -54,6 +54,7 @@ class LibraryFile:
     file_state: str | None
     has_cover: bool = False  # Navidrome has art for it: /cover answers an image
     tag_failed: bool = False  # it moved in untagged: its last tagging failed
+    bitrate: int = 0  # kbps; 0 when unknown
 
 
 @dataclass(frozen=True)
@@ -80,7 +81,7 @@ def item(song: LibrarySong, rec: FileRecord | None, failed: set[int]) -> Library
     return LibraryFile(
         song.id, song.title, song.artist, song.album, song.duration, song.suffix,
         song.missing, rec.id if rec else None, rec.file_state if rec else None,
-        song.has_cover, rec is not None and rec.id in failed,
+        song.has_cover, rec is not None and rec.id in failed, song.bitrate,
     )  # fmt: skip
 
 

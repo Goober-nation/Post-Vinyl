@@ -101,6 +101,7 @@ class Song:
     suffix: str
     missing: bool  # file gone from disk but still in the index
     has_cover: bool = False  # Navidrome found art for it (embedded or a folder image)
+    bitrate: int = 0  # kbps; 0 when unknown
 
 
 @dataclass(frozen=True)
@@ -215,6 +216,7 @@ def parse_song(raw: dict[str, Any]) -> Song:
         suffix=raw.get("suffix", ""),
         missing=bool(raw.get("missing")),
         has_cover=bool(raw.get("hasCoverArt")),
+        bitrate=int(raw.get("bitRate") or 0),
     )
 
 

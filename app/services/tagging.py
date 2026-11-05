@@ -27,7 +27,7 @@ from __future__ import annotations
 import logging
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -81,6 +81,7 @@ log = logging.getLogger(__name__)
 
 DEEZER_COVER_PX = 1000  # Deezer serves any square size
 CAA_COVER_PX = 500  # as the release front
+MAX_RENAME_RECORDINGS = 5  # each costs a rate-limited MusicBrainz call
 
 
 class TagFailed(Exception):
@@ -451,29 +452,28 @@ class TaggingService(TaggingServiceBase):
         set can be built, so that refuses."""
         if not self._on(user_id, "musicbrainz"):
             raise SourceOff("musicbrainz is turned off")
-        mbid, via = None, "listenbrainz"
         for name in artist_candidates(artist):
-            mbid, via = self._find_recording(user_id, title, name, length_s, token)
-            if mbid is not None:
-                break
-        if mbid is None:
-            return None
-        info = self._mb.recording_info(mbid)
-        same_album = [
-            r for r in info.releases if album and norm(r.title) == norm(album)
-        ]
-        chosen = choose_release(same_album) or choose_release(info.releases)
-        if chosen is None:
-            return None
-        tags, cover = self._build(info, chosen, f"rename suggestion {mbid}", user_id)
-        return Suggestion(mbid, chosen.id, via, tags, cover)
+            for mbid, via in self._recordings(user_id, title, name, length_s, token):
+                info = self._mb.recording_info(mbid)
+                same_album = [
+                    r for r in info.releases if album and norm(r.title) == norm(album)
+                ]
+                chosen = choose_release(same_album) or choose_release(info.releases)
+                if chosen is None:  # e.g. only withdrawn releases: try the next
+                    log.info("recording %s has no official release", mbid)
+                    continue
+                tags, cover = self._build(
+                    info, chosen, f"rename suggestion {mbid}", user_id
+                )
+                return Suggestion(mbid, chosen.id, via, tags, cover)
+        return None
 
-    def _find_recording(
+    def _recordings(
         self, user_id: int, title: str, artist: str,
         length_s: float | None, token: str | None,
-    ) -> tuple[str | None, str]:  # fmt: skip
-        """One artist name: ListenBrainz, then MusicBrainz search."""
-        mbid, via = None, "listenbrainz"
+    ) -> Iterator[tuple[str, str]]:  # fmt: skip
+        """One artist name's candidates, best first: ListenBrainz's, then the
+        MusicBrainz search's. Lazy, so a good first one costs no search."""
         if token and self._on(user_id, "listenbrainz"):
             try:
                 hit = self._lb.lookup_recording(artist, title, token)
@@ -485,23 +485,19 @@ class TaggingService(TaggingServiceBase):
                 and norm(artist) in norm(hit.artist)
                 and fits(hit.length_s, length_s)
             ):
-                mbid = hit.mbid
-        if mbid is None and self._search is not None:
-            via = "musicbrainz"
-            try:
-                found = self._search.search_tracks(title, artist, limit=100)
-            except CatalogError as e:
-                log.info("rename search at MusicBrainz failed: %s", e)
-                found = []
-            mbid = next(
-                (
-                    t.id
-                    for t in order_tracks(title, found)
-                    if fits(t.duration_s, length_s)
-                ),
-                None,
-            )
-        return mbid, via
+                yield hit.mbid, "listenbrainz"
+        if self._search is None:
+            return
+        try:
+            found = self._search.search_tracks(title, artist, limit=100)
+        except CatalogError as e:
+            log.info("rename search at MusicBrainz failed: %s", e)
+            return
+        fitting = [
+            t.id for t in order_tracks(title, found) if fits(t.duration_s, length_s)
+        ]
+        for mbid in fitting[:MAX_RENAME_RECORDINGS]:
+            yield mbid, "musicbrainz"
 
     def record_retag(
         self, file_id: int, recording_id: str, release_id: str, tags: dict[str, Any]

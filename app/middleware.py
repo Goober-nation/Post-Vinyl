@@ -28,13 +28,27 @@ OPEN_ROUTES = frozenset(
         ("GET", "/api/system/ping"),
     }
 )
+ICON_FILES = frozenset(
+    {
+        "/favicon.ico",
+        "/favicon-32.png",
+        "/apple-touch-icon.png",
+        "/icon-192.png",
+        "/icon-512.png",
+        "/icon-maskable-512.png",
+        "/site.webmanifest",
+    }
+)
 DEV_OPEN_PATHS = frozenset({"/docs", "/openapi.json", "/docs/oauth2-redirect"})
 
 
 def is_web_file(method: str, path: str) -> bool:
     """The frontend's files (Vite puts all but index.html under /assets/) hold
-    no data, and the login page needs them before there is a session (#119)."""
-    return method in ("GET", "HEAD") and (path == "/" or path.startswith("/assets/"))
+    no data, and the login page needs them before there is a session (#119).
+    Devices fetch the icons with no session at all."""
+    return method in ("GET", "HEAD") and (
+        path in ICON_FILES or path == "/" or path.startswith("/assets/")
+    )
 
 
 def request_origin(request: Request) -> str | None:
