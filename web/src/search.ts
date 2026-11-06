@@ -383,7 +383,7 @@ function cartRail(): HTMLElement {
     const go = () => void request(send, wanted, skipped);
     const send = button(label, go, "primary");
     send.classList.add("w-full", "mt-2");
-    send.disabled = !wanted.length;
+    send.disabled = sending || !wanted.length;
     const toggle = h(
       "label",
       { class: "mt-3 flex items-center gap-2 text-muted" },
@@ -404,6 +404,8 @@ function cartRail(): HTMLElement {
       "Re-download songs I already have",
     );
     // phones: the rail sits below the results, so a bar keeps the cart in reach
+    const barSend = button(label, go, "primary");
+    barSend.disabled = send.disabled;
     const bar =
       items.length > 0 &&
       h(
@@ -411,7 +413,7 @@ function cartRail(): HTMLElement {
         { class: "activity xl:hidden" },
         h("button", { type: "button", class: "btn btn-ghost btn-sm", onclick: () => section.scrollIntoView({ behavior: "smooth" }) }, `Cart · ${items.length}`),
         h("span", { class: "flex-1" }),
-        button(label, go, "primary"),
+        barSend,
       );
     section.replaceChildren(
       bar || "",
@@ -439,13 +441,19 @@ function failure(r: Schemas["CartResult"] | undefined): string {
   return r.error ? `Failed: ${r.error}` : `Failed (${r.status}).`;
 }
 
+// Module-wide: a redraw builds fresh buttons, and the phone bar has its own, so
+// disabling the clicked button alone doesn't stop a second send.
+let sending = false;
+
 async function request(btn: HTMLButtonElement, items: CartEntry[], skipped: number): Promise<void> {
-  if (!items.length) return;
+  if (sending || !items.length) return;
+  sending = true;
   btn.disabled = true;
   try {
     const results = await api<Schemas["CartResult"][]>("POST", "/api/requests/batch", {
       items: items.map(({ source, track_id, origin_id }) => ({ source, track_id, origin_id })),
     } satisfies Schemas["Cart"]);
+    sending = false;
     // one result per item: the ones that went through leave the cart, the rest stay with their reason
     const failed = items
       .map((item) => ({ item, r: results.find((r) => r.source === item.source && r.track_id === item.track_id) }))
@@ -457,7 +465,8 @@ async function request(btn: HTMLButtonElement, items: CartEntry[], skipped: numb
     if (skipped) toast(`Skipped ${skipped} already in your library.`);
     if (failed.length) toast(`${failed.length} couldn't be requested; they stay in the cart.`, "err");
   } catch (e) {
+    sending = false;
     toast(e instanceof ApiError ? e.message : "Can't reach Post-Vinyl.", "err");
-    btn.disabled = false;
+    cart.replace([...cart.items()]); // redraws, buttons enabled again
   }
 }
