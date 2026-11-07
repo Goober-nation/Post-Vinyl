@@ -33,6 +33,7 @@ from app.stores.database import Database
 from app.stores.users import UsersStore
 
 SOURCE_KINDS = ("catalog", "download")  # what a user can reorder and switch off
+TAGGING_DISABLED = "tagging.disabled"
 
 
 def user_schema(prefs: SourcePreferences) -> list[SchemaField]:
@@ -78,6 +79,16 @@ def user_schema(prefs: SourcePreferences) -> list[SchemaField]:
             "",
             "Which downloads the tab shows first (empty: all).",
             choices=("", *sorted(STATES)),
+            applies="now",
+        ),
+        SchemaField(
+            TAGGING_DISABLED,
+            "tagging",
+            "bool",
+            False,
+            "Leave your downloads untagged: they keep the tags they came with and go "
+            "to Artist/Title. A song someone else also asked for with tagging on is "
+            "still tagged.",
             applies="now",
         ),
     ]

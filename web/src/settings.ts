@@ -101,6 +101,11 @@ async function draw(body: HTMLElement, which: "personal" | "server", me: Me): Pr
 function controlFor(f: Field, value: unknown, onChange: (v: unknown) => void): HTMLElement {
   if (!f.editable) return h("div", { class: "font-mono text-muted", title: "Matches the Docker mounts: change it there" }, String(value ?? ""));
   if (f.type === "int") return slider(label(f.key), Number(value), f.min ?? 0, f.max ?? 100, f.step ?? 1, onChange);
+  if (f.type === "bool") {
+    const box = h("input", { type: "checkbox", class: "toggle toggle-sm toggle-accent", checked: value === true, "aria-label": label(f.key) });
+    box.addEventListener("change", () => onChange(box.checked));
+    return box;
+  }
   if (f.type === "choice") {
     const sel = h("select", { class: "select select-sm w-full", "aria-label": label(f.key) }, ...f.choices.map((c) => h("option", { value: c, selected: c === value }, nice(c))));
     sel.addEventListener("change", () => onChange(sel.value));

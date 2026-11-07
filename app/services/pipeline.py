@@ -5,7 +5,9 @@ Called by the ``file_pipeline`` worker every ``pipeline_every_seconds``
 
 1. verify every new download;
 2. tag every verified file; a failed tagging is tried **once more** after
-   ``retag_after_seconds``, and after a second failure the file moves untagged;
+   ``retag_after_seconds``, and after a second failure the file moves untagged.
+   A file moves untagged at once when everyone who asked for the song turned
+   tagging off (user, 2026-11-07); one requester with it on is enough to tag;
 3. move every tagged file (and the twice-failed verified ones);
 4. **one** Navidrome scan for everything moved, then link each file; a file
    Navidrome doesn't list yet is linked on a later tick.
@@ -23,9 +25,12 @@ from dataclasses import dataclass
 
 from app.config import WorkersSettings
 from app.services.files import FilesServiceBase
+from app.services.settings import TAGGING_DISABLED
 from app.services.tagging import TaggingServiceBase
 from app.stores.database import Database
 from app.stores.files import FileRecord, FilesStore
+from app.stores.requests import RequestsStore
+from app.stores.users import UsersStore
 
 log = logging.getLogger(__name__)
 
@@ -55,6 +60,8 @@ class FilePipeline:
         self._settings = settings
         self._clock = clock
         self._store = FilesStore()
+        self._requests = RequestsStore()
+        self._users = UsersStore()
 
     def _in(self, state: str) -> list[FileRecord]:
         with self._db.transaction() as conn:
@@ -66,6 +73,14 @@ class FilePipeline:
             rows = self._store.tagging_for_file(conn, rec.id)
         return [r.tagged_at for r in rows
                 if r.status == "failTag" and r.tagged_at >= rec.downloaded_at]  # fmt: skip
+
+    def _tagging_off(self, rec: FileRecord) -> bool:
+        with self._db.transaction() as conn:
+            users = self._requests.requesters(conn, rec.song_id)
+            return bool(users) and all(
+                self._users.get_settings(conn, user).get(TAGGING_DISABLED, False)
+                for user in users
+            )
 
     def _safely(self, step: Callable[[int], bool], rec: FileRecord) -> bool:
         """One file's step; any error stays with that file, and a later tick tries
@@ -83,6 +98,9 @@ class FilePipeline:
                 out.verified += self._safely(self._files.verify, rec)
         retag_s = self._settings.retag_after_seconds
         for rec in self._in("verified"):
+            if self._tagging_off(rec):
+                out.moved += self._safely(self._files.move, rec)
+                continue
             fails = self._failed_tags(rec)
             if not fails or (len(fails) == 1 and self._clock() - fails[0] >= retag_s):
                 out.tagged += self._tagging.tag(rec.id)

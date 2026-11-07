@@ -133,6 +133,15 @@ class RequestsStore:
         ).fetchone()
         return Request(**row) if row else None
 
+    def requesters(self, conn: sqlite3.Connection, song_id: int) -> list[int]:
+        """Users still asking for this song."""
+        rows = conn.execute(
+            """SELECT DISTINCT user_id FROM requests
+               WHERE song_id = ? AND track_state != 'dropped'""",
+            (song_id,),
+        ).fetchall()
+        return [r["user_id"] for r in rows]
+
     def in_state(self, conn: sqlite3.Connection, track_state: str) -> list[Request]:
         rows = conn.execute(
             "SELECT * FROM requests WHERE track_state = ? ORDER BY id", (track_state,)

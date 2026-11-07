@@ -147,7 +147,9 @@ def load_files(path: Path) -> FilesSettings:
 class Settings:
     db_path: str
     navidrome_url: str
-    public_origin: str  # e.g. https://music.example.com; "" = the CSRF check compares to Host
+    public_origin: (
+        str  # e.g. https://music.example.com; "" = the CSRF check compares to Host
+    )
     dev: bool = False  # serves /docs
     # enabled sources per kind, in priority order (user, 2026-10-29)
     sources: dict[str, tuple[str, ...]] = field(
@@ -260,7 +262,7 @@ class SchemaField:
 
     key: str  # "section.name"
     section: str
-    type: str  # int | text | choice | ordered_list | sources
+    type: str  # int | bool | text | choice | ordered_list | sources
     default: Any
     help: str
     min: int | None = None
@@ -317,6 +319,10 @@ def check_value(f: SchemaField, value: Any) -> Any:
             f.max is not None and value > f.max
         ):
             raise ConfigError(f"{f.key} must be between {f.min} and {f.max}")
+        return value
+    if f.type == "bool":
+        if type(value) is not bool:
+            raise ConfigError(f"{f.key} must be true or false")
         return value
     if f.type == "text":
         if not isinstance(value, str) or not value.strip() or "\n" in value:

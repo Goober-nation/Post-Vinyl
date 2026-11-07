@@ -17,6 +17,7 @@ from app.core import states
 from app.services.encryption import SecretBox, generate_key
 from app.services.files import FilesService
 from app.services.pipeline import FilePipeline
+from app.services.settings import TAGGING_DISABLED
 from app.services.slskd_cleanup import SlskdCleanup
 from app.services.tagging import TaggingServiceBase
 from app.stores.database import Database
@@ -142,6 +143,27 @@ def test_new_downloads_go_all_the_way_with_one_scan(tmp_path: Path) -> None:
     assert c.nd.scans == 1  # one scan for the whole batch
     assert c.rec(a).file_state == c.rec(b).file_state == "indexed"
     assert c.pipe.tick().indexed == 0 and c.nd.scans == 1  # nothing left: no scan
+
+
+def test_tagging_off_moves_untagged_at_once(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    with c.db.transaction(write=True) as conn:
+        UsersStore().set_setting(conn, c.uid, TAGGING_DISABLED, True, NOW)
+    fid = c.download()
+    c.pipe.tick()
+    assert c.tagging.calls == 0 and c.rec(fid).file_state == "indexed"
+
+
+def test_one_requester_with_tagging_on_is_enough(tmp_path: Path) -> None:
+    c = Case(tmp_path)
+    fid = c.download()
+    store = UsersStore()
+    with c.db.transaction(write=True) as conn:
+        store.set_setting(conn, c.uid, TAGGING_DISABLED, True, NOW)
+        other = store.upsert_on_login(conn, "b", "x", False, NOW).id
+        RequestsStore().create(conn, other, "catalog", NOW, song_id=c.rec(fid).song_id)
+    c.pipe.tick()
+    assert c.tagging.calls == 1
 
 
 def test_failed_tag_retries_once_after_the_wait_then_moves_untagged(
