@@ -114,7 +114,7 @@ function searchResults(view: { q: string }): HTMLElement[] {
     section("Albums", gone,  async () => {
       const r = await fetched<Schemas["Results_Album_"]>(`/api/catalog/albums?title=${enc(view.q)}`);
       return [r.items.map(albumTile), r.source];
-    }, (tiles) => carousel(tiles, 6, "grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3")),
+    }, (tiles) => carousel(tiles, 4, "grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2")),
     section("Songs", gone,  async () => {
       const r = await fetched<Schemas["Results_Track_"]>(`/api/catalog/tracks?title=${enc(view.q)}`);
       return [r.items.map((t) => trackRow(t, r.origin_id)), r.source];
@@ -191,9 +191,10 @@ function albumPage(view: Browse): HTMLElement[] {
     "div",
     { class: "browse-head" },
     cover(view.name, coverOf(view.source, view.cover, 300)),
-    h("div", { class: "min-w-0" }, h("div", { class: "text-muted" }, "Album"), h("h1", {}, view.name), h("div", { class: "text-muted" }, meta(view.artist, view.info))),
+    h("div", { class: "min-w-0 flex-1" }, h("div", { class: "text-muted" }, "Album"), h("h1", {}, view.name), h("div", { class: "text-muted" }, meta(view.artist, view.info))),
+    albumToggle(view.name, view.source, view.id, true),
   );
-  const tracks = section("Tracks", null, async () => [(await fetched<Schemas["Track"][]>(`/api/catalog/${enc(view.source)}/editions/${enc(view.id)}/tracks`)).map((t) => trackRow(t, null, true)), null], (rows) => {
+  const tracks = section("Tracks", null, async () => [(await fetched<Schemas["Track"][]>(editionPath(view.source, view.id))).map((t) => trackRow(t, null, true)), null], (rows) => {
     const list = paged(rows, ["song", "songs"], "rows", Math.max(rows.length, 1));
     list.classList.add("tracklist");
     return list;
@@ -233,6 +234,57 @@ function cartToggle(entry: CartEntry): [HTMLElement, HTMLElement] {
   return [mark, toggle];
 }
 
+const editionPath = (source: string, id: string) => `/api/catalog/${enc(source)}/editions/${enc(id)}/tracks`;
+
+// an album's songs once known: tiles don't ask for each album's tracks up
+// front, so after a reload a tile shows + until it's pressed or opened
+const albumSongs = new Map<string, CartEntry[]>();
+
+async function loadAlbum(path: string): Promise<CartEntry[]> {
+  const songs = (await fetched<Schemas["Track"][]>(path)).map((t) => entryOf(t, null));
+  albumSongs.set(path, songs);
+  return songs;
+}
+
+/** Adds an album's songs, or removes them once all are in the cart. */
+function albumToggle(title: string, source: string, id: string, labelled = false): HTMLButtonElement {
+  const path = editionPath(source, id);
+  const allIn = () => {
+    const songs = albumSongs.get(path);
+    return !!songs?.length && songs.every((s) => cart.has(s));
+  };
+  const toggle = h("button", { type: "button", class: labelled ? "btn btn-outline btn-sm flex-none border-line" : "icon-btn text-lg" });
+  const sync = () => {
+    const all = allIn();
+    const glyph = all ? "−" : "+";
+    toggle.textContent = labelled ? `${glyph} ${all ? "Remove all" : "Add all"}` : glyph;
+    const label = `${all ? "Remove" : "Add"} all of ${title} ${all ? "from" : "to"} the cart`;
+    toggle.setAttribute("aria-label", label);
+    toggle.title = label;
+  };
+  toggle.addEventListener("click", () => {
+    const remove = allIn(); // decided on what the button showed when pressed
+    toggle.disabled = true;
+    void loadAlbum(path)
+      .then((songs) => {
+        if (remove) return cart.removeAll(songs);
+        if (!songs.length) return toast("This album has no songs to add.", "err");
+        const added = cart.addAll(songs);
+        if (!songs.every((s) => cart.has(s))) toast(`The cart holds at most ${CART_MAX} songs: added ${added}.`, "err");
+      })
+      .catch((e) => toast(e instanceof ApiError ? e.message : "Can't reach Post-Vinyl.", "err"))
+      .finally(() => {
+        toggle.disabled = false;
+        sync();
+      });
+  });
+  sync();
+  cart.watch(toggle, sync);
+  // the album page loads these tracks anyway, so it can show − straight away
+  if (labelled) void loadAlbum(path).then(sync, () => {});
+  return toggle;
+}
+
 function trackRow(t: Schemas["Track"], originId: number | null, onAlbumPage = false): HTMLElement {
   const entry = entryOf(t, originId);
   const [mark, toggle] = cartToggle(entry);
@@ -263,14 +315,15 @@ function popularRow(t: Schemas["Track"]): HTMLElement {
 /** A few results at a time in a grid, with round ‹ › buttons beside it to
  *  page through the rest (the search page's shelves, user, 2026-10-31). */
 function carousel(items: HTMLElement[], perPage: number, cls: string): HTMLElement {
-  const grid = h("div", { class: `${cls} min-w-0 flex-1` });
+  const grid = h("div", { class: `${cls} min-w-0 flex-1` }, ...items);
   const pages = Math.ceil(items.length / perPage);
   const step = (glyph: string, label: string) => h("button", { type: "button", class: "shelf-btn", "aria-label": label }, glyph);
   const prev = step("‹", "Previous results");
   const next = step("›", "More results");
   let page = 0;
   const show = () => {
-    grid.replaceChildren(...items.slice(page * perPage, (page + 1) * perPage));
+    // hidden, not removed: album tiles keep following the cart while off the page
+    items.forEach((el, n) => el.classList.toggle("hidden", Math.floor(n / perPage) !== page));
     prev.toggleAttribute("disabled", page === 0);
     next.toggleAttribute("disabled", page >= pages - 1);
   };
@@ -299,31 +352,40 @@ const openAlbum = (a: Schemas["Album"]) => () => go({ browse: "album", source: a
 
 /** An album: a small cover with the title and "by" credit beside it. */
 function albumTile(a: Schemas["Album"]): HTMLElement {
-  return h(
-    "button",
-    { type: "button", class: "tile tile-row min-w-0 text-left", "aria-label": `Open ${a.title} by ${a.artist}`, onclick: openAlbum(a) },
-    cover(a.title, coverOf(a.source, a.cover_id ?? "", 160)),
+  return albumCard(
+    a,
     h(
-      "div",
-      { class: "min-w-0" },
-      h("div", { class: "title" }, a.title),
-      h("div", { class: "sub" }, h("span", { class: "credit" }, a.artist)),
-      h("div", { class: "sub text-xs" }, albumInfo(a)),
+      "button",
+      { type: "button", class: "tile tile-row min-w-0 text-left", "aria-label": `Open ${a.title} by ${a.artist}`, onclick: openAlbum(a) },
+      cover(a.title, coverOf(a.source, a.cover_id ?? "", 300)),
+      h(
+        "div",
+        { class: "min-w-0" },
+        h("div", { class: "title" }, a.title),
+        h("div", { class: "sub" }, h("span", { class: "credit" }, a.artist)),
+        h("div", { class: "sub text-xs" }, albumInfo(a)),
+      ),
     ),
   );
 }
 
 /** An album on an artist's page: the big cover with its details under it. */
 function albumSleeve(a: Schemas["Album"]): HTMLElement {
-  return h(
-    "button",
-    { type: "button", class: "tile min-w-0 text-left", "aria-label": `Open ${a.title}`, onclick: openAlbum(a) },
-    cover(a.title, coverOf(a.source, a.cover_id ?? "", 300)),
-    h("div", { class: "title mt-2" }, a.title),
-    h("div", { class: "sub" }, h("span", { class: "credit" }, a.artist)),
-    h("div", { class: "sub text-xs" }, albumInfo(a)),
+  return albumCard(
+    a,
+    h(
+      "button",
+      { type: "button", class: "tile min-w-0 text-left", "aria-label": `Open ${a.title}`, onclick: openAlbum(a) },
+      cover(a.title, coverOf(a.source, a.cover_id ?? "", 300)),
+      h("div", { class: "title mt-2" }, a.title),
+      h("div", { class: "sub" }, h("span", { class: "credit" }, a.artist)),
+      h("div", { class: "sub text-xs" }, albumInfo(a)),
+    ),
   );
 }
+
+// a tile is a button, so the + sits beside it, not inside it
+const albumCard = (a: Schemas["Album"], tile: HTMLElement) => h("div", { class: "album-card" }, tile, albumToggle(a.title, a.source, a.id));
 
 // ── the cart ────────────────────────────────────────────────────────────
 

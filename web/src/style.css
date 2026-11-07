@@ -212,6 +212,28 @@
   .tile-row {
     @apply flex items-center gap-3;
   }
+  /* an album tile with its add-all + over the corner of the text */
+  .album-card {
+    @apply relative min-w-0;
+  }
+  .album-card > .tile {
+    @apply w-full;
+  }
+  .album-card:hover > .tile {
+    @apply bg-base-200;
+  }
+  .album-card > .tile-row {
+    @apply pr-10;
+  }
+  .album-card > .icon-btn {
+    @apply absolute top-1/2 right-1 -translate-y-1/2;
+  }
+  .sleeves .album-card > .icon-btn {
+    @apply top-auto bottom-2 translate-y-0;
+  }
+  .sleeves .album-card .sub {
+    @apply pr-8;
+  }
   .browse-head {
     @apply mb-8 flex items-end gap-5;
   }
@@ -246,7 +268,11 @@
     @apply col-start-1 md:col-start-auto;
   }
   .tile-row > .cover {
-    @apply size-16 w-16 text-sm;
+    @apply size-24 w-24 text-sm;
+  }
+  /* album names get two lines before they cut off */
+  .tile-row .title {
+    @apply line-clamp-2 whitespace-normal;
   }
   .shelf-btn {
     @apply grid size-8 flex-none cursor-pointer place-items-center rounded-full md:size-10 border border-line text-xl text-muted hover:border-base-content hover:text-base-content disabled:cursor-default disabled:opacity-30;

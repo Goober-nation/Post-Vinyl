@@ -39,7 +39,16 @@ export const cart = {
     save([...items, entry]);
     return true;
   },
+  /** Adds what isn't in yet, in order, up to the limit, as one change. Returns how many went in. */
+  addAll(entries: CartEntry[]): number {
+    const next = [...items];
+    for (const e of entries) if (next.length < CART_MAX && !next.some((i) => same(i, e))) next.push(e);
+    const added = next.length - items.length;
+    if (added) save(next);
+    return added;
+  },
   remove: (t: { source: string; track_id: string }) => save(items.filter((i) => !same(i, t))),
+  removeAll: (entries: CartEntry[]) => save(items.filter((i) => !entries.some((e) => same(i, e)))),
   replace: (next: CartEntry[]) => save(next),
   /** Calls `fn` on every change while `el` is on the page; stops once it's gone. */
   watch(el: Element, fn: () => void): void {
