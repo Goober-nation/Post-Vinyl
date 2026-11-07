@@ -19,6 +19,7 @@ navidrome_data_test*/
 slskd_config_test/
 config_test/
 docker-compose.test.yml
+docker-compose.local.yml
 
 # Live-test run artifacts (tests/live/ --artifacts) — timelines from a
 # specific run against a specific stack, never useful to anyone else

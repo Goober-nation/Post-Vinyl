@@ -41,6 +41,7 @@ If anything is unclear or missing, ask before proceeding.
 - Work goes on topic branches, branched from and merged into **`main`**. The old app's line is the
   tag `old-app-dev`.
 - Never commit or push without an explicit "commit" / "push" from the user.
+- When pushing or re-deploying, if there are changes you are not certain about staging and committing, ask before pushing.
 
 ---
 
