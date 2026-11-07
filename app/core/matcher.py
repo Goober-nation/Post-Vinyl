@@ -28,6 +28,8 @@ import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from app.core.normalize import strip_feat
+
 AUDIO_EXTS = {
     "flac", "mp3", "m4a", "aac", "ogg", "opus", "wav", "aiff", "aif",
     "alac", "ape", "wv", "wma",
@@ -67,6 +69,8 @@ _SAME_SONG_RE = re.compile(
     r"collectors edition)(?:\s+\d{4})?\s*[\)\]]?\s*$",
     re.IGNORECASE,
 )
+_TRAILING_BRACKET_RE = re.compile(r"\s*[(\[{]([^()\[\]{}]*)[)\]}]\s*$")
+_TRAILING_DASH_RE = re.compile(r"\s+[-–—]\s+([^-–—]+)$")
 _APOS_RE = re.compile(r"['’ʼ`´]")
 _ACRONYM_RE = re.compile(r"\b(?:\w\.){1,}\w\b\.?")
 # Peers write "$uicideboy$" as "suicideboys".
@@ -103,11 +107,60 @@ def norm_title(text: str) -> str:
     return norm(text)
 
 
+@dataclass(frozen=True)
+class ParsedTitle:
+    """A title split for comparing songs; the file's own title is never changed."""
+
+    text: str  # the base as written, for searching
+    base: str  # the base, folded
+    versions: frozenset[str]  # "pnau remix", "live": a different recording
+    unknown: frozenset[str]  # "freestyle", "09 06 2014": can't tell
+
+
+def _is_version(words_: list[str]) -> bool:
+    return not (
+        " ".join(words_) in SAME_SONG_PHRASES or words_[:1] == ["from"]
+    ) and any(has_phrase(words_, phrase) for phrase in EXCLUDED_VERSIONS)
+
+
+def parse_title(title: str) -> ParsedTitle:
+    """Trailing qualifiers off a title: a bracket, or a dash followed by a known
+    version. Features go; only trailing parts count, so "(What's the Story)
+    Morning Glory?" and "Live and Let Die" keep their words (user, 2026-11-07)."""
+    text = strip_feat(title).strip()
+    versions: set[str] = set()
+    unknown: set[str] = set()
+    while True:
+        cut = _SAME_SONG_RE.sub("", text)
+        tail = _TRAILING_BRACKET_RE.search(cut) or _TRAILING_DASH_RE.search(cut)
+        inner = tail.group(1) if tail else ""
+        if tail and tail.re is _TRAILING_DASH_RE and not _is_version(words(inner)):
+            tail = None
+        if tail is None or not cut[: tail.start()].strip():
+            text = cut if cut.strip() else text
+            break
+        folded = " ".join(words(inner))
+        if _is_version(words(inner)):
+            versions.add(folded)
+        elif folded and not folded.isdigit() and folded not in SAME_SONG_PHRASES:
+            unknown.add(folded)
+        text = cut[: tail.start()]
+    return ParsedTitle(
+        text.strip(), norm(text), frozenset(versions), frozenset(unknown)
+    )
+
+
 def same_song(title: str, artist: str, other_title: str, other_artist: str) -> bool:
-    """The same title, and one artist credit holds the other ("A" and "A feat. B")."""
+    """The same base title and version, and one artist credit holds the other
+    ("A" and "A feat. B"). Features never decide; an unknown bracket only clashes
+    with a different unknown one."""
     ours, theirs = norm(artist), norm(other_artist)
-    return norm_title(title) == norm_title(other_title) and bool(
-        ours and theirs and (ours in theirs or theirs in ours)
+    a, b = parse_title(title), parse_title(other_title)
+    return (
+        a.base == b.base
+        and a.versions == b.versions
+        and (not a.unknown or not b.unknown or a.unknown == b.unknown)
+        and bool(ours and theirs and (ours in theirs or theirs in ours))
     )
 
 

@@ -20,8 +20,7 @@ from dataclasses import dataclass
 from app.clients.navidrome import Cover
 from app.clients.navidrome import Song as LibrarySong
 from app.core.file_song import UNKNOWN_ARTIST, names_from_path
-from app.core.matcher import same_song
-from app.core.normalize import strip_feat
+from app.core.matcher import parse_title, same_song
 from app.services.files import FilesService
 from app.services.requests import DEFAULT_PAGE_SIZE, clamp_page
 from app.services.tagging import (
@@ -139,8 +138,10 @@ class LibraryService(LibraryServiceBase):
 
     def find(self, title: str, artist: str) -> str | None:
         """The library's copy of a song by name, whoever got it there. The search
-        drops "(feat. X)": every word must hit, and the file may not credit X."""
-        query = " ".join(strip_feat(title).split())
+        takes the base title: every word must hit, and the file may word its
+        qualifiers differently."""
+        # Navidrome's search finds nothing with a "*" in it (live 2026-11-07: Y***'D OUT)
+        query = " ".join(parse_title(title).text.replace("*", " ").split())
         hits, _ = self._files.library_page(query, 0, OWNED_HITS)
         return next(
             (

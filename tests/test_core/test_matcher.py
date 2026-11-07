@@ -6,7 +6,14 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.matcher import Song, album_folder_ok, is_match, label_file, same_song
+from app.core.matcher import (
+    Song,
+    album_folder_ok,
+    is_match,
+    label_file,
+    parse_title,
+    same_song,
+)
 
 KP = Song("Karma Police", "Radiohead", "OK Computer", 264)
 
@@ -130,3 +137,58 @@ def test_same_song_across_sources() -> None:
     assert same_song("Stay", "Mac Miller", "STAY", "Mac Miller feat. Someone")
     assert not same_song("Stay", "Mac Miller", "Stay", "Rihanna")
     assert not same_song("Stay", "Mac Miller", "Stay (live)", "Mac Miller")
+
+
+@pytest.mark.parametrize(
+    ("title", "other"),
+    [
+        ("The Never", "The Never (feat. LV Baby)"),
+        ("Wild Season (feat. Florence Welch)", "Wild Season"),
+        ("Song (feat. A)", "Song (feat. B)"),
+        ("Song - feat. A", "Song"),
+        ("Frontstreet", "Frontstreet (Freestyle)"),
+        ("untitled 08", "untitled 08 (09.06.2014.)"),
+        (
+            "ryoach ! (freestyle killa)",
+            "ryoach ! (freestyle killa) (feat. Marika Sage)",
+        ),
+        ("Wicked Game", "Wicked Game (Remastered)"),
+        ("Intergalactic - Remastered 2009", "Intergalactic"),
+        ("Barbra Streisand (Original Mix)", "Barbra Streisand"),
+        ("Oh (Original Version)", "Oh"),
+        ("I'm A Believer (From Shrek Soundtrack)", "I'm A Believer"),
+        ("Song (Live)", "Song - Live"),
+        ("Y***'D OUT", "Y***’d Out"),
+    ],
+)
+def test_same_song_despite_qualifiers(title: str, other: str) -> None:
+    assert same_song(title, "A", other, "A")
+    assert same_song(other, "A", title, "A")
+
+
+@pytest.mark.parametrize(
+    ("title", "other"),
+    [
+        ("Cold Heart", "Cold Heart (PNAU Remix)"),
+        ("Song", "Song (Live)"),
+        ("Song", "Song - Live"),
+        ("Song (Live)", "Song (Acoustic)"),
+        ("Song (Freestyle)", "Song (Live)"),
+        ("Song (Part 1)", "Song (Part 2)"),
+        ("Song (PNAU Remix)", "Song (Other Remix)"),
+        ("Stay - Don't Go", "Stay"),
+        ("Live and Let Die", "Let Die"),
+        ("(What's the Story) Morning Glory?", "Morning Glory?"),
+    ],
+)
+def test_different_songs_despite_a_shared_title(title: str, other: str) -> None:
+    assert not same_song(title, "A", other, "A")
+    assert not same_song(other, "A", title, "A")
+
+
+def test_parse_title_keeps_words_in_the_title() -> None:
+    assert parse_title("Live and Let Die").base == "live and let die"
+    assert parse_title("Remix to Ignition").versions == frozenset()
+    assert parse_title("(Intro)").text == "(Intro)"
+    parsed = parse_title("The Never (feat. LV Baby) (Live)")
+    assert (parsed.text, parsed.versions) == ("The Never", frozenset({"live"}))
